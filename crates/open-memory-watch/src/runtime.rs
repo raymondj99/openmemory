@@ -121,9 +121,9 @@ impl crate::Watcher {
         let (tx, rx) = mpsc::sync_channel::<DebounceEventResult>(64);
 
         let mut debouncer = new_debouncer(options.debounce, None, move |res| {
-            // The debouncer's tokio-free closure runs on its own thread.
-            // Drop the result if the consumer is gone — it means the
-            // run loop is exiting.
+            // The debouncer's closure runs on its own thread. Drop the
+            // result if the consumer is gone — that means the run loop
+            // has exited and the channel has been dropped.
             let _ = tx.send(res);
         })
         .map_err(WatchError::from)?;
