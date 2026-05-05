@@ -2,6 +2,24 @@
 //! index as JSON-RPC 2.0 tools over stdio (always) and HTTP (feature
 //! `mcp-http`).
 //!
+//! The crate ships eleven `open_memory_*` tools — seven memory tools, three
+//! index tools, one consolidation tool. See [`tools`] for the full list and
+//! [`docs/02-openclaw-integration.md`] for the wire-level contract.
+//!
+//! [`docs/02-openclaw-integration.md`]: https://github.com/raymondj99/open-memory/blob/main/docs/02-openclaw-integration.md
+//!
+//! # Quick start
+//!
+//! ```no_run
+//! # async fn run() -> anyhow::Result<()> {
+//! use open_memory_core::config::Config;
+//! use open_memory_mcp::{OpenMemoryMcpServer, run_stdio_server};
+//!
+//! let server = OpenMemoryMcpServer::open(Config::default(), "default")?;
+//! run_stdio_server(server).await?;
+//! # Ok(()) }
+//! ```
+//!
 //! # Why no `rmcp` dependency?
 //!
 //! Every published `rmcp` (0.13+ and all 1.x) uses if-let chains that need
