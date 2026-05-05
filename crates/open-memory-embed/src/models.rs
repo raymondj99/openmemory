@@ -8,8 +8,9 @@
 //! Each entry carries the metadata needed to download the model
 //! (Hugging Face URL + SHA-256), tokenize inputs (prefixes, max
 //! tokens), and run inference ([`PoolingStrategy`] + ONNX output
-//! tensor name). SHA-256 fields are empty placeholders today; the
-//! download path that actually verifies them lands in a future commit.
+//! tensor name). SHA-256 fields are empty placeholders in v0.1; a
+//! future release will wire them through to a verifying download
+//! path so the integrity check happens before the model is loaded.
 
 use crate::onnx::{OnnxOptions, PoolingStrategy};
 
