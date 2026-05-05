@@ -11,7 +11,13 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod remember;
+pub mod schema;
+pub mod store;
 pub mod types;
 
 pub use error::{MemoryError, MemoryResult};
+pub use remember::{ObservationInput, RelationInput, RememberOutcome};
+pub use schema::MEMORY_SCHEMA_VERSION;
+pub use store::{EntityListRow, MemoryStatus, MemoryStore, MEMORY_DB_FILE};
 pub use types::{new_id, Entity, EntityType, MemoryTier, Observation, Relation};
