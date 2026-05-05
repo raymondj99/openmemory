@@ -64,6 +64,10 @@ pub struct MemoryStatus {
     pub tier_counts: HashMap<String, u64>,
     /// Vector store entry count, as reported by the search engine.
     pub vector_count: u64,
+    /// Number of read-only `Connection` slots in the recall pool. `1`
+    /// for the in-memory store; `Config::num_jobs()` for the on-disk
+    /// store.
+    pub reader_pool_size: usize,
 }
 
 /// One row of [`MemoryStore::list_entities`]. Pairs the entity record with
@@ -370,51 +374,65 @@ impl MemoryStore {
     /// Tombstoned observations are excluded; observations with a
     /// `valid_until` already in the past are excluded.
     pub fn get_entity_observations(&self, entity_id: &str) -> MemoryResult<Vec<Observation>> {
-        let conn = self.lock_db();
         let now = self.clock.now_secs();
-        let mut stmt = conn.prepare(
-            "SELECT id, entity_id, content, observed_at, valid_from, valid_until,
-                    confidence, source, tombstoned, access_count
-             FROM observations
-             WHERE entity_id = ?1
-                AND tombstoned = 0
-                AND (valid_until IS NULL OR valid_until > ?2)
-             ORDER BY observed_at DESC",
-        )?;
-        let mut out = Vec::new();
-        let mut rows = stmt.query(params![entity_id, now])?;
-        while let Some(row) = rows.next()? {
-            out.push(row_to_observation(row)?);
-        }
-        Ok(out)
+        self.with_reader(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, entity_id, content, observed_at, valid_from, valid_until,
+                        confidence, source, tombstoned, access_count
+                 FROM observations
+                 WHERE entity_id = ?1
+                    AND tombstoned = 0
+                    AND (valid_until IS NULL OR valid_until > ?2)
+                 ORDER BY observed_at DESC",
+            )?;
+            let mut out = Vec::new();
+            let mut rows = stmt.query(params![entity_id, now])?;
+            while let Some(row) = rows.next()? {
+                out.push(row_to_observation(row)?);
+            }
+            Ok(out)
+        })
     }
 
     /// Active relations for `entity_id` (in either direction). Tombstoned
     /// relations and those with an expired `valid_until` are excluded.
     pub fn get_entity_relations(&self, entity_id: &str) -> MemoryResult<Vec<Relation>> {
-        let conn = self.lock_db();
         let now = self.clock.now_secs();
-        let mut stmt = conn.prepare(
-            "SELECT id, from_entity, to_entity, relation_type, weight, created_at,
-                    valid_from, valid_until, source
-             FROM relations
-             WHERE (from_entity = ?1 OR to_entity = ?1)
-                AND (valid_until IS NULL OR valid_until > ?2)
-             ORDER BY created_at DESC",
-        )?;
-        let mut out = Vec::new();
-        let mut rows = stmt.query(params![entity_id, now])?;
-        while let Some(row) = rows.next()? {
-            out.push(row_to_relation(row)?);
-        }
-        Ok(out)
+        self.with_reader(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, from_entity, to_entity, relation_type, weight, created_at,
+                        valid_from, valid_until, source
+                 FROM relations
+                 WHERE (from_entity = ?1 OR to_entity = ?1)
+                    AND (valid_until IS NULL OR valid_until > ?2)
+                 ORDER BY created_at DESC",
+            )?;
+            let mut out = Vec::new();
+            let mut rows = stmt.query(params![entity_id, now])?;
+            while let Some(row) = rows.next()? {
+                out.push(row_to_relation(row)?);
+            }
+            Ok(out)
+        })
     }
 
     /// Aggregate counts + timestamps for the store.
     pub fn status(&self) -> MemoryResult<MemoryStatus> {
-        let conn = self.lock_db();
         let now = self.clock.now_secs();
+        let pool_size = self.readers.size();
+        self.with_reader(|conn| Self::status_from(conn, now, pool_size, &self.engine))
+    }
 
+    /// Inner status query — runs everything against a single read-only
+    /// connection so the snapshot is consistent (every count comes from
+    /// the same WAL end mark). Vector-store count comes from the engine
+    /// regardless; that's its own concurrency story.
+    fn status_from(
+        conn: &Connection,
+        now: i64,
+        pool_size: usize,
+        engine: &OpenEngine,
+    ) -> MemoryResult<MemoryStatus> {
         let total_entities: u64 =
             conn.query_row("SELECT COUNT(*) FROM entities", [], |r| r.get(0))?;
         let total_observations: u64 = conn.query_row(
@@ -488,7 +506,7 @@ impl MemoryStore {
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(MEMORY_SCHEMA_VERSION);
 
-        let vector_count = self.engine.engine.count().unwrap_or(0);
+        let vector_count = engine.engine.count().unwrap_or(0);
 
         Ok(MemoryStatus {
             total_entities,
@@ -501,6 +519,7 @@ impl MemoryStore {
             entity_type_counts,
             tier_counts,
             vector_count,
+            reader_pool_size: pool_size,
         })
     }
 }
