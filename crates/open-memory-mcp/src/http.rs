@@ -13,9 +13,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::body::Body;
 use axum::extract::State;
-use axum::http::{header, HeaderMap, Method, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -75,10 +74,7 @@ async fn handle_mcp(
 
     match server.handle(request) {
         Some(response) => json_response(StatusCode::OK, response),
-        None => Response::builder()
-            .status(StatusCode::NO_CONTENT)
-            .body(Body::empty())
-            .unwrap(),
+        None => StatusCode::NO_CONTENT.into_response(),
     }
 }
 
@@ -91,8 +87,10 @@ fn is_json_content_type(headers: &HeaderMap) -> bool {
 
 fn json_response(status: StatusCode, response: JsonRpcResponse) -> Response {
     let mut r = (status, Json(response)).into_response();
-    r.headers_mut()
-        .insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+    r.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
     r
 }
 
@@ -109,7 +107,7 @@ mod tests {
     use open_memory_core::config::Config;
     use open_memory_graph::MemoryStore;
 
-    use axum::body::to_bytes;
+    use axum::body::{to_bytes, Body};
     use axum::http::Request;
     use tower::ServiceExt;
 
