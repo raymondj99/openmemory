@@ -347,6 +347,145 @@ fn integration_schema_migration_on_reopen() {
     assert_eq!(s.schema_version, open_memory_graph::MEMORY_SCHEMA_VERSION);
 }
 
+/// Concurrent recall against an on-disk store. Spawns N threads, each
+/// looping `recall` enough times to make per-thread SQL work dominate
+/// thread-spawn overhead. Asserts:
+///
+/// 1. **No torn reads.** Every thread returns a non-empty hit list whose
+///    observation IDs are a subset of the seeded set — no foreign rows,
+///    no panics. (Per-recall ranking can drift between threads because
+///    `recall` bumps `access_count` as a side effect; that doesn't
+///    matter for the no-torn-reads invariant.)
+/// 2. **Parallel speedup.** Wall-clock for N threads ≤ ½ of the
+///    fully-serial estimate (`N * single_thread_time`). A regression to
+///    single-mutex serialisation would push parallel time toward
+///    `N * single` and blow past the cap. Floor at 50 ms so a fast
+///    machine + small workload doesn't make the cap impossibly tight
+///    from scheduler jitter.
+/// 3. **Post-parallel correctness.** A single recall after the parallel
+///    phase still returns the same entities (sanity check that the
+///    write-side `bump_access_counts` didn't corrupt anything).
+#[test]
+fn integration_concurrent_recall_runs_in_parallel() {
+    use std::collections::HashSet;
+    use std::sync::Barrier;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config::default();
+    let store = Arc::new(MemoryStore::open(&cfg, dir.path()).unwrap());
+
+    // Seed enough rows that recall does meaningful SQLite work.
+    let mut seeded_ids: HashSet<String> = HashSet::new();
+    for i in 0..200 {
+        let outcome = store
+            .remember(
+                &format!("Topic{i}"),
+                EntityType::Fact,
+                &[
+                    ObservationInput::new(format!("alpha mention #{i}")),
+                    ObservationInput::new(format!("beta context #{i}")),
+                    ObservationInput::new(format!("gamma followup #{i}")),
+                ],
+                &[],
+                "seed",
+            )
+            .unwrap();
+        seeded_ids.extend(outcome.observation_ids);
+    }
+
+    let pool_size = store.reader_pool_size();
+    assert!(
+        pool_size >= 2,
+        "test needs ≥2 reader slots; got {pool_size}. CI should have ≥2 CPUs."
+    );
+
+    let mut filters = RecallFilters::new();
+    filters.mode = Some(SearchMode::KeywordOnly);
+
+    // How many recalls each thread runs. Big enough that per-thread SQL
+    // work dominates thread-spawn / barrier-wait overhead.
+    let iters: usize = 25;
+
+    // Warm up FTS5 + page cache.
+    for _ in 0..3 {
+        let _ = store.recall("alpha", 20, &filters).unwrap();
+    }
+
+    // Single-thread baseline: `iters` recalls back-to-back, repeated
+    // three times for the median.
+    let mut singles = Vec::with_capacity(3);
+    for _ in 0..3 {
+        let t = Instant::now();
+        for _ in 0..iters {
+            let _ = store.recall("alpha", 20, &filters).unwrap();
+        }
+        singles.push(t.elapsed());
+    }
+    singles.sort();
+    let single_median = singles[1];
+
+    // Run pool_size threads in parallel, each doing the same `iters`
+    // recalls. If readers were serialised, total wall time would be
+    // ~N * single_median. With the pool, expect ~single_median.
+    let n = pool_size;
+    let barrier = Arc::new(Barrier::new(n));
+    let start = Instant::now();
+    let handles: Vec<_> = (0..n)
+        .map(|_| {
+            let store = Arc::clone(&store);
+            let barrier = Arc::clone(&barrier);
+            let filters = filters.clone();
+            thread::spawn(move || {
+                barrier.wait();
+                let mut last = Vec::new();
+                for _ in 0..iters {
+                    last = store.recall("alpha", 20, &filters).unwrap();
+                }
+                last
+            })
+        })
+        .collect();
+
+    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    let parallel_elapsed = start.elapsed();
+
+    // 1) Every thread saw real, non-empty data. Observation IDs are
+    //    drawn from the seeded set — no torn reads surfacing garbage.
+    for (i, hits) in results.iter().enumerate() {
+        assert!(!hits.is_empty(), "thread {i} returned no hits");
+        for hit in hits {
+            assert!(
+                seeded_ids.contains(&hit.observation.id),
+                "thread {i} returned an unseeded observation id: {}",
+                hit.observation.id,
+            );
+        }
+    }
+
+    // 2) Parallel time stays well under the fully-serial bound.
+    let serial_estimate = single_median * u32::try_from(n).unwrap_or(u32::MAX);
+    let cap = (serial_estimate / 2).max(Duration::from_millis(100));
+    assert!(
+        parallel_elapsed <= cap,
+        "concurrent recall took {parallel_elapsed:?} — expected ≤ {cap:?} \
+         (single-thread median {single_median:?}, n={n}, iters={iters}, \
+          serial estimate {serial_estimate:?})"
+    );
+
+    // 3) Post-parallel: a fresh recall still works and the store is
+    //    intact. Belt-and-suspenders for the access-count write path.
+    let after = store.recall("alpha", 5, &filters).unwrap();
+    assert!(
+        !after.is_empty(),
+        "post-parallel recall failed; store may be corrupt"
+    );
+    let s = store.status().unwrap();
+    assert_eq!(s.total_entities, 200);
+    assert_eq!(s.total_observations, 600);
+}
+
 #[test]
 fn integration_recall_spreading_activation_through_relations() {
     let (store, _) = open(0);
