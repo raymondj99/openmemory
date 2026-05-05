@@ -9,12 +9,14 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod onnx;
 pub mod traits;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
 pub use error::{EmbedError, EmbedResult};
+pub use onnx::{OnnxEmbedder, OnnxOptions, PoolingStrategy};
 pub use traits::Embedder;
 
 #[cfg(any(test, feature = "testing"))]

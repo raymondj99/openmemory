@@ -18,3 +18,10 @@ testing = []
 open-memory-core = { workspace = true, features = ["testing"] }
 thiserror = { workspace = true }
 blake3 = { workspace = true }
+ort = { workspace = true }
+tokenizers = { workspace = true }
+ndarray = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
