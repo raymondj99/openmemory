@@ -17,6 +17,7 @@
 
 #[cfg(not(feature = "fts5"))]
 pub mod bm25;
+pub mod cache;
 pub mod error;
 pub mod flat;
 #[cfg(feature = "fts5")]
@@ -28,6 +29,7 @@ pub mod traits;
 
 #[cfg(not(feature = "fts5"))]
 pub use bm25::Bm25Store;
+pub use cache::{CachedSearchEngine, DEFAULT_CACHE_CAPACITY, DEFAULT_CACHE_TTL};
 pub use error::{IndexError, IndexResult};
 pub use flat::FlatVectorIndex;
 #[cfg(feature = "fts5")]
