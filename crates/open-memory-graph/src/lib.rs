@@ -52,6 +52,7 @@
 pub mod consolidate;
 pub mod error;
 pub mod forget;
+pub mod pool;
 pub mod recall;
 pub mod remember;
 pub mod schema;
@@ -62,6 +63,7 @@ pub use consolidate::{ConsolidateConfig, ConsolidateReport};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use open_memory_index::SearchMode;
+pub use pool::ReadPool;
 pub use recall::{
     RecallFilters, RecallResult, CORRECTION_RETRIEVAL_BOOST, RECALL_MIN_SCORE,
     SPREADING_DISTANCE_DECAY,
