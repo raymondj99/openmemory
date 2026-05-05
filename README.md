@@ -25,10 +25,11 @@ running under OpenClaw.
 
 Existing memory MCPs either (a) ship as Python services with non-trivial
 ops cost, or (b) project memory through a file-shaped abstraction
-designed for one specific vendor. `open-memory` is a single static
-Rust binary, SQLite under the hood, no network at rest, and an MCP
-tool surface designed for the open agent ecosystem rather than any
-specific frontier model.
+designed for one specific vendor. `open-memory` is a single Rust
+binary, links host SQLite by default to avoid C/C++ compilation,
+falls back to pure-Rust BM25 when FTS5 is unavailable, and exposes an
+MCP tool surface designed for the open agent ecosystem rather than
+any specific frontier model.
 
 ## What you get
 
@@ -39,7 +40,9 @@ specific frontier model.
 - **MCP server.** Stdio always; Streamable HTTP behind a feature flag.
 - **OpenClaw integration.** `open-memory integrate openclaw` writes
   the config entry and gets out of your way.
-- **Single binary.** ~8 MB default, ~18 MB with everything.
+- **Fast default build.** ~8 MB default with no C/C++ compilation;
+  links the host SQLite library; native-heavy features such as bundled
+  SQLite, embeddings, and HNSW are opt-in.
 
 ## Documentation
 
