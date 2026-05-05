@@ -21,3 +21,15 @@ testing = ["open-memory-core/testing"]
 open-memory-core = { workspace = true }
 open-memory-index = { workspace = true, default-features = false }
 open-memory-embed = { workspace = true, default-features = false, optional = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+rusqlite = { workspace = true }
+blake3 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+open-memory-core = { workspace = true, features = ["testing"] }

@@ -946,9 +946,17 @@ dependencies = [
 name = "open-memory-graph"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "open-memory-core",
  "open-memory-embed",
  "open-memory-index",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -1662,6 +1670,17 @@ dependencies = [
  "cxx",
  "cxx-build",
  "numkong",
+]
+
+[[package]]
+name = "uuid"
+version = "1.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddd74a9687298c6858e9b88ec8935ec45d22e8fd5e6394fa1bd4e99a87789c76"
+dependencies = [
+ "getrandom 0.4.2",
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]
