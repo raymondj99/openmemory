@@ -13,6 +13,10 @@ pub mod models;
 pub mod onnx;
 pub mod traits;
 
+#[cfg(feature = "sqlite")]
+pub mod cache;
+pub mod json_cache;
+
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
@@ -20,6 +24,11 @@ pub use error::{EmbedError, EmbedResult};
 pub use models::{Model, ModelRegistry, NOMIC_EMBED_TEXT_V1_5, SNOWFLAKE_ARCTIC_EMBED_L_V2};
 pub use onnx::{OnnxEmbedder, OnnxOptions, PoolingStrategy};
 pub use traits::Embedder;
+
+#[cfg(feature = "sqlite")]
+pub use cache::EmbeddingCache;
+#[cfg(not(feature = "sqlite"))]
+pub use json_cache::EmbeddingCache;
 
 #[cfg(any(test, feature = "testing"))]
 pub use testing::StubEmbedder;
