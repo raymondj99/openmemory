@@ -9,6 +9,7 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod models;
 pub mod onnx;
 pub mod traits;
 
@@ -16,6 +17,7 @@ pub mod traits;
 pub mod testing;
 
 pub use error::{EmbedError, EmbedResult};
+pub use models::{Model, ModelRegistry, NOMIC_EMBED_TEXT_V1_5, SNOWFLAKE_ARCTIC_EMBED_L_V2};
 pub use onnx::{OnnxEmbedder, OnnxOptions, PoolingStrategy};
 pub use traits::Embedder;
 
