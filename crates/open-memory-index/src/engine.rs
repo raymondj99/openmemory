@@ -1,0 +1,184 @@
+//! Single-call factory for the hybrid search engine + metadata store.
+//!
+//! Both `open-memory-graph` and `open-memory-mcp` need the same "open or
+//! create the index" ceremony. Centralising the cfg-gate ladder here
+//! means a new backend or a renamed on-disk file changes one place.
+//!
+//! On-disk layout under `data_dir`:
+//!
+//! ```text
+//! <data_dir>/
+//!   metadata.sqlite
+//!   fulltext.sqlite       (or bm25.json with --no-default-features)
+//!   vectors.bin
+//! ```
+
+use std::path::{Path, PathBuf};
+
+use open_memory_core::config::Config;
+
+use crate::cache::CachedSearchEngine;
+use crate::error::IndexResult;
+use crate::flat::FlatVectorIndex;
+use crate::hybrid::HybridSearchEngine;
+#[cfg(feature = "sqlite")]
+use crate::metadata::MetadataStore;
+
+#[cfg(feature = "fts5")]
+use crate::fts5::Fts5Store;
+#[cfg(not(feature = "fts5"))]
+use crate::bm25::Bm25Store;
+
+#[cfg(feature = "fts5")]
+type DefaultFts = Fts5Store;
+#[cfg(not(feature = "fts5"))]
+type DefaultFts = Bm25Store;
+
+/// File names under `data_dir`.
+pub const METADATA_FILE: &str = "metadata.sqlite";
+pub const VECTORS_FILE: &str = "vectors.bin";
+#[cfg(feature = "fts5")]
+pub const FULLTEXT_FILE: &str = "fulltext.sqlite";
+#[cfg(not(feature = "fts5"))]
+pub const FULLTEXT_FILE: &str = "bm25.json";
+
+/// Bundle of stores returned by [`open_engine`]. Keep them together so
+/// callers don't have to thread three independent handles.
+pub struct OpenEngine {
+    pub engine: CachedSearchEngine<FlatVectorIndex, DefaultFts>,
+    #[cfg(feature = "sqlite")]
+    pub metadata: MetadataStore,
+    pub data_dir: PathBuf,
+}
+
+/// Open or create every store that lives under `data_dir`. Wires them into a
+/// `HybridSearchEngine` and an LRU cache; reads `alpha` and the cache TTL
+/// (when present) from `config`.
+pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> {
+    if !data_dir.as_os_str().is_empty() {
+        std::fs::create_dir_all(data_dir)?;
+    }
+
+    let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
+
+    #[cfg(feature = "fts5")]
+    let fulltext_store = Fts5Store::open(&data_dir.join(FULLTEXT_FILE))?;
+    #[cfg(not(feature = "fts5"))]
+    let fulltext_store = Bm25Store::open(&data_dir.join(FULLTEXT_FILE))?;
+
+    #[cfg(feature = "sqlite")]
+    let metadata = MetadataStore::open(&data_dir.join(METADATA_FILE))?;
+
+    let hybrid = HybridSearchEngine::with_rrf_k(
+        vector_store,
+        fulltext_store,
+        config.search.hybrid_alpha,
+        config.search.rrf_k as f32,
+    );
+    let cached = CachedSearchEngine::new(hybrid);
+
+    Ok(OpenEngine {
+        engine: cached,
+        #[cfg(feature = "sqlite")]
+        metadata,
+        data_dir: data_dir.to_path_buf(),
+    })
+}
+
+/// Persist the current vector index (and BM25 store, when used) to disk.
+/// FTS5 / SQLite stores commit on every mutation and need no flushing.
+pub fn flush(open: &OpenEngine) -> IndexResult<()> {
+    use crate::traits::VectorIndex;
+    open.engine
+        .inner()
+        .vector_store()
+        .save(&open.data_dir.join(VECTORS_FILE))?;
+    #[cfg(not(feature = "fts5"))]
+    {
+        use crate::traits::FullTextStore;
+        open.engine.inner().fulltext_store().flush()?;
+    }
+    #[cfg(feature = "sqlite")]
+    open.metadata.checkpoint()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::traits::{IndexEntry, SearchMode};
+
+    fn entry(uri: &str, text: &str, vec: Vec<f32>) -> IndexEntry {
+        IndexEntry {
+            uri: uri.into(),
+            text: text.into(),
+            chunk_index: 0,
+            vector: vec,
+        }
+    }
+
+    #[test]
+    fn open_creates_data_dir_and_recovers_after_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let data_dir = dir.path().join("nested/profile");
+        let cfg = Config::default();
+
+        // First open: empty.
+        {
+            let opened = open_engine(&cfg, &data_dir).unwrap();
+            assert_eq!(opened.engine.count().unwrap(), 0);
+
+            opened
+                .engine
+                .insert(&[
+                    entry("u://a", "hello world", vec![1.0, 0.0, 0.0]),
+                    entry("u://b", "rust programming", vec![0.0, 1.0, 0.0]),
+                ])
+                .unwrap();
+
+            let r = opened
+                .engine
+                .search(&[1.0, 0.0, 0.0], "hello", 10, SearchMode::Hybrid, 0)
+                .unwrap();
+            assert_eq!(r[0].uri, "u://a");
+
+            flush(&opened).unwrap();
+        }
+
+        // Second open: persisted data is back.
+        {
+            let opened = open_engine(&cfg, &data_dir).unwrap();
+            assert_eq!(opened.engine.count().unwrap(), 2);
+            let r = opened
+                .engine
+                .search(&[0.0, 1.0, 0.0], "rust", 10, SearchMode::Hybrid, 0)
+                .unwrap();
+            assert_eq!(r[0].uri, "u://b");
+        }
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn metadata_store_is_initialised() {
+        let dir = tempfile::tempdir().unwrap();
+        let data_dir = dir.path().join("p");
+        let cfg = Config::default();
+        let opened = open_engine(&cfg, &data_dir).unwrap();
+        assert_eq!(
+            opened.metadata.schema_version().unwrap(),
+            crate::metadata::METADATA_SCHEMA_VERSION
+        );
+        // Side-effect: file exists on disk.
+        assert!(data_dir.join(METADATA_FILE).exists());
+    }
+
+    #[test]
+    fn alpha_passes_through_from_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = Config::default();
+        cfg.search.hybrid_alpha = 0.3;
+        let opened = open_engine(&cfg, dir.path()).unwrap();
+        assert!((opened.engine.inner().alpha() - 0.3).abs() < f32::EPSILON);
+    }
+}
