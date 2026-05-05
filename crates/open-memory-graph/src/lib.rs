@@ -34,11 +34,38 @@
 //!
 //! # Concurrency
 //!
-//! `MemoryStore` is `Send + Sync`. Internally it wraps a
-//! `Mutex<rusqlite::Connection>` (SQLite is serial anyway) and an
-//! `RwLock<()>` rebuild barrier. Recall takes the read lock; writes and
-//! consolidation take the write lock — concurrent recall therefore never
-//! observes a half-rebuilt vector index.
+//! `MemoryStore` is `Send + Sync`. The internal layout is:
+//!
+//! - **One writer connection** behind a `Mutex<rusqlite::Connection>`.
+//!   Every mutation (`remember`, `forget*`, `consolidate`, the
+//!   post-recall `bump_access_counts`) serialises on this. SQLite is
+//!   serial anyway; the mutex matches that contract.
+//! - **A read-only connection pool** ([`ReadPool`], one of:
+//!   `Config::num_jobs()` slots opened with
+//!   `OPEN_READ_ONLY | OPEN_NO_MUTEX` for the on-disk store; a single
+//!   slot proxying the writer mutex for the in-memory store). Every
+//!   public read (`recall`, `get_entity*`, `list_entities`,
+//!   `get_entity_observations`, `get_entity_relations`, `status`) runs
+//!   through `with_reader`, so concurrent recall calls execute in
+//!   parallel without serialising on the writer.
+//! - **An `RwLock<()>` rebuild barrier**, separate from any SQLite
+//!   handle. Recall takes the read lock around the *vector*-index
+//!   search; remember / forget* / consolidate take the write lock
+//!   while they sync the index. This prevents a recall from observing
+//!   a half-rebuilt vector index. It is *not* the SQLite reader/writer
+//!   barrier — that's WAL's job.
+//!
+//! WAL mode plus `OPEN_READ_ONLY | OPEN_NO_MUTEX` is what makes the
+//! reader pool safe: SQLite arbitrates reader/writer interleaving via
+//! WAL frames, never via per-connection locks. A `remember` mid-recall
+//! does not block any reader, and committed writes are visible to the
+//! next read transaction (each `with_reader` call starts a fresh
+//! transaction). See `pool.rs` for the open-flags + pragma rationale.
+//!
+//! Across-process concurrency is also fine on the same on-disk
+//! database: a second `open-memory mcp` process just opens its own
+//! pool of handles; SQLite's WAL plus the configured `busy_timeout`
+//! keeps the writer arbitration honest.
 //!
 //! # Features
 //!
