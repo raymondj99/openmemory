@@ -10,10 +10,13 @@ repository.workspace = true
 workspace = true
 
 [features]
-# `default = []` rather than putting watch behind a feature inside this
-# crate: the feature gate lives one level up at the CLI / MCP crates,
-# which choose whether to depend on us at all.
-default = []
+# `sqlite` and `fts5` are forwarded to open-memory-index because the
+# watcher writes to MetadataStore + the FTS5 index unconditionally.
+# Off by default at the CLI level (the CLI crate enables them); on by
+# default here so cargo test against the bare crate works.
+default = ["fts5"]
+sqlite = ["open-memory-index/sqlite", "open-memory-graph/sqlite"]
+fts5 = ["sqlite", "open-memory-index/fts5", "open-memory-graph/fts5"]
 
 [dependencies]
 open-memory-core = { workspace = true }

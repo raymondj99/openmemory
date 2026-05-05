@@ -31,8 +31,14 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod index;
+pub mod scan;
 
 pub use error::{WatchError, WatchResult};
+pub use index::{
+    path_to_uri, process_file, remove_path, ProcessOutcome, ScanReport, SkipReason,
+    SOURCE_TYPE_FILE_WATCHER,
+};
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -107,10 +113,6 @@ impl WatchOptions {
 /// share a single handle. Dropping the [`Watcher`] cancels the watcher
 /// loop on the next iteration.
 pub struct Watcher {
-    // `memory` is unread in this scaffolding commit; the indexer in
-    // commit 9b is what dereferences it. Suppress the dead-code warning
-    // so the workspace stays clippy-clean across the partial state.
-    #[allow(dead_code)]
     pub(crate) memory: Arc<MemoryStore>,
     pub(crate) root: PathBuf,
     pub(crate) options: WatchOptions,
