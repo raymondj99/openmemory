@@ -13,9 +13,22 @@ workspace = true
 default = ["fts5", "sqlite"]
 sqlite = []
 fts5 = ["sqlite"]
-hnsw = []
+hnsw = ["dep:usearch"]
 simd = []
 testing = ["open-memory-core/testing"]
 
 [dependencies]
 open-memory-core = { workspace = true }
+thiserror.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+rusqlite = { workspace = true, features = ["bundled"] }
+lru.workspace = true
+usearch = { workspace = true, optional = true }
+tracing.workspace = true
+
+[dev-dependencies]
+open-memory-core = { workspace = true, features = ["testing"] }
+tempfile.workspace = true
+proptest.workspace = true
+paste.workspace = true
