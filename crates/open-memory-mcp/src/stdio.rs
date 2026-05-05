@@ -113,10 +113,11 @@ mod tests {
     async fn tools_list_advertises_registered_tools() {
         let resp =
             one_request(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#).await;
-        // Once memory tools land in commit 32 the list is non-empty; the
-        // scaffold-only state would advertise no tools.
+        // Sanity-check that `tools/list` returns the registered set rather
+        // than an empty advert; specific tool coverage lives in
+        // `tools::tests::registry_lists_all_eleven_tools`.
         assert!(resp.contains("\"tools\""));
-        assert!(resp.contains("open_memory_status") || resp.contains("\"tools\":[]"));
+        assert!(resp.contains("open_memory_status"));
     }
 
     #[tokio::test]
