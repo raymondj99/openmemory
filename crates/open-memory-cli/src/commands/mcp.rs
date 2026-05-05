@@ -45,7 +45,11 @@ async fn run_http(server: OpenMemoryMcpServer, addr: std::net::SocketAddr) -> Re
     open_memory_mcp::http::serve(server, addr).await
 }
 
+// Async signature is required so the call site at `serve` matches both
+// feature variants. With `mcp-http` off there is nothing to await, so
+// allow `clippy::unused_async` rather than fork the call site.
 #[cfg(not(feature = "mcp-http"))]
+#[allow(clippy::unused_async)]
 async fn run_http(_server: OpenMemoryMcpServer, _addr: std::net::SocketAddr) -> Result<()> {
     anyhow::bail!(
         "this build does not include the mcp-http feature; rebuild open-memory with \
