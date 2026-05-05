@@ -201,16 +201,14 @@ impl MemoryStore {
         self.db.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Acquire the rebuild-lock for read (recall path). Used by `recall`,
-    /// which lands in commit 27.
-    #[allow(dead_code)]
+    /// Acquire the rebuild-lock for read. Held by the recall path so a
+    /// search never observes a half-rebuilt vector index.
     pub(crate) fn read_rebuild(&self) -> std::sync::RwLockReadGuard<'_, ()> {
         self.rebuild_lock.read().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Acquire the rebuild-lock for write (rebuild path). Used by
-    /// `remember` / `consolidate` in commits 26/29.
-    #[allow(dead_code)]
+    /// Acquire the rebuild-lock for write. Held by `remember`, `forget`,
+    /// and `consolidate` while they mutate the underlying indices.
     pub(crate) fn write_rebuild(&self) -> std::sync::RwLockWriteGuard<'_, ()> {
         self.rebuild_lock.write().unwrap_or_else(|e| e.into_inner())
     }
@@ -592,8 +590,9 @@ mod tests {
     #[test]
     fn list_entities_returns_inserted_rows_ordered_by_updated_at() {
         let (store, _dir) = open_temp();
-        // Hand-insert entities directly via SQL since the public `remember`
-        // path lands in commit 26.
+        // Hand-insert entities directly via SQL so this exercise targets the
+        // store's `list_entities` query in isolation, independent of the
+        // higher-level `remember` flow.
         {
             let conn = store.lock_db();
             conn.execute(
