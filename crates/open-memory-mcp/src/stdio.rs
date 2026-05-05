@@ -113,11 +113,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tools_list_returns_empty_array_at_scaffold() {
+    async fn tools_list_advertises_registered_tools() {
         let resp =
             one_request(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#)
                 .await;
-        assert!(resp.contains("\"tools\":[]"));
+        // Once memory tools land in commit 32 the list is non-empty; the
+        // scaffold-only state would advertise no tools.
+        assert!(resp.contains("\"tools\""));
+        assert!(resp.contains("open_memory_status") || resp.contains("\"tools\":[]"));
     }
 
     #[tokio::test]

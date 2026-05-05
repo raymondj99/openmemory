@@ -286,9 +286,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_starts_empty_until_tools_land() {
+    fn registry_includes_all_seven_memory_tools() {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
-        assert!(names.is_empty(), "expected empty pre-tool registry: {names:?}");
+        for expected in [
+            "open_memory_remember",
+            "open_memory_recall",
+            "open_memory_list_entities",
+            "open_memory_get_entity",
+            "open_memory_forget",
+            "open_memory_forget_entity",
+            "open_memory_status",
+        ] {
+            assert!(names.contains(&expected), "missing {expected}: {names:?}");
+        }
     }
 
     #[test]
@@ -299,9 +309,11 @@ mod tests {
     }
 
     #[test]
-    fn router_is_empty_at_scaffold() {
+    fn router_lists_descriptors_in_registration_order() {
         let r = build_router();
-        assert!(r.is_empty());
-        assert_eq!(r.len(), 0);
+        let descriptors = r.list_descriptors();
+        assert_eq!(descriptors.len(), r.len());
+        let names: Vec<_> = r.names();
+        assert_eq!(names[0], "open_memory_remember");
     }
 }
