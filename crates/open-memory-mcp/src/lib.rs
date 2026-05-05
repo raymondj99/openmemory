@@ -14,8 +14,7 @@
 //! The shape mirrors rmcp closely so swapping in the upstream SDK later is a
 //! mechanical change: a [`Tool`] trait per tool, a single
 //! [`ToolRouter`] keeping handlers + descriptors colocated, and a
-//! [`ServerHandler`] trait that the upcoming HTTP transport implements
-//! against.
+//! `ServerHandler` shape the HTTP transport implements against.
 
 #![forbid(unsafe_code)]
 

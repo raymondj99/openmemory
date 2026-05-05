@@ -8,10 +8,10 @@
 //! from it on demand.
 //!
 //! The vector rebuild path (when a write changes enough rows that the index
-//! needs a full refresh) is gated by [`MemoryStore::write_rebuild`], the
-//! `RwLock<()>` barrier introduced in commit 25. Concurrent recall calls
-//! grab the read lock; the rebuild grabs the write lock; concurrent recall
-//! therefore never observes a half-rebuilt vector index.
+//! needs a full refresh) is gated by an `RwLock<()>` barrier on the store.
+//! Concurrent recall calls grab the read lock; the rebuild grabs the write
+//! lock; concurrent recall therefore never observes a half-rebuilt vector
+//! index.
 
 use std::sync::Arc;
 

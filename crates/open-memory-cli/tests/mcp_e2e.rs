@@ -38,13 +38,12 @@ fn binary_path() -> std::path::PathBuf {
         "open-memory"
     };
     path.push(exe_name);
-    if !path.exists() {
-        panic!(
-            "could not locate open-memory binary (env var CARGO_BIN_EXE_open-memory \
-             missing and {} doesn't exist)",
-            path.display()
-        );
-    }
+    assert!(
+        path.exists(),
+        "could not locate open-memory binary (env var CARGO_BIN_EXE_open-memory \
+         missing and {} doesn't exist)",
+        path.display()
+    );
     path
 }
 
@@ -106,9 +105,10 @@ impl ServerHandle {
             if n > 0 {
                 break;
             }
-            if started.elapsed() > READ_DEADLINE {
-                panic!("timed out waiting for response to {method}");
-            }
+            assert!(
+                started.elapsed() <= READ_DEADLINE,
+                "timed out waiting for response to {method}",
+            );
         }
         let response: Value = serde_json::from_str(line.trim())
             .unwrap_or_else(|e| panic!("parse response {line:?}: {e}"));

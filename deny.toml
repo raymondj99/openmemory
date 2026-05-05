@@ -29,7 +29,14 @@ wildcards = "allow"
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-ignore = []
+ignore = [
+    # `paste` is archived but actively-pulled in transitively by
+    # tokenizers via macro_rules_attribute. There is no safe upgrade
+    # path until tokenizers (or its callers) replace it. Re-evaluate
+    # when tokenizers >= 0.21 ships.
+    "RUSTSEC-2024-0436",
+]
+yanked = "warn"
 
 [sources]
 unknown-registry = "deny"

@@ -17,6 +17,7 @@ pub fn run(shell: Shell) -> Result<()> {
 }
 
 #[cfg(not(feature = "completions"))]
+#[allow(dead_code)]
 pub fn run() -> anyhow::Result<()> {
     anyhow::bail!(
         "this build does not include the completions feature; rebuild open-memory with \

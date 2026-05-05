@@ -10,7 +10,7 @@
 //! - [`FlatVectorIndex`] — brute-force cosine similarity (default)
 //! - `HnswIndex` — approximate nearest-neighbour (feature `hnsw`)
 //! - [`Fts5Store`] — SQLite FTS5 BM25 keyword search (feature `fts5`)
-//! - [`Bm25Store`] — pure-Rust BM25 (when `fts5` is off)
+//! - `Bm25Store` — pure-Rust BM25 (when `fts5` is off)
 //! - [`MetadataStore`] — SQLite metadata table (feature `sqlite`)
 //! - [`HybridSearchEngine`] — RRF fusion of vector + keyword results
 //! - [`CachedSearchEngine`] — LRU TTL cache over the hybrid engine
@@ -57,7 +57,7 @@ pub type DefaultVectorStore = HnswIndex;
 pub type DefaultVectorStore = FlatVectorIndex;
 
 /// The default full-text backend. [`Fts5Store`] when the `fts5` feature is
-/// enabled (default), [`Bm25Store`] otherwise.
+/// enabled (default), `Bm25Store` otherwise.
 #[cfg(feature = "fts5")]
 pub type DefaultFullTextStore = Fts5Store;
 #[cfg(not(feature = "fts5"))]

@@ -164,7 +164,7 @@ impl ToolRouter {
 }
 
 /// Build the [`ToolRouter`] populated with every tool the server exposes.
-/// The matching list in [`registry`] keeps [`server_instructions`] in sync.
+/// The matching list in `registry()` keeps `server_instructions()` in sync.
 pub fn build_router() -> ToolRouter {
     ToolRouter::new(registry())
 }

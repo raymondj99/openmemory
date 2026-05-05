@@ -4,9 +4,9 @@
 //! connection guarded by a [`Mutex`]. BM25 ranking is computed by SQLite via
 //! the built-in `rank` alias.
 //!
-//! User queries are escaped before being passed to FTS5 — see
-//! [`fts5_escape`] for the rules. Each whitespace token becomes a quoted
-//! exact match, with a bare prefix variant for tokens of length ≥ 4.
+//! User queries are escaped before being passed to FTS5 — each whitespace
+//! token becomes a quoted exact match, with a bare prefix variant for
+//! tokens of length ≥ 4. See the private `fts5_escape` helper for details.
 
 use std::path::Path;
 use std::sync::Mutex;
