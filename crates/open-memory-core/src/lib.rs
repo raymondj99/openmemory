@@ -6,3 +6,4 @@ pub mod clock;
 pub mod config;
 pub mod error;
 pub mod migrations;
+pub mod retry;
