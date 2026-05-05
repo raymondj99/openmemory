@@ -10,6 +10,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod consolidate;
 pub mod error;
 pub mod forget;
 pub mod recall;
@@ -18,6 +19,7 @@ pub mod schema;
 pub mod store;
 pub mod types;
 
+pub use consolidate::{ConsolidateConfig, ConsolidateReport};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use open_memory_index::SearchMode;
