@@ -140,7 +140,9 @@ mod tests {
 
     #[test]
     fn index_entry_builder() {
-        let e = IndexEntry::new("u", "t").with_vector(vec![1.0, 2.0]).with_chunk_index(7);
+        let e = IndexEntry::new("u", "t")
+            .with_vector(vec![1.0, 2.0])
+            .with_chunk_index(7);
         assert_eq!(e.uri, "u");
         assert_eq!(e.text, "t");
         assert_eq!(e.chunk_index, 7);
@@ -154,7 +156,11 @@ mod tests {
 
     #[test]
     fn search_mode_serde_round_trip() {
-        for mode in [SearchMode::Hybrid, SearchMode::VectorOnly, SearchMode::KeywordOnly] {
+        for mode in [
+            SearchMode::Hybrid,
+            SearchMode::VectorOnly,
+            SearchMode::KeywordOnly,
+        ] {
             let s = serde_json::to_string(&mode).unwrap();
             let back: SearchMode = serde_json::from_str(&s).unwrap();
             assert_eq!(mode, back);

@@ -73,8 +73,8 @@ impl HnswIndex {
 
     fn with_dimensions(dim: usize) -> IndexResult<Self> {
         let opts = options(dim);
-        let index = Index::new(&opts)
-            .map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
+        let index =
+            Index::new(&opts).map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
         Ok(Self {
             inner: Mutex::new(Inner {
                 index,
@@ -139,17 +139,15 @@ impl HnswIndex {
         }
 
         let opts = options(0);
-        let index = Index::new(&opts)
-            .map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
+        let index =
+            Index::new(&opts).map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
         let path_str = hnsw_path
             .to_str()
             .ok_or_else(|| IndexError::InvalidInput("non-UTF-8 path".into()))?;
-        index
-            .load(path_str)
-            .map_err(|e| IndexError::Corrupt {
-                path: hnsw_path.clone(),
-                detail: format!("usearch load: {e}"),
-            })?;
+        index.load(path_str).map_err(|e| IndexError::Corrupt {
+            path: hnsw_path.clone(),
+            detail: format!("usearch load: {e}"),
+        })?;
         let dimensions = index.dimensions();
 
         Ok(Self {
@@ -363,7 +361,8 @@ mod tests {
     #[test]
     fn insert_and_count() {
         let h = HnswIndex::new();
-        h.insert(&[entry("u://a", "hello", 0, vec![1.0, 0.0, 0.0])]).unwrap();
+        h.insert(&[entry("u://a", "hello", 0, vec![1.0, 0.0, 0.0])])
+            .unwrap();
         assert_eq!(h.count().unwrap(), 1);
     }
 
@@ -415,7 +414,13 @@ mod tests {
         let err = h
             .insert(&[entry("u://b", "y", 0, vec![1.0, 0.0, 0.0])])
             .unwrap_err();
-        assert!(matches!(err, IndexError::DimensionMismatch { expected: 2, actual: 3 }));
+        assert!(matches!(
+            err,
+            IndexError::DimensionMismatch {
+                expected: 2,
+                actual: 3
+            }
+        ));
     }
 
     #[test]
@@ -427,7 +432,13 @@ mod tests {
                 entry("u://b", "y", 0, vec![1.0, 0.0, 0.0]),
             ])
             .unwrap_err();
-        assert!(matches!(err, IndexError::DimensionMismatch { expected: 2, actual: 3 }));
+        assert!(matches!(
+            err,
+            IndexError::DimensionMismatch {
+                expected: 2,
+                actual: 3
+            }
+        ));
     }
 
     #[test]
@@ -489,7 +500,8 @@ mod tests {
     #[test]
     fn export_all_round_trips_metadata() {
         let h = HnswIndex::new();
-        h.insert(&[entry("u://x", "the text", 5, vec![0.1, 0.2, 0.3])]).unwrap();
+        h.insert(&[entry("u://x", "the text", 5, vec![0.1, 0.2, 0.3])])
+            .unwrap();
         let exported = h.export_all().unwrap();
         assert_eq!(exported.len(), 1);
         assert_eq!(exported[0].uri, "u://x");

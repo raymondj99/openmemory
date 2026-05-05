@@ -19,9 +19,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use open_memory_graph::{
-    EntityType, MemoryError, ObservationInput, RecallFilters, RelationInput,
-};
+use open_memory_graph::{EntityType, MemoryError, ObservationInput, RecallFilters, RelationInput};
 
 use crate::params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
 use crate::protocol::{CallToolResult, JsonRpcError, ToolDescriptor};
@@ -43,13 +41,11 @@ fn parse_args<T: for<'de> Deserialize<'de>>(args: Value) -> Result<T, JsonRpcErr
 fn map_memory_err(e: MemoryError) -> JsonRpcError {
     match e {
         MemoryError::InvalidInput(msg) => JsonRpcError::invalid_params(msg),
-        MemoryError::EntityNotFound(_) | MemoryError::ObservationNotFound(_) => {
-            JsonRpcError {
-                code: -32004,
-                message: e.to_string(),
-                data: None,
-            }
-        }
+        MemoryError::EntityNotFound(_) | MemoryError::ObservationNotFound(_) => JsonRpcError {
+            code: -32004,
+            message: e.to_string(),
+            data: None,
+        },
         other => JsonRpcError::internal_error(other.to_string()),
     }
 }
@@ -116,7 +112,9 @@ impl Tool for OpenMemoryRememberTool {
     fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
         let req: RememberInput = parse_args(args)?;
         if req.entity.trim().is_empty() {
-            return Err(JsonRpcError::invalid_params("entity name must not be empty"));
+            return Err(JsonRpcError::invalid_params(
+                "entity name must not be empty",
+            ));
         }
         if req.observations.is_empty() {
             return Err(JsonRpcError::invalid_params(
@@ -360,8 +358,7 @@ const GET_ENTITY_DESC: &str =
 pub struct OpenMemoryGetEntityTool;
 impl Tool for OpenMemoryGetEntityTool {
     const NAME: &'static str = "open_memory_get_entity";
-    const SUMMARY: &'static str =
-        "Get entity + observations + relations bundle by name.";
+    const SUMMARY: &'static str = "Get entity + observations + relations bundle by name.";
     const GROUP: ToolGroup = ToolGroup::Memory;
 
     fn descriptor() -> ToolDescriptor {
@@ -641,20 +638,16 @@ mod tests {
     #[test]
     fn remember_rejects_empty_entity() {
         let s = server();
-        let err = OpenMemoryRememberTool::call(
-            &s,
-            json!({"entity": "", "observations": ["x"]}),
-        )
-        .unwrap_err();
+        let err = OpenMemoryRememberTool::call(&s, json!({"entity": "", "observations": ["x"]}))
+            .unwrap_err();
         assert_eq!(err.code, -32602);
     }
 
     #[test]
     fn remember_rejects_empty_observation_list() {
         let s = server();
-        let err =
-            OpenMemoryRememberTool::call(&s, json!({"entity": "X", "observations": []}))
-                .unwrap_err();
+        let err = OpenMemoryRememberTool::call(&s, json!({"entity": "X", "observations": []}))
+            .unwrap_err();
         assert_eq!(err.code, -32602);
     }
 
@@ -713,11 +706,9 @@ mod tests {
                 "t",
             )
             .unwrap();
-        let r = OpenMemoryForgetTool::call(
-            &s,
-            json!({"observation_id": outcome.observation_ids[0]}),
-        )
-        .unwrap();
+        let r =
+            OpenMemoryForgetTool::call(&s, json!({"observation_id": outcome.observation_ids[0]}))
+                .unwrap();
         let body = match &r.content[0] {
             crate::protocol::Content::Text { text } => text.clone(),
         };
@@ -727,8 +718,7 @@ mod tests {
     #[test]
     fn forget_entity_unknown_surfaces_typed_error() {
         let s = server();
-        let err =
-            OpenMemoryForgetEntityTool::call(&s, json!({"entity": "Missing"})).unwrap_err();
+        let err = OpenMemoryForgetEntityTool::call(&s, json!({"entity": "Missing"})).unwrap_err();
         assert_eq!(err.code, -32004);
     }
 

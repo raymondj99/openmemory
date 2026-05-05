@@ -127,10 +127,7 @@ impl MemoryStore {
             let prune_targets = self.collect_decay_prune_targets(config, now)?;
             report.observations_pruned = prune_targets.len();
 
-            if !to_tombstone.is_empty()
-                || !prune_targets.is_empty()
-                || !access_rollups.is_empty()
-            {
+            if !to_tombstone.is_empty() || !prune_targets.is_empty() || !access_rollups.is_empty() {
                 let mut conn = self.lock_db();
                 let tx = conn.transaction()?;
                 for id in &to_tombstone {

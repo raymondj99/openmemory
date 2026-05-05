@@ -97,8 +97,7 @@ impl MemoryStore {
         };
 
         let observation_ids: Vec<String> = {
-            let mut stmt =
-                conn.prepare("SELECT id FROM observations WHERE entity_id = ?1")?;
+            let mut stmt = conn.prepare("SELECT id FROM observations WHERE entity_id = ?1")?;
             let mut rows = stmt.query(params![entity_id])?;
             let mut out = Vec::new();
             while let Some(r) = rows.next()? {
@@ -154,10 +153,7 @@ impl MemoryStore {
         };
 
         for id in &stale_ids {
-            tx.execute(
-                "DELETE FROM observations WHERE id = ?1",
-                params![id],
-            )?;
+            tx.execute("DELETE FROM observations WHERE id = ?1", params![id])?;
         }
 
         // Phase 2: collect orphaned entities — no observations at all
@@ -301,15 +297,8 @@ mod tests {
             .remember(
                 "Raymond",
                 EntityType::Person,
-                &[
-                    ObservationInput::new("a"),
-                    ObservationInput::new("b"),
-                ],
-                &[RelationInput::new(
-                    "uses",
-                    "Sift",
-                    EntityType::Project,
-                )],
+                &[ObservationInput::new("a"), ObservationInput::new("b")],
+                &[RelationInput::new("uses", "Sift", EntityType::Project)],
                 "t",
             )
             .unwrap();
@@ -388,13 +377,7 @@ mod tests {
     fn prune_collects_orphaned_entities() {
         let (store, _) = open_with_clock();
         store
-            .remember(
-                "Lonely",
-                EntityType::Concept,
-                &[],
-                &[],
-                "t",
-            )
+            .remember("Lonely", EntityType::Concept, &[], &[], "t")
             .unwrap();
         let report = store.prune().unwrap();
         assert_eq!(report.entities_removed, 1);

@@ -5,13 +5,9 @@
 
 use anyhow::{Context, Result};
 use open_memory_core::config::Config;
-use open_memory_graph::{
-    EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput,
-};
+use open_memory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput};
 
-use crate::cli::{
-    ForgetEntityArgs, ListEntitiesArgs, RecallArgs, RememberArgs,
-};
+use crate::cli::{ForgetEntityArgs, ListEntitiesArgs, RecallArgs, RememberArgs};
 
 fn open(profile: &str) -> Result<MemoryStore> {
     let config = Config::load().unwrap_or_default();

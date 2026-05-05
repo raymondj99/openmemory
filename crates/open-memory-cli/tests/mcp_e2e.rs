@@ -260,10 +260,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
     assert!(body.contains("\"modified\": true"));
 
     // 11. open_memory_forget_entity — hard-delete Raymond
-    let resp = server.call_tool(
-        "open_memory_forget_entity",
-        json!({"entity": "Raymond"}),
-    );
+    let resp = server.call_tool("open_memory_forget_entity", json!({"entity": "Raymond"}));
     let body = tool_text(&resp);
     assert!(body.contains("\"observations_removed\""));
 

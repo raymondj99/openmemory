@@ -277,11 +277,8 @@ mod tests {
     #[test]
     fn index_then_search_round_trip() {
         let s = server();
-        OpenMemoryIndexTextTool::call(
-            &s,
-            json!({"uri": "note://hello", "text": "hello world"}),
-        )
-        .unwrap();
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://hello", "text": "hello world"}))
+            .unwrap();
         let r = OpenMemorySearchTool::call(
             &s,
             json!({"query": "hello", "limit": 5, "mode": "keyword"}),
@@ -295,16 +292,10 @@ mod tests {
     #[test]
     fn search_uri_prefix_filter() {
         let s = server();
-        OpenMemoryIndexTextTool::call(
-            &s,
-            json!({"uri": "note://a", "text": "alpha mention"}),
-        )
-        .unwrap();
-        OpenMemoryIndexTextTool::call(
-            &s,
-            json!({"uri": "doc://a", "text": "alpha mention"}),
-        )
-        .unwrap();
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://a", "text": "alpha mention"}))
+            .unwrap();
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "doc://a", "text": "alpha mention"}))
+            .unwrap();
         let r = OpenMemorySearchTool::call(
             &s,
             json!({
@@ -322,20 +313,14 @@ mod tests {
     #[test]
     fn delete_drops_entry_from_results() {
         let s = server();
-        OpenMemoryIndexTextTool::call(
-            &s,
-            json!({"uri": "note://gone", "text": "to be deleted"}),
-        )
-        .unwrap();
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://gone", "text": "to be deleted"}))
+            .unwrap();
         let r = OpenMemoryDeleteTool::call(&s, json!({"uri": "note://gone"})).unwrap();
         let text = body(&r);
         assert!(text.contains("\"removed\": 1") || text.contains("\"removed\": 0"));
 
-        let r = OpenMemorySearchTool::call(
-            &s,
-            json!({"query": "deleted", "mode": "keyword"}),
-        )
-        .unwrap();
+        let r =
+            OpenMemorySearchTool::call(&s, json!({"query": "deleted", "mode": "keyword"})).unwrap();
         assert!(!body(&r).contains("note://gone"));
     }
 
@@ -372,11 +357,7 @@ mod tests {
     #[test]
     fn search_min_score_filters_low_results() {
         let s = server();
-        OpenMemoryIndexTextTool::call(
-            &s,
-            json!({"uri": "note://a", "text": "alpha"}),
-        )
-        .unwrap();
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://a", "text": "alpha"})).unwrap();
         // A min_score above any plausible BM25 keyword score should drop
         // every result. We don't assume an exact upper bound (FTS5 BM25
         // scores aren't normalised) — pick a value that's plainly higher

@@ -230,12 +230,8 @@ where
         }
         Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
-        Command::ListEntities(args) => {
-            commands::scriptable::list_entities(&cli.profile, args)
-        }
-        Command::ForgetEntity(args) => {
-            commands::scriptable::forget_entity(&cli.profile, args)
-        }
+        Command::ListEntities(args) => commands::scriptable::list_entities(&cli.profile, args),
+        Command::ForgetEntity(args) => commands::scriptable::forget_entity(&cli.profile, args),
         #[cfg(feature = "completions")]
         Command::Completions(args) => commands::completions::run(args.shell),
     }
@@ -309,12 +305,7 @@ mod tests {
 
     #[test]
     fn parse_mcp_with_http() {
-        let cli = Cli::parse_from([
-            "open-memory",
-            "mcp",
-            "--http",
-            "127.0.0.1:7800",
-        ]);
+        let cli = Cli::parse_from(["open-memory", "mcp", "--http", "127.0.0.1:7800"]);
         match cli.command {
             Command::Mcp(args) => assert!(args.http.is_some()),
             other => panic!("expected mcp, got {other:?}"),
@@ -323,12 +314,7 @@ mod tests {
 
     #[test]
     fn parse_consolidate() {
-        let cli = Cli::parse_from([
-            "open-memory",
-            "consolidate",
-            "--dedup-threshold",
-            "0.9",
-        ]);
+        let cli = Cli::parse_from(["open-memory", "consolidate", "--dedup-threshold", "0.9"]);
         match cli.command {
             Command::Consolidate(args) => {
                 assert_eq!(args.dedup_threshold, Some(0.9));

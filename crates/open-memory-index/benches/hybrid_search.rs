@@ -7,14 +7,12 @@
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use open_memory_index::{
-    FlatVectorIndex, HybridSearchEngine, IndexEntry, SearchMode,
-};
+use open_memory_index::{FlatVectorIndex, HybridSearchEngine, IndexEntry, SearchMode};
 
-#[cfg(feature = "fts5")]
-use open_memory_index::Fts5Store;
 #[cfg(not(feature = "fts5"))]
 use open_memory_index::Bm25Store;
+#[cfg(feature = "fts5")]
+use open_memory_index::Fts5Store;
 
 const DIMENSIONS: usize = 128;
 const TOP_K: usize = 10;
@@ -23,23 +21,27 @@ fn synthetic_vector(seed: u64, dim: usize) -> Vec<f32> {
     let mut state = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
     (0..dim)
         .map(|_| {
-            state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
             ((state >> 33) as f32 / u32::MAX as f32) * 2.0 - 1.0
         })
         .collect()
 }
 
 const WORDS: &[&str] = &[
-    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
-    "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa",
-    "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whiskey", "xray",
+    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet",
+    "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra", "tango",
+    "uniform", "victor", "whiskey", "xray",
 ];
 
 fn synthetic_text(seed: u64) -> String {
     let mut state = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
     let mut out = String::new();
     for _ in 0..16 {
-        state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
         let idx = (state as usize) % WORDS.len();
         if !out.is_empty() {
             out.push(' ');

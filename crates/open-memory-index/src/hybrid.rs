@@ -273,10 +273,7 @@ mod tests {
         let v = vec![r("x", 1.0), r("y", 0.5)];
         let k = vec![r("x", 1.0)];
         let fused = rrf_fuse(&v, &k, 0.5, 60.0, 10);
-        let by_uri: HashMap<&str, f32> = fused
-            .iter()
-            .map(|r| (r.uri.as_str(), r.score))
-            .collect();
+        let by_uri: HashMap<&str, f32> = fused.iter().map(|r| (r.uri.as_str(), r.score)).collect();
         assert!((by_uri["x"] - 1.0).abs() < 1e-5);
         let expected_y = (0.5 / 62.0) * 61.0;
         assert!((by_uri["y"] - expected_y).abs() < 1e-5);

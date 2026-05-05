@@ -158,8 +158,7 @@ impl MemoryStore {
         let mut conn = self.lock_db();
         let tx = conn.transaction()?;
 
-        let (entity_id, entity_existed) =
-            ensure_entity(&tx, name, entity_type, source, now)?;
+        let (entity_id, entity_existed) = ensure_entity(&tx, name, entity_type, source, now)?;
 
         let mut observation_ids = Vec::with_capacity(observations.len());
         let mut search_payload: Vec<(String, String)> = Vec::with_capacity(observations.len());
@@ -197,7 +196,11 @@ impl MemoryStore {
                 &tx,
                 &rel.target_name,
                 rel.target_type,
-                if rel.source.is_empty() { source } else { &rel.source },
+                if rel.source.is_empty() {
+                    source
+                } else {
+                    &rel.source
+                },
                 now,
             )?;
             let id = new_id();
@@ -526,11 +529,7 @@ mod tests {
                 "Raymond",
                 EntityType::Person,
                 &[],
-                &[RelationInput::new(
-                    "maintains",
-                    "sift",
-                    EntityType::Project,
-                )],
+                &[RelationInput::new("maintains", "sift", EntityType::Project)],
                 "agent",
             )
             .unwrap();

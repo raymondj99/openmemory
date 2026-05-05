@@ -148,10 +148,7 @@ impl OpenMemoryMcpServer {
 
     /// Handle one JSON-RPC request and return a (possibly empty) response.
     /// Notifications return `None`; requests return `Some(response)`.
-    pub fn handle(
-        &self,
-        req: JsonRpcRequest,
-    ) -> Option<JsonRpcResponse> {
+    pub fn handle(&self, req: JsonRpcRequest) -> Option<JsonRpcResponse> {
         let id = req.id.clone();
         match req.method.as_str() {
             "initialize" => Some(JsonRpcResponse::success(

@@ -27,10 +27,10 @@ use crate::hybrid::HybridSearchEngine;
 #[cfg(feature = "sqlite")]
 use crate::metadata::MetadataStore;
 
-#[cfg(feature = "fts5")]
-use crate::fts5::Fts5Store;
 #[cfg(not(feature = "fts5"))]
 use crate::bm25::Bm25Store;
+#[cfg(feature = "fts5")]
+use crate::fts5::Fts5Store;
 
 #[cfg(feature = "fts5")]
 type DefaultFts = Fts5Store;

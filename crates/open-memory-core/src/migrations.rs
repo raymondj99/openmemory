@@ -32,11 +32,9 @@ impl<'a> Migrator<'a> {
         let raw: Option<String> = self.conn.query_row(&sql, [], |row| row.get(0)).ok();
         match raw {
             None => Ok(0),
-            Some(s) => s.parse::<u32>().map_err(|e| {
-                OmError::Migration {
-                    version: 0,
-                    reason: format!("invalid schema_version row: {e}"),
-                }
+            Some(s) => s.parse::<u32>().map_err(|e| OmError::Migration {
+                version: 0,
+                reason: format!("invalid schema_version row: {e}"),
             }),
         }
     }
@@ -62,10 +60,12 @@ impl<'a> Migrator<'a> {
             }
             self.conn.execute_batch("BEGIN")?;
             let result: OmResult<()> = (|| {
-                self.conn.execute_batch(sql).map_err(|e| OmError::Migration {
-                    version,
-                    reason: e.to_string(),
-                })?;
+                self.conn
+                    .execute_batch(sql)
+                    .map_err(|e| OmError::Migration {
+                        version,
+                        reason: e.to_string(),
+                    })?;
                 let upsert = format!(
                     "INSERT OR REPLACE INTO {} (key, value) VALUES ('schema_version', ?1)",
                     self.table
@@ -126,11 +126,9 @@ mod tests {
         assert_eq!(m.current().unwrap(), 2);
 
         for t in ["a", "b"] {
-            conn.query_row(
-                "SELECT 1 FROM sqlite_master WHERE name = ?1",
-                [t],
-                |row| row.get::<_, i64>(0),
-            )
+            conn.query_row("SELECT 1 FROM sqlite_master WHERE name = ?1", [t], |row| {
+                row.get::<_, i64>(0)
+            })
             .unwrap();
         }
     }

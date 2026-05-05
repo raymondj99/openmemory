@@ -18,11 +18,7 @@ use crate::OpenMemoryMcpServer;
 /// EOF. Each line is parsed as a JSON-RPC 2.0 message; responses are written
 /// back terminated by `\n`. Notifications produce no response. Parse errors
 /// produce a JSON-RPC `-32700` response with no `id`.
-pub async fn run<R, W>(
-    server: OpenMemoryMcpServer,
-    read: R,
-    mut write: W,
-) -> anyhow::Result<()>
+pub async fn run<R, W>(server: OpenMemoryMcpServer, read: R, mut write: W) -> anyhow::Result<()>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -103,11 +99,12 @@ mod tests {
 
     #[tokio::test]
     async fn initialize_returns_protocol_version_and_tools_capability() {
-        let resp = one_request(
-            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
-        )
-        .await;
-        assert!(resp.contains("\"protocolVersion\":\"2024-11-05\"") || resp.contains("\"protocol_version\":\"2024-11-05\""));
+        let resp =
+            one_request(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#).await;
+        assert!(
+            resp.contains("\"protocolVersion\":\"2024-11-05\"")
+                || resp.contains("\"protocol_version\":\"2024-11-05\"")
+        );
         assert!(resp.contains("\"tools\""));
         assert!(resp.contains("\"name\":\"open-memory\""));
     }
@@ -115,8 +112,7 @@ mod tests {
     #[tokio::test]
     async fn tools_list_advertises_registered_tools() {
         let resp =
-            one_request(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#)
-                .await;
+            one_request(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#).await;
         // Once memory tools land in commit 32 the list is non-empty; the
         // scaffold-only state would advertise no tools.
         assert!(resp.contains("\"tools\""));
@@ -125,9 +121,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_method_returns_method_not_found() {
-        let resp =
-            one_request(r#"{"jsonrpc":"2.0","id":3,"method":"foo/bar","params":{}}"#)
-                .await;
+        let resp = one_request(r#"{"jsonrpc":"2.0","id":3,"method":"foo/bar","params":{}}"#).await;
         assert!(resp.contains("-32601"));
     }
 
@@ -140,10 +134,12 @@ mod tests {
 
     #[tokio::test]
     async fn notification_produces_no_response() {
-        let resp = one_request(
-            r#"{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}"#,
-        )
-        .await;
-        assert!(resp.is_empty(), "notification should produce no response: {resp}");
+        let resp =
+            one_request(r#"{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}"#)
+                .await;
+        assert!(
+            resp.is_empty(),
+            "notification should produce no response: {resp}"
+        );
     }
 }

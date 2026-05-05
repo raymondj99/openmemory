@@ -42,8 +42,7 @@ const CONSOLIDATE_DESC: &str =
 pub struct OpenMemoryConsolidateTool;
 impl Tool for OpenMemoryConsolidateTool {
     const NAME: &'static str = "open_memory_consolidate";
-    const SUMMARY: &'static str =
-        "Dedup + decay-prune the knowledge graph. Idempotent.";
+    const SUMMARY: &'static str = "Dedup + decay-prune the knowledge graph. Idempotent.";
     const GROUP: ToolGroup = ToolGroup::Maintenance;
 
     fn descriptor() -> ToolDescriptor {

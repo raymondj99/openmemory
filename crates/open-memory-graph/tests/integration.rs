@@ -12,8 +12,8 @@ use std::time::Instant;
 use open_memory_core::clock::{Clock, FixedClock};
 use open_memory_core::config::Config;
 use open_memory_graph::{
-    ConsolidateConfig, EntityType, MemoryError, MemoryStore, ObservationInput,
-    RecallFilters, RelationInput, SearchMode,
+    ConsolidateConfig, EntityType, MemoryError, MemoryStore, ObservationInput, RecallFilters,
+    RelationInput, SearchMode,
 };
 
 const SECONDS_PER_DAY: i64 = 86_400;
@@ -231,11 +231,7 @@ fn integration_status_after_writes_reports_counts() {
             "Raymond",
             EntityType::Person,
             &[ObservationInput::new("prefers Rust")],
-            &[RelationInput::new(
-                "maintains",
-                "Sift",
-                EntityType::Project,
-            )],
+            &[RelationInput::new("maintains", "Sift", EntityType::Project)],
             "t",
         )
         .unwrap();
@@ -316,7 +312,9 @@ fn integration_runs_under_two_seconds() {
     let mut filters = RecallFilters::new();
     filters.mode = Some(SearchMode::KeywordOnly);
     for i in 0..50 {
-        let _ = store.recall(&format!("observation #{i}"), 5, &filters).unwrap();
+        let _ = store
+            .recall(&format!("observation #{i}"), 5, &filters)
+            .unwrap();
     }
     assert!(
         start.elapsed().as_secs_f32() < 2.0,
@@ -357,11 +355,7 @@ fn integration_recall_spreading_activation_through_relations() {
             "Raymond",
             EntityType::Person,
             &[ObservationInput::new("Raymond is a name")],
-            &[RelationInput::new(
-                "maintains",
-                "Sift",
-                EntityType::Project,
-            )],
+            &[RelationInput::new("maintains", "Sift", EntityType::Project)],
             "t",
         )
         .unwrap();

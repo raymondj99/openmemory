@@ -312,8 +312,7 @@ impl MemoryStore {
                  LIMIT ?2 OFFSET ?3"
             );
             let mut stmt = conn.prepare(&sql)?;
-            let rows =
-                stmt.query_map(params![now, limit_i, offset_i], row_to_entity_row)?;
+            let rows = stmt.query_map(params![now, limit_i, offset_i], row_to_entity_row)?;
             collect_rows(rows)
         }
     }
@@ -321,10 +320,7 @@ impl MemoryStore {
     /// Active observations for `entity_id`, sorted by `observed_at` DESC.
     /// Tombstoned observations are excluded; observations with a
     /// `valid_until` already in the past are excluded.
-    pub fn get_entity_observations(
-        &self,
-        entity_id: &str,
-    ) -> MemoryResult<Vec<Observation>> {
+    pub fn get_entity_observations(&self, entity_id: &str) -> MemoryResult<Vec<Observation>> {
         let conn = self.lock_db();
         let now = self.clock.now_secs();
         let mut stmt = conn.prepare(
@@ -409,8 +405,8 @@ impl MemoryStore {
 
         let mut entity_type_counts: HashMap<String, u64> = HashMap::new();
         {
-            let mut stmt = conn
-                .prepare("SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type")?;
+            let mut stmt =
+                conn.prepare("SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type")?;
             let mut rows = stmt.query([])?;
             while let Some(row) = rows.next()? {
                 let k: String = row.get(0)?;

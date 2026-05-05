@@ -175,7 +175,10 @@ mod tests {
         let err = migrate(&conn).unwrap_err();
         match err {
             crate::MemoryError::Schema(msg) => {
-                assert!(msg.contains("99"), "msg should mention current version: {msg}");
+                assert!(
+                    msg.contains("99"),
+                    "msg should mention current version: {msg}"
+                );
             }
             other => panic!("expected Schema, got {other:?}"),
         }

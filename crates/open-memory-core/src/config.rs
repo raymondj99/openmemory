@@ -80,8 +80,7 @@ impl Config {
             return Ok(Self::default());
         }
         let content = std::fs::read_to_string(path)?;
-        let config: Self =
-            toml::from_str(&content).map_err(|e| OmError::Config(e.to_string()))?;
+        let config: Self = toml::from_str(&content).map_err(|e| OmError::Config(e.to_string()))?;
         config.validate()?;
         Ok(config)
     }
@@ -91,8 +90,7 @@ impl Config {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let content =
-            toml::to_string_pretty(self).map_err(|e| OmError::Config(e.to_string()))?;
+        let content = toml::to_string_pretty(self).map_err(|e| OmError::Config(e.to_string()))?;
         std::fs::write(path, content)?;
         Ok(())
     }
@@ -130,7 +128,6 @@ impl Config {
         }
     }
 }
-
 
 impl SearchSection {
     fn default_hybrid_alpha() -> f32 {

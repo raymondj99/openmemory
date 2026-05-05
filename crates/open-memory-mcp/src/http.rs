@@ -91,10 +91,8 @@ fn is_json_content_type(headers: &HeaderMap) -> bool {
 
 fn json_response(status: StatusCode, response: JsonRpcResponse) -> Response {
     let mut r = (status, Json(response)).into_response();
-    r.headers_mut().insert(
-        header::CONTENT_TYPE,
-        "application/json".parse().unwrap(),
-    );
+    r.headers_mut()
+        .insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
     r
 }
 
@@ -142,7 +140,12 @@ mod tests {
     async fn healthz_returns_ok() {
         let router = build_router(server());
         let resp = router
-            .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -183,8 +186,7 @@ mod tests {
                     .uri("/mcp")
                     .header("Content-Type", "application/json")
                     .body(Body::from(
-                        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#
-                            .to_string(),
+                        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#.to_string(),
                     ))
                     .unwrap(),
             )

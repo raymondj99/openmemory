@@ -224,10 +224,16 @@ mod tests {
     #[test]
     fn hit_returns_same_results() {
         let engine = make_engine();
-        engine.insert(&[entry("u://a", "hello world", vec![1.0, 0.0])]).unwrap();
+        engine
+            .insert(&[entry("u://a", "hello world", vec![1.0, 0.0])])
+            .unwrap();
 
-        let r1 = engine.search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0).unwrap();
-        let r2 = engine.search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0).unwrap();
+        let r1 = engine
+            .search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
+        let r2 = engine
+            .search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(r1.len(), r2.len());
         for (a, b) in r1.iter().zip(r2.iter()) {
             assert_eq!(a.uri, b.uri);
@@ -239,24 +245,37 @@ mod tests {
     #[test]
     fn distinct_queries_do_not_collide() {
         let engine = make_engine();
-        engine.insert(&[entry("u://a", "hello", vec![1.0, 0.0])]).unwrap();
-        engine.search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0).unwrap();
-        engine.search(&[1.0, 0.0], "absent", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .insert(&[entry("u://a", "hello", vec![1.0, 0.0])])
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "hello", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "absent", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 2);
     }
 
     #[test]
     fn ttl_expiry_via_fixed_clock() {
         let clock = Arc::new(FixedClock::new(1_000));
-        let engine = make_engine_with_clock(clock.clone() as Arc<dyn Clock>, 10, Duration::from_secs(60));
-        engine.insert(&[entry("u://a", "alpha", vec![1.0, 0.0])]).unwrap();
+        let engine =
+            make_engine_with_clock(clock.clone() as Arc<dyn Clock>, 10, Duration::from_secs(60));
+        engine
+            .insert(&[entry("u://a", "alpha", vec![1.0, 0.0])])
+            .unwrap();
 
-        let _ = engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        let _ = engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 1);
 
         // Advance well past the 60 s TTL — entry should be evicted on next read.
         clock.advance(120);
-        let _ = engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        let _ = engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         // Re-populated, still 1 entry.
         assert_eq!(engine.cache_len().unwrap(), 1);
     }
@@ -265,11 +284,19 @@ mod tests {
     fn lru_eviction_when_capacity_exceeded() {
         let clock = Arc::new(FixedClock::new(0)) as Arc<dyn Clock>;
         let engine = make_engine_with_clock(clock, 2, Duration::from_secs(60));
-        engine.insert(&[entry("u://a", "alpha", vec![1.0, 0.0])]).unwrap();
+        engine
+            .insert(&[entry("u://a", "alpha", vec![1.0, 0.0])])
+            .unwrap();
 
-        engine.search(&[1.0, 0.0], "q1", 5, SearchMode::KeywordOnly, 0).unwrap();
-        engine.search(&[1.0, 0.0], "q2", 5, SearchMode::KeywordOnly, 0).unwrap();
-        engine.search(&[1.0, 0.0], "q3", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .search(&[1.0, 0.0], "q1", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "q2", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "q3", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 2);
     }
 
@@ -302,8 +329,12 @@ mod tests {
     #[test]
     fn invalidate_clears_all() {
         let engine = make_engine();
-        engine.insert(&[entry("u://a", "alpha", vec![1.0, 0.0])]).unwrap();
-        engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .insert(&[entry("u://a", "alpha", vec![1.0, 0.0])])
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 1);
         engine.invalidate().unwrap();
         assert_eq!(engine.cache_len().unwrap(), 0);
@@ -312,14 +343,22 @@ mod tests {
     #[test]
     fn write_invalidates_cache() {
         let engine = make_engine();
-        engine.insert(&[entry("u://a", "alpha", vec![1.0, 0.0])]).unwrap();
-        engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .insert(&[entry("u://a", "alpha", vec![1.0, 0.0])])
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 1);
 
-        engine.insert(&[entry("u://b", "beta", vec![0.0, 1.0])]).unwrap();
+        engine
+            .insert(&[entry("u://b", "beta", vec![0.0, 1.0])])
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 0);
 
-        engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 1);
 
         engine.delete_by_uri("u://a").unwrap();
@@ -357,13 +396,19 @@ mod tests {
         };
         let inner = HybridSearchEngine::new(v, make_fts(), 1.0);
         let engine = CachedSearchEngine::new(inner);
-        engine.insert(&[entry("u://a", "x", vec![1.0, 0.0])]).unwrap();
+        engine
+            .insert(&[entry("u://a", "x", vec![1.0, 0.0])])
+            .unwrap();
         let _ = counter.load(Ordering::SeqCst);
 
         let before = engine.inner().vector_store().calls.load(Ordering::SeqCst);
-        engine.search(&[1.0, 0.0], "x", 5, SearchMode::VectorOnly, 0).unwrap();
+        engine
+            .search(&[1.0, 0.0], "x", 5, SearchMode::VectorOnly, 0)
+            .unwrap();
         let after_first = engine.inner().vector_store().calls.load(Ordering::SeqCst);
-        engine.search(&[1.0, 0.0], "x", 5, SearchMode::VectorOnly, 0).unwrap();
+        engine
+            .search(&[1.0, 0.0], "x", 5, SearchMode::VectorOnly, 0)
+            .unwrap();
         let after_second = engine.inner().vector_store().calls.load(Ordering::SeqCst);
 
         assert_eq!(after_first - before, 1);
@@ -374,8 +419,12 @@ mod tests {
     fn capacity_zero_is_promoted_to_one() {
         let inner = HybridSearchEngine::new(FlatVectorIndex::new(), make_fts(), 0.5);
         let engine = CachedSearchEngine::with_capacity_and_ttl(inner, 0, DEFAULT_CACHE_TTL);
-        engine.insert(&[entry("u://a", "alpha", vec![1.0, 0.0])]).unwrap();
-        engine.search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0).unwrap();
+        engine
+            .insert(&[entry("u://a", "alpha", vec![1.0, 0.0])])
+            .unwrap();
+        engine
+            .search(&[1.0, 0.0], "alpha", 5, SearchMode::KeywordOnly, 0)
+            .unwrap();
         assert_eq!(engine.cache_len().unwrap(), 1);
     }
 }

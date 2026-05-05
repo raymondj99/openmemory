@@ -79,9 +79,8 @@ impl ToolGroup {
 }
 
 /// Boxed-trait alias for the per-tool handler signature.
-pub(crate) type DynHandler = dyn Fn(&OpenMemoryMcpServer, Value) -> Result<CallToolResult, JsonRpcError>
-    + Send
-    + Sync;
+pub(crate) type DynHandler =
+    dyn Fn(&OpenMemoryMcpServer, Value) -> Result<CallToolResult, JsonRpcError> + Send + Sync;
 
 /// Single registry entry. The entries are kept in registration order so the
 /// instructions block matches the dispatch table.
@@ -144,11 +143,7 @@ impl ToolRouter {
     }
 
     /// Dispatch a `tools/call` payload through the registered handler.
-    pub fn call(
-        &self,
-        server: &OpenMemoryMcpServer,
-        params: Value,
-    ) -> Result<Value, JsonRpcError> {
+    pub fn call(&self, server: &OpenMemoryMcpServer, params: Value) -> Result<Value, JsonRpcError> {
         let parsed: CallToolRequestParams = serde_json::from_value(params)
             .map_err(|e| JsonRpcError::invalid_params(format!("invalid tools/call params: {e}")))?;
         let idx = self
@@ -303,8 +298,9 @@ mod tests {
         // after its group header.
         let memory_pos = text.find("MEMORY TOOLS:").expect("memory section");
         let index_pos = text.find("INDEX TOOLS:").expect("index section");
-        let maint_pos =
-            text.find("MAINTENANCE TOOLS:").expect("maintenance section");
+        let maint_pos = text
+            .find("MAINTENANCE TOOLS:")
+            .expect("maintenance section");
         assert!(memory_pos < index_pos, "memory must come before index");
         assert!(index_pos < maint_pos, "index must come before maintenance");
 

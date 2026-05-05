@@ -127,11 +127,10 @@ impl Bm25Store {
     }
 
     fn deserialize(data: &str) -> IndexResult<Bm25Inner> {
-        let p: PersistedBm25 = serde_json::from_str(data)
-            .map_err(|e| IndexError::Corrupt {
-                path: PathBuf::new(),
-                detail: format!("bm25 json: {e}"),
-            })?;
+        let p: PersistedBm25 = serde_json::from_str(data).map_err(|e| IndexError::Corrupt {
+            path: PathBuf::new(),
+            detail: format!("bm25 json: {e}"),
+        })?;
         let docs = p.docs.into_iter().map(|d| (d.id, d.meta)).collect();
         Ok(Bm25Inner {
             index: p.index,
@@ -345,17 +344,24 @@ mod tests {
     fn delete_by_uri_removes_all() {
         let store = Bm25Store::new();
         store
-            .insert(&[entry("u://a", "hello world"), entry("u://b", "goodbye world")])
+            .insert(&[
+                entry("u://a", "hello world"),
+                entry("u://b", "goodbye world"),
+            ])
             .unwrap();
         let n = store.delete_by_uri("u://a").unwrap();
         assert_eq!(n, 1);
-        assert!(FullTextStore::search(&store, "hello", 10).unwrap().is_empty());
+        assert!(FullTextStore::search(&store, "hello", 10)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
     fn empty_store_search_is_empty() {
         let store = Bm25Store::new();
-        assert!(FullTextStore::search(&store, "anything", 10).unwrap().is_empty());
+        assert!(FullTextStore::search(&store, "anything", 10)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -379,7 +385,9 @@ mod tests {
         let path = dir.path().join("bm25.json");
         {
             let store = Bm25Store::open(&path).unwrap();
-            store.insert(&[entry("u://a", "persistent search data")]).unwrap();
+            store
+                .insert(&[entry("u://a", "persistent search data")])
+                .unwrap();
             store.flush().unwrap();
         }
         let store = Bm25Store::open(&path).unwrap();

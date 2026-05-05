@@ -243,7 +243,11 @@ mod tests {
         let store = Fts5Store::open_in_memory().unwrap();
         store
             .insert(&[
-                entry("u://relevant", "rust programming language systems programming", 0),
+                entry(
+                    "u://relevant",
+                    "rust programming language systems programming",
+                    0,
+                ),
                 entry("u://irrelevant", "cooking recipes for delicious meals", 0),
             ])
             .unwrap();
@@ -254,7 +258,9 @@ mod tests {
     #[test]
     fn special_chars_in_query_dont_panic() {
         let store = Fts5Store::open_in_memory().unwrap();
-        store.insert(&[entry("u://code", "handling C++ templates", 0)]).unwrap();
+        store
+            .insert(&[entry("u://code", "handling C++ templates", 0)])
+            .unwrap();
         let r = store.search("C++ templates", 10).unwrap();
         assert!(!r.is_empty());
     }
@@ -265,7 +271,9 @@ mod tests {
         let path = dir.path().join("fts5.db");
         {
             let store = Fts5Store::open(&path).unwrap();
-            store.insert(&[entry("u://a", "persistent search data", 0)]).unwrap();
+            store
+                .insert(&[entry("u://a", "persistent search data", 0)])
+                .unwrap();
         }
         let store = Fts5Store::open(&path).unwrap();
         let r = store.search("persistent search", 10).unwrap();

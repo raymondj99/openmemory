@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use open_memory_core::config::Config;
-use open_memory_graph::{MemoryStore, MemoryStatus};
+use open_memory_graph::{MemoryStatus, MemoryStore};
 
 pub fn run(profile: &str) -> Result<()> {
     let config = Config::load().unwrap_or_default();
@@ -63,11 +63,7 @@ mod tests {
     fn status_runs_after_init() {
         let dir = tempfile::tempdir().unwrap();
         with_home(dir.path(), || {
-            crate::commands::init::run(
-                "default",
-                crate::cli::InitArgs { force: false },
-            )
-            .unwrap();
+            crate::commands::init::run("default", crate::cli::InitArgs { force: false }).unwrap();
             run("default").unwrap();
         });
     }

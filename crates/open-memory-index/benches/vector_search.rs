@@ -18,7 +18,9 @@ fn synthetic_vector(seed: u64, dim: usize) -> Vec<f32> {
     let mut state = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
     (0..dim)
         .map(|_| {
-            state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
             // Map to [-1, 1)
             ((state >> 33) as f32 / u32::MAX as f32) * 2.0 - 1.0
         })

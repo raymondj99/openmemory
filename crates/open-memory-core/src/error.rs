@@ -35,8 +35,7 @@ mod tests {
 
     #[test]
     fn display_io_error() {
-        let err: OmError =
-            std::io::Error::new(std::io::ErrorKind::NotFound, "gone").into();
+        let err: OmError = std::io::Error::new(std::io::ErrorKind::NotFound, "gone").into();
         assert!(err.to_string().contains("I/O error"));
     }
 

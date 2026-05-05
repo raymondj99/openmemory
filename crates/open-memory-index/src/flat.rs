@@ -240,12 +240,7 @@ impl VectorIndex for FlatVectorIndex {
     }
 }
 
-fn read_exact(
-    cursor: &mut &[u8],
-    buf: &mut [u8],
-    path: &Path,
-    label: &str,
-) -> IndexResult<()> {
+fn read_exact(cursor: &mut &[u8], buf: &mut [u8], path: &Path, label: &str) -> IndexResult<()> {
     cursor.read_exact(buf).map_err(|e| IndexError::Corrupt {
         path: path.to_path_buf(),
         detail: format!("read {label}: {e}"),
@@ -379,9 +374,7 @@ mod tests {
     #[test]
     fn search_top_k_zero_returns_all() {
         let store = FlatVectorIndex::new();
-        store
-            .insert(&[entry("u", "t", 0, vec![1.0, 0.0])])
-            .unwrap();
+        store.insert(&[entry("u", "t", 0, vec![1.0, 0.0])]).unwrap();
         let r = store.search(&[1.0, 0.0], 0).unwrap();
         assert_eq!(r.len(), 1);
     }
@@ -472,10 +465,8 @@ mod tests {
         assert_eq!(loaded.count().unwrap(), 2);
 
         let exported = loaded.export_all().unwrap();
-        let by_uri: std::collections::HashMap<_, _> = exported
-            .iter()
-            .map(|e| (e.uri.as_str(), e))
-            .collect();
+        let by_uri: std::collections::HashMap<_, _> =
+            exported.iter().map(|e| (e.uri.as_str(), e)).collect();
         let a = by_uri["u://a"];
         assert_eq!(a.text, "hello");
         assert_eq!(a.chunk_index, 0);

@@ -51,11 +51,7 @@ mod tests {
     fn consolidate_runs_on_empty_store_after_init() {
         let dir = tempfile::tempdir().unwrap();
         with_home(dir.path(), || {
-            crate::commands::init::run(
-                "default",
-                crate::cli::InitArgs { force: false },
-            )
-            .unwrap();
+            crate::commands::init::run("default", crate::cli::InitArgs { force: false }).unwrap();
             run(
                 "default",
                 ConsolidateArgs {
@@ -72,16 +68,10 @@ mod tests {
     fn consolidate_dedups_real_data() {
         let dir = tempfile::tempdir().unwrap();
         with_home(dir.path(), || {
-            crate::commands::init::run(
-                "default",
-                crate::cli::InitArgs { force: false },
-            )
-            .unwrap();
+            crate::commands::init::run("default", crate::cli::InitArgs { force: false }).unwrap();
             // Insert duplicate observations directly via the store.
-            let cfg = open_memory_core::config::Config::load_from(
-                dir.path().join("config.toml"),
-            )
-            .unwrap();
+            let cfg = open_memory_core::config::Config::load_from(dir.path().join("config.toml"))
+                .unwrap();
             let data_dir = dir.path().join("data").join("default");
             let store = MemoryStore::open(&cfg, &data_dir).unwrap();
             store

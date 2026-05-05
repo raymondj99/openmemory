@@ -232,10 +232,8 @@ mod tests {
 
     #[test]
     fn jsonrpc_response_success_serialises() {
-        let r = JsonRpcResponse::success(
-            Some(serde_json::json!(1)),
-            serde_json::json!({"ok": true}),
-        );
+        let r =
+            JsonRpcResponse::success(Some(serde_json::json!(1)), serde_json::json!({"ok": true}));
         let s = serde_json::to_string(&r).unwrap();
         assert!(s.contains("\"jsonrpc\":\"2.0\""));
         assert!(s.contains("\"result\":{\"ok\":true}"));
@@ -257,18 +255,16 @@ mod tests {
     #[test]
     fn parse_request_with_no_params() {
         let req: JsonRpcRequest =
-            serde_json::from_str(r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#)
-                .unwrap();
+            serde_json::from_str(r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#).unwrap();
         assert_eq!(req.method, "initialize");
         assert!(req.params.is_null());
     }
 
     #[test]
     fn parse_notification_has_no_id() {
-        let req: JsonRpcRequest = serde_json::from_str(
-            r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
-        )
-        .unwrap();
+        let req: JsonRpcRequest =
+            serde_json::from_str(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#)
+                .unwrap();
         assert!(req.id.is_none());
     }
 

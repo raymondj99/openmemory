@@ -226,8 +226,7 @@ impl MemoryStore {
             return Ok(Vec::new());
         }
         let conn = self.lock_db();
-        let mut seen: HashSet<String> =
-            seeds.iter().map(|r| r.observation.id.clone()).collect();
+        let mut seen: HashSet<String> = seeds.iter().map(|r| r.observation.id.clone()).collect();
         let mut seed_entities: HashMap<String, f32> = HashMap::new();
         for s in seeds {
             seed_entities
@@ -350,20 +349,12 @@ impl MemoryStore {
     }
 }
 
-fn compute_score(
-    observation: &Observation,
-    raw_score: f32,
-    valid_at: i64,
-    lambda: f64,
-) -> f32 {
+fn compute_score(observation: &Observation, raw_score: f32, valid_at: i64, lambda: f64) -> f32 {
     let days_since = ((valid_at - observation.observed_at).max(0)) as f64 / 86_400.0;
     let base_decay = (-lambda * days_since).exp() as f32;
     let retrieval_boost =
         (1.0_f32 + 0.15_f32 * (1.0_f32 + observation.access_count as f32).ln()).max(1.0);
-    let correction_boost = if CORRECTION_SOURCES
-        .iter()
-        .any(|s| observation.source == *s)
-    {
+    let correction_boost = if CORRECTION_SOURCES.iter().any(|s| observation.source == *s) {
         CORRECTION_RETRIEVAL_BOOST
     } else {
         1.0
@@ -589,11 +580,7 @@ mod tests {
                 "Raymond",
                 EntityType::Person,
                 &[ObservationInput::new("Raymond is a name")],
-                &[RelationInput::new(
-                    "maintains",
-                    "Sift",
-                    EntityType::Project,
-                )],
+                &[RelationInput::new("maintains", "Sift", EntityType::Project)],
                 "t",
             )
             .unwrap();

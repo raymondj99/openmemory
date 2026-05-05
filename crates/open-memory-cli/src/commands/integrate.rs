@@ -149,17 +149,17 @@ pub fn apply(path: &Path, entry_name: &str, entry: &Value) -> Result<(Integratio
         .entry("mcp".to_string())
         .or_insert_with(|| Value::Object(Map::new()));
     let mcp_type = json_type(mcp);
-    let mcp_map = mcp
-        .as_object_mut()
-        .ok_or_else(|| anyhow::anyhow!("mcp is not an object (got {mcp_type}); refusing to overwrite"))?;
+    let mcp_map = mcp.as_object_mut().ok_or_else(|| {
+        anyhow::anyhow!("mcp is not an object (got {mcp_type}); refusing to overwrite")
+    })?;
 
     let servers = mcp_map
         .entry("servers".to_string())
         .or_insert_with(|| Value::Object(Map::new()));
     let servers_type = json_type(servers);
-    let servers_map = servers.as_object_mut().ok_or_else(|| {
-        anyhow::anyhow!("mcp.servers is not an object (got {servers_type})")
-    })?;
+    let servers_map = servers
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("mcp.servers is not an object (got {servers_type})"))?;
 
     let outcome = match servers_map.get(entry_name) {
         Some(existing) if existing == entry => IntegrationOutcome::Unchanged,
@@ -183,8 +183,8 @@ fn load_or_default(path: &Path) -> Result<(Value, bool)> {
     if !path.exists() {
         return Ok((Value::Object(Map::new()), false));
     }
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let content =
+        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     if content.trim().is_empty() {
         return Ok((Value::Object(Map::new()), true));
     }
@@ -221,7 +221,8 @@ fn write_atomic(path: &Path, value: &Value) -> Result<()> {
 
     let tmp = path.with_extension("openclaw-tmp");
     std::fs::write(&tmp, &text).with_context(|| format!("writing {}", tmp.display()))?;
-    std::fs::rename(&tmp, path).with_context(|| format!("renaming into place: {}", path.display()))?;
+    std::fs::rename(&tmp, path)
+        .with_context(|| format!("renaming into place: {}", path.display()))?;
     Ok(())
 }
 
@@ -250,16 +251,14 @@ mod tests {
     fn integrate_creates_new_config_when_missing() {
         let dir = tempfile::tempdir().unwrap();
         with_home(dir.path(), || {
-            std::env::set_var(
-                "OPENCLAW_CONFIG_PATH",
-                dir.path().join("openclaw.json"),
-            );
+            std::env::set_var("OPENCLAW_CONFIG_PATH", dir.path().join("openclaw.json"));
             run("default", args(None)).unwrap();
             std::env::remove_var("OPENCLAW_CONFIG_PATH");
 
-            let parsed: Value =
-                serde_json::from_str(&std::fs::read_to_string(dir.path().join("openclaw.json")).unwrap())
-                    .unwrap();
+            let parsed: Value = serde_json::from_str(
+                &std::fs::read_to_string(dir.path().join("openclaw.json")).unwrap(),
+            )
+            .unwrap();
             let entry = parsed
                 .pointer("/mcp/servers/open-memory")
                 .expect("entry present");
@@ -297,10 +296,7 @@ mod tests {
     fn integrate_preserves_sibling_servers() {
         let dir = tempfile::tempdir().unwrap();
         let cfg = dir.path().join("openclaw.json");
-        write(
-            &cfg,
-            r#"{"mcp":{"servers":{"other":{"command":"other"}}}}"#,
-        );
+        write(&cfg, r#"{"mcp":{"servers":{"other":{"command":"other"}}}}"#);
         with_home(dir.path(), || {
             std::env::set_var("OPENCLAW_CONFIG_PATH", &cfg);
             run("default", args(None)).unwrap();
@@ -308,9 +304,7 @@ mod tests {
 
             let parsed: Value =
                 serde_json::from_str(&std::fs::read_to_string(&cfg).unwrap()).unwrap();
-            assert!(parsed
-                .pointer("/mcp/servers/open-memory")
-                .is_some());
+            assert!(parsed.pointer("/mcp/servers/open-memory").is_some());
             assert!(parsed.pointer("/mcp/servers/other").is_some());
         });
     }
@@ -364,10 +358,7 @@ mod tests {
     fn non_default_profile_renames_entry() {
         let dir = tempfile::tempdir().unwrap();
         with_home(dir.path(), || {
-            std::env::set_var(
-                "OPENCLAW_CONFIG_PATH",
-                dir.path().join("openclaw.json"),
-            );
+            std::env::set_var("OPENCLAW_CONFIG_PATH", dir.path().join("openclaw.json"));
             run("work", args(None)).unwrap();
             std::env::remove_var("OPENCLAW_CONFIG_PATH");
 
@@ -375,9 +366,7 @@ mod tests {
                 &std::fs::read_to_string(dir.path().join("openclaw.json")).unwrap(),
             )
             .unwrap();
-            assert!(parsed
-                .pointer("/mcp/servers/open-memory-work")
-                .is_some());
+            assert!(parsed.pointer("/mcp/servers/open-memory-work").is_some());
             assert!(parsed.pointer("/mcp/servers/open-memory").is_none());
         });
     }

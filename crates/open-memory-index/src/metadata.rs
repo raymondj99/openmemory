@@ -273,10 +273,13 @@ impl MetadataStore {
     /// Aggregate counts over the table.
     pub fn stats(&self) -> IndexResult<MetadataStats> {
         let conn = self.lock()?;
-        let total_sources: i64 = conn
-            .query_row("SELECT COUNT(*) FROM sources", [], |row| row.get(0))?;
-        let total_chunks: i64 = conn
-            .query_row("SELECT COALESCE(SUM(chunk_count), 0) FROM sources", [], |row| row.get(0))?;
+        let total_sources: i64 =
+            conn.query_row("SELECT COUNT(*) FROM sources", [], |row| row.get(0))?;
+        let total_chunks: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(chunk_count), 0) FROM sources",
+            [],
+            |row| row.get(0),
+        )?;
 
         let mut by_kind: HashMap<String, u64> = HashMap::new();
         let mut stmt = conn.prepare("SELECT kind, COUNT(*) FROM sources GROUP BY kind")?;
@@ -391,7 +394,9 @@ mod tests {
     #[test]
     fn upsert_replaces_existing_row() {
         let store = MetadataStore::open_in_memory().unwrap();
-        store.upsert(&record("u://a", SourceKind::IndexText, 3)).unwrap();
+        store
+            .upsert(&record("u://a", SourceKind::IndexText, 3))
+            .unwrap();
         let mut updated = record("u://a", SourceKind::IndexText, 7);
         updated.status = "stale".into();
         updated.updated_at = 1_800_000_000;
@@ -411,7 +416,9 @@ mod tests {
     #[test]
     fn delete_returns_true_when_existed() {
         let store = MetadataStore::open_in_memory().unwrap();
-        store.upsert(&record("u://a", SourceKind::IndexText, 1)).unwrap();
+        store
+            .upsert(&record("u://a", SourceKind::IndexText, 1))
+            .unwrap();
         assert!(store.delete("u://a").unwrap());
         assert!(!store.delete("u://a").unwrap());
     }
@@ -419,9 +426,15 @@ mod tests {
     #[test]
     fn list_filters_by_kind_and_sorts() {
         let store = MetadataStore::open_in_memory().unwrap();
-        store.upsert(&record("u://b", SourceKind::IndexText, 1)).unwrap();
-        store.upsert(&record("u://a", SourceKind::Observation, 1)).unwrap();
-        store.upsert(&record("u://c", SourceKind::IndexText, 1)).unwrap();
+        store
+            .upsert(&record("u://b", SourceKind::IndexText, 1))
+            .unwrap();
+        store
+            .upsert(&record("u://a", SourceKind::Observation, 1))
+            .unwrap();
+        store
+            .upsert(&record("u://c", SourceKind::IndexText, 1))
+            .unwrap();
         let all = store.list(None).unwrap();
         assert_eq!(all.len(), 3);
         assert_eq!(all[0].uri, "u://a");
@@ -437,9 +450,15 @@ mod tests {
     #[test]
     fn stats_aggregates_correctly() {
         let store = MetadataStore::open_in_memory().unwrap();
-        store.upsert(&record("u://a", SourceKind::IndexText, 4)).unwrap();
-        store.upsert(&record("u://b", SourceKind::IndexText, 1)).unwrap();
-        store.upsert(&record("u://c", SourceKind::Observation, 2)).unwrap();
+        store
+            .upsert(&record("u://a", SourceKind::IndexText, 4))
+            .unwrap();
+        store
+            .upsert(&record("u://b", SourceKind::IndexText, 1))
+            .unwrap();
+        store
+            .upsert(&record("u://c", SourceKind::Observation, 2))
+            .unwrap();
         let s = store.stats().unwrap();
         assert_eq!(s.total_sources, 3);
         assert_eq!(s.total_chunks, 7);
@@ -480,7 +499,9 @@ mod tests {
     #[test]
     fn checkpoint_does_not_error() {
         let store = MetadataStore::open_in_memory().unwrap();
-        store.upsert(&record("u://a", SourceKind::IndexText, 1)).unwrap();
+        store
+            .upsert(&record("u://a", SourceKind::IndexText, 1))
+            .unwrap();
         store.checkpoint().unwrap();
     }
 
