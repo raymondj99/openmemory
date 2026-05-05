@@ -286,6 +286,46 @@ mod tests {
     use super::*;
 
     #[test]
+    fn registry_lists_all_eleven_tools() {
+        let names: Vec<_> = registry().iter().map(|e| e.name).collect();
+        assert_eq!(
+            names.len(),
+            11,
+            "expected 11 tools (7 memory + 3 index + 1 maintenance), got {}: {names:?}",
+            names.len()
+        );
+    }
+
+    #[test]
+    fn instructions_match_golden() {
+        let text = server_instructions();
+        // Verify the exact group ordering and that each tool's name appears
+        // after its group header.
+        let memory_pos = text.find("MEMORY TOOLS:").expect("memory section");
+        let index_pos = text.find("INDEX TOOLS:").expect("index section");
+        let maint_pos =
+            text.find("MAINTENANCE TOOLS:").expect("maintenance section");
+        assert!(memory_pos < index_pos, "memory must come before index");
+        assert!(index_pos < maint_pos, "index must come before maintenance");
+
+        for name in [
+            "open_memory_remember",
+            "open_memory_recall",
+            "open_memory_list_entities",
+            "open_memory_get_entity",
+            "open_memory_forget",
+            "open_memory_forget_entity",
+            "open_memory_status",
+            "open_memory_index_text",
+            "open_memory_search",
+            "open_memory_delete",
+            "open_memory_consolidate",
+        ] {
+            assert!(text.contains(name), "instructions missing {name}");
+        }
+    }
+
+    #[test]
     fn registry_includes_all_seven_memory_tools() {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         for expected in [
