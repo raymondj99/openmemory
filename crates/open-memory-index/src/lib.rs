@@ -16,9 +16,11 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod flat;
 pub mod traits;
 
 pub use error::{IndexError, IndexResult};
+pub use flat::FlatVectorIndex;
 pub use traits::{
     ExportEntry, FullTextStore, IndexEntry, SearchMode, SearchResult, VectorIndex, VectorStore,
 };
