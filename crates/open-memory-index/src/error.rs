@@ -122,8 +122,8 @@ mod tests {
         let idx: IndexError = om.into();
         match idx {
             IndexError::Schema(msg) => {
-                assert!(msg.contains("9"));
-                assert!(msg.contains("1"));
+                assert!(msg.contains('9'));
+                assert!(msg.contains('1'));
             }
             other => panic!("expected Schema, got {other:?}"),
         }
@@ -138,7 +138,7 @@ mod tests {
         let idx: IndexError = om.into();
         match idx {
             IndexError::Schema(msg) => {
-                assert!(msg.contains("3"));
+                assert!(msg.contains('3'));
                 assert!(msg.contains("boom"));
             }
             other => panic!("expected Schema, got {other:?}"),
