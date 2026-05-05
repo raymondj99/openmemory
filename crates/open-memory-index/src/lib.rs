@@ -21,6 +21,7 @@ pub mod error;
 pub mod flat;
 #[cfg(feature = "fts5")]
 pub mod fts5;
+pub mod hybrid;
 #[cfg(feature = "sqlite")]
 pub mod metadata;
 pub mod traits;
@@ -31,6 +32,7 @@ pub use error::{IndexError, IndexResult};
 pub use flat::FlatVectorIndex;
 #[cfg(feature = "fts5")]
 pub use fts5::Fts5Store;
+pub use hybrid::{HybridSearchEngine, DEFAULT_RRF_K};
 #[cfg(feature = "sqlite")]
 pub use metadata::{MetadataStats, MetadataStore, SourceKind, SourceRecord};
 pub use traits::{
