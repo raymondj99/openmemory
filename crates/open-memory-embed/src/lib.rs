@@ -5,8 +5,17 @@
 //! BLAKE3 content hash. When this crate is excluded from the build,
 //! the rest of the system runs keyword-only — every API still works,
 //! recall just has no vector contribution to RRF.
-//!
-//! Implementation lands in subsequent commits — see the project
-//! roadmap under `docs/03-roadmap.md`.
 
 #![forbid(unsafe_code)]
+
+pub mod error;
+pub mod traits;
+
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
+
+pub use error::{EmbedError, EmbedResult};
+pub use traits::Embedder;
+
+#[cfg(any(test, feature = "testing"))]
+pub use testing::StubEmbedder;

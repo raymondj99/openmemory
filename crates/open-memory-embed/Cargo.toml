@@ -15,4 +15,6 @@ sqlite = []
 testing = []
 
 [dependencies]
-open-memory-core = { workspace = true }
+open-memory-core = { workspace = true, features = ["testing"] }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
