@@ -8,9 +8,12 @@ into [OpenClaw](https://openclaw.ai) with one command:
 open-memory integrate openclaw
 ```
 
-> **Status:** v0.1.0 ships the eleven `open_memory_*` MCP tools, the
-> CLI surface, and the OpenClaw integrator. CI is green on every
-> commit.
+> **Status:** v0.2.0 adds multi-agent memory (a pool of read-only
+> WAL connections so concurrent recalls run in parallel) and an
+> incremental file-watcher (`open-memory watch DIR`) backed by
+> `notify-debouncer-full`. v0.1.0 shipped the eleven `open_memory_*`
+> MCP tools, the CLI surface, and the OpenClaw integrator; the MCP
+> tool surface is unchanged at v0.1. CI is green on every commit.
 
 ## What you get
 
@@ -50,6 +53,15 @@ open-memory recall 'Rust' --limit 3 --json | jq .
 open-memory list-entities
 open-memory consolidate
 open-memory status
+```
+
+Or watch a directory and incrementally re-index changed files:
+
+```bash
+open-memory watch ~/notes --exts md,txt
+# walks the tree once, then tails create/modify/delete events;
+# BLAKE3-deduped against the metadata store, so a re-run over an
+# unchanged tree is free.
 ```
 
 ## MCP tools

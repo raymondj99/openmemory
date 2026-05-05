@@ -1,13 +1,14 @@
-# Roadmap to v0.1.0
+# Roadmap
 
-The path to v0.1.0 is broken into **eight phases** of small,
-self-contained commits. Every commit leaves the workspace green:
-`cargo check`, `cargo test`, `cargo clippy --all-features`, and
-`cargo fmt --check` all pass at every revision.
+The original path to v0.1.0 is the eight phases below; v0.2.0 adds
+two more phases for multi-agent memory and a filesystem watcher.
+Every commit leaves the workspace green: `cargo check`,
+`cargo test`, `cargo clippy --all-features`, and `cargo fmt --check`
+all pass at every revision.
 
 Each phase ends on an annotated tag (`v0.0.1-core`,
 `v0.0.2-index`, …) so a bad phase reverts cleanly. The final commit
-cuts `v0.1.0`.
+in each minor cuts `v0.1.0` / `v0.2.0`.
 
 This document is the working checklist. Treat the format as a
 contract: title, scope, files added/modified, verification gate. If
@@ -481,3 +482,77 @@ Things explicitly **not** in the plan above, queued for v0.2:
 - HNSW + SIMD distance functions enabled by default if benchmarks
   show they pay off below 10⁶ vectors.
 - Postgres backend behind a `postgres` feature flag (community ask).
+
+---
+
+## Phase 8 — Multi-agent memory (v0.2.0)
+
+Re-architect `MemoryStore` from a single `Mutex<Connection>` into
+a writer mutex plus a pool of read-only WAL handles. Concurrent
+recall calls (multiple agent processes hitting the same MCP server,
+or a future "MCP server with embedded watcher" deployment) must not
+block each other on read paths.
+
+| Commit | Title |
+|--------|-------|
+| 44 | `feat(graph): readonly Connection pool helper` |
+| 45 | `refactor(graph): route get_entity / list_entities through reader pool` |
+| 46 | `refactor(graph): route recall through reader pool` |
+| 47 | `refactor(graph): route status / observations / relations through pool` |
+| 48 | `test(graph): concurrent recall invariant + speedup test` |
+| 49 | `docs(graph): rustdoc concurrency model after read-pool refactor` |
+
+**Invariants.** WAL mode + `synchronous=NORMAL` + `busy_timeout=5000`
+already configured by Phase 4; kept untouched. Pool size defaults to
+`Config::num_jobs()` (CPU count). The shared-writer fallback for the
+in-memory store keeps `MemoryStore::open_in_memory` calling-equivalent
+to `open` from a test author's perspective. The existing `RwLock<()>`
+rebuild barrier stays as-is — it guards the *vector* index, not
+SQLite.
+
+**Verify.** `cargo test --workspace --all-features` green; the new
+`integration_concurrent_recall_runs_in_parallel` test asserts ≥2×
+speedup over the fully-serial bound.
+
+---
+
+## Phase 9 — File watcher (v0.2.0)
+
+A new `open-memory-watch` crate plus an `open-memory watch <PATH>`
+CLI subcommand. Walks the tree once on startup (BLAKE3-deduped),
+then tails `notify-debouncer-full` events to re-index only what
+changed.
+
+| Commit | Title |
+|--------|-------|
+| 50 | `feat(watch): scaffold open-memory-watch crate` |
+| 51 | `feat(watch): initial-tree indexer (BLAKE3 dedup + ignore matcher)` |
+| 52 | `feat(watch): notify-debouncer-full event loop + Watcher::run` |
+| 53 | `feat(cli): open-memory watch subcommand` |
+| 54 | `test(watch): integration tests for create/modify/delete` |
+| 55 | `docs: README + CHANGELOG entry + roadmap update` |
+
+**Behaviour.**
+
+- URI shape: `file://<canonical-absolute-path>`; one chunk per file
+  (`chunk_index = 0`) for v0.2.
+- BLAKE3 of file contents stored in the existing `MetadataStore`
+  `sources` table. Re-run over an unchanged tree is free.
+- `notify-debouncer-full` 0.7 (200ms default debounce, configurable).
+- `ignore::WalkBuilder` for `.gitignore` / `.ignore` /
+  `.open-memory-ignore` precedence; always-skip for `.git/`,
+  `target/`, `node_modules/`, `.venv/`, `__pycache__/`, and
+  `*.lock*` globs.
+- The watcher takes an `Arc<MemoryStore>`, so a future
+  `open-memory mcp --watch DIR` can share the MCP server's handle.
+
+**Constraints.** MSRV stays 1.85 (notify-debouncer-full 0.7 ships
+with that as its rust-version metadata; notify-debouncer-full 0.8
+is in RC). No new global mutex. Tests synchronise on the
+`BatchSummary` notifier channel — no `thread::sleep` in the test
+body.
+
+**Verify.** `cargo test -p open-memory-watch` green; the
+integration suite covers create / modify / delete / dedup-on-restart
+/ ignore-respect plus a latency smoke test that prints p50/p99 for
+each operation.

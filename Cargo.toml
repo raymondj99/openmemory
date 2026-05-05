@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85"
@@ -21,12 +21,12 @@ homepage = "https://github.com/raymondj99/open-memory"
 
 [workspace.dependencies]
 # Internal crates
-open-memory-core = { path = "crates/open-memory-core", version = "0.1.0" }
-open-memory-index = { path = "crates/open-memory-index", version = "0.1.0", default-features = false }
-open-memory-embed = { path = "crates/open-memory-embed", version = "0.1.0", default-features = false }
-open-memory-graph = { path = "crates/open-memory-graph", version = "0.1.0", default-features = false }
-open-memory-mcp = { path = "crates/open-memory-mcp", version = "0.1.0", default-features = false }
-open-memory-watch = { path = "crates/open-memory-watch", version = "0.1.0", default-features = false }
+open-memory-core = { path = "crates/open-memory-core", version = "0.2.0" }
+open-memory-index = { path = "crates/open-memory-index", version = "0.2.0", default-features = false }
+open-memory-embed = { path = "crates/open-memory-embed", version = "0.2.0", default-features = false }
+open-memory-graph = { path = "crates/open-memory-graph", version = "0.2.0", default-features = false }
+open-memory-mcp = { path = "crates/open-memory-mcp", version = "0.2.0", default-features = false }
+open-memory-watch = { path = "crates/open-memory-watch", version = "0.2.0", default-features = false }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }

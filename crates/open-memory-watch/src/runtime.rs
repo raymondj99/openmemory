@@ -10,8 +10,8 @@
 //! [`ScanReport`]. Shutdown is signalled either by the caller flipping
 //! an [`AtomicBool`] or by dropping the underlying debouncer.
 //!
-//! Tests synchronise via [`Watcher::run_with_notifier`]: after each
-//! batch is fully processed, the watcher sends a [`BatchSummary`]
+//! Tests synchronise via [`crate::Watcher::run_with_notifier`]: after
+//! each batch is fully processed, the watcher sends a [`BatchSummary`]
 //! through a caller-supplied `SyncSender`. Test code calls `recv()`
 //! until it sees the expected delta — no sleeping required.
 

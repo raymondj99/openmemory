@@ -1324,7 +1324,7 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "open-memory-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1345,7 +1345,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rand 0.8.6",
  "rusqlite",
@@ -1357,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-embed"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
  "ndarray",
@@ -1374,7 +1374,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-graph"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
  "open-memory-core",
@@ -1391,7 +1391,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-index"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "lru",
@@ -1409,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1429,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "open-memory-watch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
  "ignore",

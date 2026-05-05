@@ -9,6 +9,64 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-05
+
+Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
+
+### Added
+
+- **Multi-agent memory.** `MemoryStore` now opens a pool of
+  read-only `rusqlite::Connection`s alongside the writer mutex, so
+  concurrent recall calls execute in parallel instead of
+  serialising on a single mutex. WAL mode plus
+  `OPEN_READ_ONLY | OPEN_NO_MUTEX` keeps the pool from blocking
+  the writer (or vice versa). Pool size defaults to
+  `Config::num_jobs()` (CPU count). The shared-writer fallback
+  for `MemoryStore::open_in_memory` keeps the API uniform across
+  on-disk and in-memory stores.
+- **`MemoryStatus::reader_pool_size`** — surfaced through the
+  `status` snapshot so callers can verify multi-reader concurrency.
+- **`open-memory-watch` crate** — filesystem watcher with
+  incremental re-indexing. `notify-debouncer-full` powers the
+  event loop; `ignore` powers the initial-tree walk and a per-tree
+  `.open-memory-ignore` custom-ignore filename. BLAKE3 deduplication
+  against the existing `MetadataStore` makes a re-run over an
+  unchanged tree free.
+- **`open-memory watch <PATH>` CLI subcommand** with
+  `--debounce-ms`, `--exts`, `--max-size`, `--no-initial-scan`
+  flags. Behind a default-on `watch` build feature.
+- **`[watch]` config section** (`debounce_ms`, `extensions`,
+  `max_size`).
+- **Concurrent recall integration test** that asserts both correctness
+  (no torn reads) and ≥2× speedup over the fully-serial bound.
+- **Watcher integration test** covering create / modify / delete /
+  ignore-respect / dedup-on-restart, plus a latency smoke test that
+  prints p50/p99 numbers for create / modify / delete.
+
+### Changed
+
+- Workspace version bumped to **0.2.0** to reflect the new public
+  API surface (`MemoryStatus::reader_pool_size`, the
+  `open-memory-watch` crate, the `[watch]` config section). The MCP
+  tool surface is unchanged at v0.1; no MCP tool was added,
+  renamed, or removed.
+- `MemoryStore::open` now spins up `Config::num_jobs()` read-only
+  Connections in addition to the writer connection.
+- New workspace dependencies: `notify` 8, `notify-debouncer-full`
+  0.7, `ignore` 0.4, `walkdir` 2. All four pin to versions whose
+  `rust-version` metadata is ≤ 1.85, so MSRV stays at 1.85.
+
+### Notes
+
+- Runtime path filtering for the watcher honours always-ignore
+  directories (`.git`, `target`, `node_modules`, …) and a small set
+  of always-ignore globs (`*.lock*`). Per-tree `.open-memory-ignore`
+  rules are honoured by the initial scan but not re-evaluated on
+  every event — that's a v0.3 follow-up.
+- The watcher currently has no graceful-shutdown signal hook on
+  the CLI side; SIGINT / SIGTERM kills the process cleanly because
+  every write goes through a SQLite transaction in WAL mode.
+
 ## [0.1.0] - 2026-05-05
 
 The first end-to-end release: a persistent knowledge-graph memory
@@ -68,5 +126,6 @@ into OpenClaw with one command.
   `$OPENCLAW_CONFIG_PATH`). The legacy `~/.openclaw/mcp.json`
   filename is intentionally not probed.
 
-[Unreleased]: https://github.com/raymondj99/open-memory/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/raymondj99/open-memory/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/raymondj99/open-memory/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/raymondj99/open-memory/releases/tag/v0.1.0
