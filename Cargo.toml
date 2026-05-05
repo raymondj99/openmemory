@@ -73,6 +73,7 @@ ureq = { version = "2", features = ["json"] }
 # Filesystem helpers
 tempfile = "3"
 fs4 = "0.12"
+json5 = "0.4"
 
 # Random (retry jitter)
 rand = "0.8"

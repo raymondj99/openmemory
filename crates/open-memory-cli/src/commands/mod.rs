@@ -6,5 +6,6 @@
 
 pub mod consolidate;
 pub mod init;
+pub mod integrate;
 pub mod mcp;
 pub mod status;

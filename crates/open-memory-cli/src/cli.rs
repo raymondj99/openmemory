@@ -50,6 +50,34 @@ pub enum Command {
     Mcp(McpArgs),
     /// Run dedup + decay/prune consolidation once.
     Consolidate(ConsolidateArgs),
+    /// Register open-memory in an external integration's config.
+    #[command(subcommand)]
+    Integrate(IntegrateTarget),
+}
+
+/// Subcommands for `open-memory integrate <target>`.
+#[derive(Debug, Subcommand)]
+pub enum IntegrateTarget {
+    /// Add or update the `open-memory` MCP server entry in OpenClaw's
+    /// JSON5 config.
+    Openclaw(IntegrateOpenclawArgs),
+}
+
+/// `integrate openclaw` arguments.
+#[derive(Debug, Args)]
+pub struct IntegrateOpenclawArgs {
+    /// Override the path to OpenClaw's config (defaults to
+    /// $OPENCLAW_CONFIG_PATH or ~/.openclaw/openclaw.json).
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<std::path::PathBuf>,
+    /// Emit an HTTP-transport entry (`streamable-http`) pointing at the
+    /// given address (e.g. 127.0.0.1:7821) instead of the stdio entry.
+    #[arg(long, value_name = "ADDR")]
+    pub http: Option<String>,
+    /// Override the binary path written into the entry. Defaults to the
+    /// bare `open-memory` (which OpenClaw resolves via $PATH).
+    #[arg(long, value_name = "PATH")]
+    pub binary: Option<String>,
 }
 
 /// `init` arguments.
@@ -102,6 +130,9 @@ where
         Command::Status => commands::status::run(&cli.profile),
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
+        Command::Integrate(IntegrateTarget::Openclaw(args)) => {
+            commands::integrate::run(&cli.profile, args)
+        }
     }
 }
 
