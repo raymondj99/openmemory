@@ -67,6 +67,10 @@ pub enum Command {
     /// Emit shell completions for the named shell.
     #[cfg(feature = "completions")]
     Completions(CompletionsArgs),
+    /// Watch a directory and incrementally re-index changed files.
+    /// Requires the `watch` build feature (default-on).
+    #[cfg(feature = "watch")]
+    Watch(WatchArgs),
 }
 
 /// Subcommands for `open-memory integrate <target>`.
@@ -193,6 +197,33 @@ pub struct McpArgs {
     pub http: Option<std::net::SocketAddr>,
 }
 
+/// `watch` arguments.
+#[cfg(feature = "watch")]
+#[derive(Debug, Args)]
+pub struct WatchArgs {
+    /// Directory to watch. Walked recursively on startup, then tailed
+    /// for create / modify / delete events.
+    pub path: std::path::PathBuf,
+    /// Debounce window for filesystem events, in milliseconds. Defaults
+    /// to the value in `config.toml` (`[watch]` section, 200 ms by
+    /// default).
+    #[arg(long, value_name = "MS")]
+    pub debounce_ms: Option<u64>,
+    /// Comma-separated list of file extensions (without leading dot)
+    /// to index. Overrides the curated default + any value in
+    /// `config.toml`. Example: `--exts md,txt,rs`.
+    #[arg(long, value_name = "LIST")]
+    pub exts: Option<String>,
+    /// Skip files larger than this many bytes. Defaults to 10 MiB.
+    #[arg(long, value_name = "BYTES")]
+    pub max_size: Option<u64>,
+    /// Skip the initial-tree walk and only react to events. Mostly for
+    /// debugging; production runs should leave this off so the index
+    /// is consistent on startup.
+    #[arg(long)]
+    pub no_initial_scan: bool,
+}
+
 /// `consolidate` arguments.
 #[derive(Debug, Args)]
 pub struct ConsolidateArgs {
@@ -234,6 +265,8 @@ where
         Command::ForgetEntity(args) => commands::scriptable::forget_entity(&cli.profile, args),
         #[cfg(feature = "completions")]
         Command::Completions(args) => commands::completions::run(args.shell),
+        #[cfg(feature = "watch")]
+        Command::Watch(args) => commands::watch::run(&cli.profile, args),
     }
 }
 

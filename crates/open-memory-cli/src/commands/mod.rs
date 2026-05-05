@@ -11,3 +11,5 @@ pub mod integrate;
 pub mod mcp;
 pub mod scriptable;
 pub mod status;
+#[cfg(feature = "watch")]
+pub mod watch;

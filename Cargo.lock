@@ -1334,6 +1334,7 @@ dependencies = [
  "open-memory-graph",
  "open-memory-index",
  "open-memory-mcp",
+ "open-memory-watch",
  "serde",
  "serde_json",
  "tempfile",
