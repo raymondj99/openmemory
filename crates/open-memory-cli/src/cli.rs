@@ -46,6 +46,10 @@ pub enum Command {
     Init(InitArgs),
     /// Print summary of memory + index state.
     Status,
+    /// Start the MCP server (stdio by default; --http for HTTP).
+    Mcp(McpArgs),
+    /// Run dedup + decay/prune consolidation once.
+    Consolidate(ConsolidateArgs),
 }
 
 /// `init` arguments.
@@ -55,6 +59,29 @@ pub struct InitArgs {
     /// resolved path. Without `--force`, init refuses to clobber.
     #[arg(long)]
     pub force: bool,
+}
+
+/// `mcp` arguments.
+#[derive(Debug, Args)]
+pub struct McpArgs {
+    /// Bind an HTTP listener on the given address (e.g. 127.0.0.1:7800)
+    /// instead of stdio. Requires the `mcp-http` build feature.
+    #[arg(long, value_name = "ADDR")]
+    pub http: Option<std::net::SocketAddr>,
+}
+
+/// `consolidate` arguments.
+#[derive(Debug, Args)]
+pub struct ConsolidateArgs {
+    /// Override the dedup Jaccard text-similarity threshold (0.0–1.0).
+    #[arg(long, value_name = "F")]
+    pub dedup_threshold: Option<f32>,
+    /// Override the decay-prune score floor.
+    #[arg(long, value_name = "F")]
+    pub prune_floor: Option<f32>,
+    /// Minimum age (seconds) for an observation to be pruned.
+    #[arg(long, value_name = "SECS")]
+    pub min_age_secs: Option<i64>,
 }
 
 /// Parse and dispatch the CLI. Pulled out so tests can drive `Cli` with
@@ -73,6 +100,8 @@ where
     match cli.command {
         Command::Init(args) => commands::init::run(&cli.profile, args),
         Command::Status => commands::status::run(&cli.profile),
+        Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
+        Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
     }
 }
 
@@ -129,7 +158,46 @@ mod tests {
         let cli = Cli::parse_from(["open-memory", "init", "--force"]);
         match cli.command {
             Command::Init(args) => assert!(args.force),
-            Command::Status => panic!("expected init"),
+            other => panic!("expected init, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_mcp_default_is_stdio() {
+        let cli = Cli::parse_from(["open-memory", "mcp"]);
+        match cli.command {
+            Command::Mcp(args) => assert!(args.http.is_none()),
+            other => panic!("expected mcp, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_mcp_with_http() {
+        let cli = Cli::parse_from([
+            "open-memory",
+            "mcp",
+            "--http",
+            "127.0.0.1:7800",
+        ]);
+        match cli.command {
+            Command::Mcp(args) => assert!(args.http.is_some()),
+            other => panic!("expected mcp, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_consolidate() {
+        let cli = Cli::parse_from([
+            "open-memory",
+            "consolidate",
+            "--dedup-threshold",
+            "0.9",
+        ]);
+        match cli.command {
+            Command::Consolidate(args) => {
+                assert_eq!(args.dedup_threshold, Some(0.9));
+            }
+            other => panic!("expected consolidate, got {other:?}"),
         }
     }
 

@@ -4,5 +4,7 @@
 //! in `cli.rs` argument-shape-only and lets each command's tests live next
 //! to its `run`.
 
+pub mod consolidate;
 pub mod init;
+pub mod mcp;
 pub mod status;
