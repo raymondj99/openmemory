@@ -1,0 +1,15 @@
+[package]
+name = "open-memory-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "open-memory: shared foundations (clock, config, error, schema migrations)"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Exposes test doubles (FixedClock, FakeEmbedder) so downstream crates
+# can use them in their own integration tests without re-implementing.
+testing = []

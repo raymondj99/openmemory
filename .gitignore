@@ -1,0 +1,33 @@
+/target
+**/*.rs.bk
+*.swp
+*.swo
+.DS_Store
+
+# SQLite
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Test artifacts
+/tests/fixtures/generated/
+
+# Editors / harness scratch
+.idea/
+.vscode/
+.claude/
+*.iml
+
+# OS
+Thumbs.db
+
+# Local data dir (development)
+.open-memory/
+
+# Release artifacts
+*.tar.gz
+*.zip

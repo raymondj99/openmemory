@@ -1,0 +1,7 @@
+# Workspace-wide disallowed methods. Enforced via
+# `clippy::disallowed_methods = "warn"` in the workspace lints; CI
+# upgrades to deny.
+
+disallowed-methods = [
+    { path = "std::thread::sleep", reason = "blocks the executor; use tokio::time::sleep in async code" },
+]

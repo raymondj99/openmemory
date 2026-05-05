@@ -1,0 +1,21 @@
+[package]
+name = "open-memory-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "open-memory: hybrid (vector + FTS5) search backend"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5", "sqlite"]
+sqlite = []
+fts5 = ["sqlite"]
+hnsw = []
+simd = []
+testing = ["open-memory-core/testing"]
+
+[dependencies]
+open-memory-core = { workspace = true }

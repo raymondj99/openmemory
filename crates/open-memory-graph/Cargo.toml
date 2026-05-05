@@ -1,0 +1,23 @@
+[package]
+name = "open-memory-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "open-memory: knowledge graph (entities, observations, relations)"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5"]
+sqlite = ["open-memory-index/sqlite"]
+fts5 = ["sqlite", "open-memory-index/fts5"]
+hnsw = ["open-memory-index/hnsw"]
+embeddings = ["dep:open-memory-embed"]
+testing = ["open-memory-core/testing"]
+
+[dependencies]
+open-memory-core = { workspace = true }
+open-memory-index = { workspace = true, default-features = false }
+open-memory-embed = { workspace = true, default-features = false, optional = true }

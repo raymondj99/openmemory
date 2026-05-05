@@ -1,0 +1,127 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/open-memory-core",
+    "crates/open-memory-index",
+    "crates/open-memory-embed",
+    "crates/open-memory-graph",
+    "crates/open-memory-mcp",
+    "crates/open-memory-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.82"
+description = "Persistent agent memory + hybrid text search, behind an MCP server"
+repository = "https://github.com/raymondj99/open-memory"
+homepage = "https://github.com/raymondj99/open-memory"
+
+[workspace.dependencies]
+# Internal crates
+open-memory-core = { path = "crates/open-memory-core", version = "0.1.0" }
+open-memory-index = { path = "crates/open-memory-index", version = "0.1.0", default-features = false }
+open-memory-embed = { path = "crates/open-memory-embed", version = "0.1.0", default-features = false }
+open-memory-graph = { path = "crates/open-memory-graph", version = "0.1.0", default-features = false }
+open-memory-mcp = { path = "crates/open-memory-mcp", version = "0.1.0", default-features = false }
+
+# Foundation
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "std"] }
+
+# Async / IO
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+
+# Storage / search
+rusqlite = { version = "0.32" }
+usearch = "2"
+lru = "0.17"
+
+# Embeddings
+ort = { version = "2.0.0-rc.9", default-features = false, features = ["load-dynamic", "ndarray"] }
+tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
+ndarray = "0.16"
+
+# Hashing / IDs
+blake3 = "1"
+uuid = { version = "1", features = ["v7"] }
+
+# CLI
+clap = { version = "4", default-features = false, features = ["std", "derive", "help", "usage", "env"] }
+clap_complete = "4"
+
+# MCP
+rmcp = { version = "1", features = ["server", "transport-io"] }
+schemars = "1"
+
+# HTTP transport (optional MCP feature)
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Network (model downloads, retry helper)
+ureq = { version = "2", features = ["json"] }
+
+# Filesystem helpers
+tempfile = "3"
+fs4 = "0.12"
+
+# Random (retry jitter)
+rand = "0.8"
+
+# Test utilities
+proptest = "1"
+paste = "1"
+
+# Benchmarks
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+unknown_lints = "allow"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_imports = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+too_many_lines = "allow"
+similar_names = "allow"
+unnecessary_wraps = "allow"
+match_same_arms = "allow"
+items_after_statements = "allow"
+needless_pass_by_value = "allow"
+trivially_copy_pass_by_ref = "allow"
+doc_markdown = "allow"
+unreadable_literal = "allow"
+return_self_not_must_use = "allow"
+if_not_else = "allow"
+uninlined_format_args = "allow"
+manual_let_else = "allow"
+redundant_closure_for_method_calls = "allow"
+case_sensitive_file_extension_comparisons = "allow"
+needless_raw_string_hashes = "allow"
+option_if_let_else = "allow"
+str_split_at_newline = "allow"
+ref_option = "allow"
+disallowed_methods = "warn"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

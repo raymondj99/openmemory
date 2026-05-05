@@ -1,0 +1,18 @@
+[package]
+name = "open-memory-embed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "open-memory: ONNX Runtime text embeddings (optional)"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["sqlite"]
+sqlite = []
+testing = []
+
+[dependencies]
+open-memory-core = { workspace = true }
