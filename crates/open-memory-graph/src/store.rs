@@ -1,19 +1,29 @@
 //! [`MemoryStore`] — the public entry point for the knowledge graph.
 //!
-//! This module currently owns construction (`open` / `open_in_memory`) and
-//! the read-only methods (`get_entity`, `list_entities`, `status`). Write
-//! paths (`remember`, `forget`, `consolidate`) land in subsequent commits;
-//! they all funnel through this same store handle.
+//! This module owns construction (`open` / `open_in_memory`) and the
+//! read-only graph methods (`get_entity`, `list_entities`, `status`,
+//! `get_entity_observations`, `get_entity_relations`). The write paths
+//! (`remember`, `forget*`, `consolidate`) live in sibling modules but
+//! funnel through the same store handle.
 //!
 //! Internally the store wraps:
 //!
-//! - a `Mutex<rusqlite::Connection>` (SQLite is serial anyway)
-//! - the hybrid search engine from [`open_memory_index`]
-//! - an `RwLock<()>` rebuild barrier, so a vector-index rebuild after a bulk
-//!   write can't race with concurrent recall calls
-//! - an optional [`open_memory_core::testing::Embedder`] (the trait in
-//!   `core::testing` — `open-memory-embed` re-exports the same trait, but
-//!   pulling that crate in here would require the heavyweight ONNX deps)
+//! - **One writer** — `Arc<Mutex<rusqlite::Connection>>`. Every mutation
+//!   serialises on this. The `Arc` exists so the read pool's degenerate
+//!   in-memory variant can borrow the same handle.
+//! - **A pool of readers** — [`crate::pool::ReadPool`], opened with
+//!   `OPEN_READ_ONLY | OPEN_NO_MUTEX` against the same database file.
+//!   Pool size defaults to `Config::num_jobs()` (CPU count). For
+//!   `open_in_memory` the pool degrades to a single slot proxying to the
+//!   writer.
+//! - **The hybrid search engine** from [`open_memory_index`].
+//! - **An `RwLock<()>` rebuild barrier**, so a vector-index rebuild after a
+//!   bulk write can't race with concurrent recall calls. This is *not*
+//!   the SQLite reader/writer barrier — that's WAL's job. The rebuild
+//!   barrier guards the *vector* index visibility.
+//! - **An optional `Embedder`** (the trait in `core::testing` —
+//!   `open-memory-embed` re-exports the same trait, but pulling that
+//!   crate in here would require the heavyweight ONNX deps).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -25,6 +35,7 @@ use open_memory_index::engine::{open_engine, OpenEngine};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::{MemoryError, MemoryResult};
+use crate::pool::ReadPool;
 use crate::schema::{configure, migrate, MEMORY_SCHEMA_VERSION};
 use crate::types::{Entity, EntityType, MemoryTier, Observation, Relation};
 
@@ -66,7 +77,8 @@ pub struct EntityListRow {
 
 /// Persistent knowledge-graph memory store.
 pub struct MemoryStore {
-    db: Mutex<Connection>,
+    db: Arc<Mutex<Connection>>,
+    readers: ReadPool,
     engine: OpenEngine,
     rebuild_lock: RwLock<()>,
     data_dir: PathBuf,
@@ -83,20 +95,25 @@ pub struct MemoryStore {
 impl MemoryStore {
     /// Open or create the memory store rooted at `data_dir`. Creates the
     /// directory if it does not exist; runs the schema migration; opens the
-    /// hybrid search engine in the same directory.
+    /// hybrid search engine in the same directory; spins up a pool of
+    /// read-only Connections sized to `config.num_jobs()` (CPU count by
+    /// default).
     pub fn open(config: &Config, data_dir: &Path) -> MemoryResult<Self> {
         if !data_dir.as_os_str().is_empty() {
             std::fs::create_dir_all(data_dir)?;
         }
 
-        let conn = Connection::open(data_dir.join(MEMORY_DB_FILE))?;
+        let db_path = data_dir.join(MEMORY_DB_FILE);
+        let conn = Connection::open(&db_path)?;
         configure(&conn)?;
         migrate(&conn)?;
 
         let engine = open_engine(config, data_dir)?;
+        let readers = ReadPool::open(&db_path, config.num_jobs())?;
 
         Ok(Self {
-            db: Mutex::new(conn),
+            db: Arc::new(Mutex::new(conn)),
+            readers,
             engine,
             rebuild_lock: RwLock::new(()),
             data_dir: data_dir.to_path_buf(),
@@ -112,6 +129,12 @@ impl MemoryStore {
     /// engine's files live in a fresh tempdir that is cleaned up when the
     /// store drops. Sized for tests; production callers should use
     /// [`Self::open`].
+    ///
+    /// The read pool degrades to a single slot proxying the writer's
+    /// mutex: a `:memory:` database is private to the handle that opened
+    /// it, so a separate read-only connection would see an empty,
+    /// unrelated database. Concurrent read tests should exercise
+    /// [`Self::open`] against a tempdir.
     pub fn open_in_memory(config: &Config) -> MemoryResult<Self> {
         let conn = Connection::open_in_memory()?;
         // PRAGMA journal_mode=WAL is silently ignored on :memory: databases —
@@ -125,8 +148,12 @@ impl MemoryStore {
         let temp_dir = tempfile::tempdir().map_err(MemoryError::Io)?;
         let engine = open_engine(config, temp_dir.path())?;
 
+        let db = Arc::new(Mutex::new(conn));
+        let readers = ReadPool::shared_with_writer(Arc::clone(&db));
+
         Ok(Self {
-            db: Mutex::new(conn),
+            db,
+            readers,
             engine,
             rebuild_lock: RwLock::new(()),
             data_dir: temp_dir.path().to_path_buf(),
@@ -193,12 +220,33 @@ impl MemoryStore {
         self.embedder.clone()
     }
 
-    /// Acquire the SQLite connection, recovering from a poisoned mutex.
-    /// Mutex poisoning here means a previous holder panicked mid-write; the
-    /// connection itself is still usable, so we recover the inner value
-    /// rather than propagating the poison up to every caller.
+    /// Acquire the SQLite *writer* connection, recovering from a poisoned
+    /// mutex. Mutex poisoning here means a previous holder panicked
+    /// mid-write; the connection itself is still usable, so we recover
+    /// the inner value rather than propagating the poison up to every
+    /// caller.
+    ///
+    /// Read paths should prefer [`Self::with_reader`], which lets multiple
+    /// recall calls run in parallel through the read-only pool.
     pub(crate) fn lock_db(&self) -> MutexGuard<'_, Connection> {
         self.db.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Run `f` against a read-only [`Connection`] from the pool. Blocks
+    /// only when every reader slot is in use; SQLite's WAL mode keeps the
+    /// readers from blocking the writer (and vice versa) so no recall
+    /// call ever waits on an in-flight `remember`.
+    pub(crate) fn with_reader<F, R>(&self, f: F) -> MemoryResult<R>
+    where
+        F: FnOnce(&Connection) -> MemoryResult<R>,
+    {
+        self.readers.with_reader(f)
+    }
+
+    /// Number of reader slots in the pool. Surfaced for tests + the
+    /// `status` snapshot (commit 8d).
+    pub fn reader_pool_size(&self) -> usize {
+        self.readers.size()
     }
 
     /// Acquire the rebuild-lock for read. Held by the recall path so a
@@ -219,16 +267,17 @@ impl MemoryStore {
     /// with [`EntityType`] when uniqueness matters across types (the schema
     /// allows the same name with different types).
     pub fn get_entity(&self, name: &str) -> MemoryResult<Option<Entity>> {
-        let conn = self.lock_db();
-        let row = conn
-            .query_row(
-                "SELECT id, name, entity_type, created_at, updated_at, confidence, source
-                 FROM entities WHERE name = ?1",
-                params![name],
-                row_to_entity,
-            )
-            .optional()?;
-        Ok(row)
+        self.with_reader(|conn| {
+            let row = conn
+                .query_row(
+                    "SELECT id, name, entity_type, created_at, updated_at, confidence, source
+                     FROM entities WHERE name = ?1",
+                    params![name],
+                    row_to_entity,
+                )
+                .optional()?;
+            Ok(row)
+        })
     }
 
     /// Look up an entity by `(name, entity_type)`. Useful when two entities
@@ -238,30 +287,32 @@ impl MemoryStore {
         name: &str,
         entity_type: EntityType,
     ) -> MemoryResult<Option<Entity>> {
-        let conn = self.lock_db();
-        let row = conn
-            .query_row(
-                "SELECT id, name, entity_type, created_at, updated_at, confidence, source
-                 FROM entities WHERE name = ?1 AND entity_type = ?2",
-                params![name, entity_type.as_str()],
-                row_to_entity,
-            )
-            .optional()?;
-        Ok(row)
+        self.with_reader(|conn| {
+            let row = conn
+                .query_row(
+                    "SELECT id, name, entity_type, created_at, updated_at, confidence, source
+                     FROM entities WHERE name = ?1 AND entity_type = ?2",
+                    params![name, entity_type.as_str()],
+                    row_to_entity,
+                )
+                .optional()?;
+            Ok(row)
+        })
     }
 
     /// Look up an entity by its UUID.
     pub fn get_entity_by_id(&self, id: &str) -> MemoryResult<Option<Entity>> {
-        let conn = self.lock_db();
-        let row = conn
-            .query_row(
-                "SELECT id, name, entity_type, created_at, updated_at, confidence, source
-                 FROM entities WHERE id = ?1",
-                params![id],
-                row_to_entity,
-            )
-            .optional()?;
-        Ok(row)
+        self.with_reader(|conn| {
+            let row = conn
+                .query_row(
+                    "SELECT id, name, entity_type, created_at, updated_at, confidence, source
+                     FROM entities WHERE id = ?1",
+                    params![id],
+                    row_to_entity,
+                )
+                .optional()?;
+            Ok(row)
+        })
     }
 
     /// List entities with optional `entity_type` filter and pagination.
@@ -272,9 +323,9 @@ impl MemoryStore {
         limit: usize,
         offset: usize,
     ) -> MemoryResult<Vec<EntityListRow>> {
-        let conn = self.lock_db();
         let limit_i = i64::try_from(limit).unwrap_or(i64::MAX);
         let offset_i = i64::try_from(offset).unwrap_or(0);
+        let now = self.clock.now_secs();
 
         let base = "\
             SELECT e.id, e.name, e.entity_type, e.created_at, e.updated_at, \
@@ -286,33 +337,33 @@ impl MemoryStore {
                 AND o.tombstoned = 0 \
                 AND (o.valid_until IS NULL OR o.valid_until > ?1)";
 
-        let now = self.clock.now_secs();
-
-        if let Some(et) = entity_type {
-            let sql = format!(
-                "{base} \
-                 WHERE e.entity_type = ?2 \
-                 GROUP BY e.id \
-                 ORDER BY e.updated_at DESC \
-                 LIMIT ?3 OFFSET ?4"
-            );
-            let mut stmt = conn.prepare(&sql)?;
-            let rows = stmt.query_map(
-                params![now, et.as_str(), limit_i, offset_i],
-                row_to_entity_row,
-            )?;
-            collect_rows(rows)
-        } else {
-            let sql = format!(
-                "{base} \
-                 GROUP BY e.id \
-                 ORDER BY e.updated_at DESC \
-                 LIMIT ?2 OFFSET ?3"
-            );
-            let mut stmt = conn.prepare(&sql)?;
-            let rows = stmt.query_map(params![now, limit_i, offset_i], row_to_entity_row)?;
-            collect_rows(rows)
-        }
+        self.with_reader(|conn| {
+            if let Some(et) = entity_type {
+                let sql = format!(
+                    "{base} \
+                     WHERE e.entity_type = ?2 \
+                     GROUP BY e.id \
+                     ORDER BY e.updated_at DESC \
+                     LIMIT ?3 OFFSET ?4"
+                );
+                let mut stmt = conn.prepare(&sql)?;
+                let rows = stmt.query_map(
+                    params![now, et.as_str(), limit_i, offset_i],
+                    row_to_entity_row,
+                )?;
+                collect_rows(rows)
+            } else {
+                let sql = format!(
+                    "{base} \
+                     GROUP BY e.id \
+                     ORDER BY e.updated_at DESC \
+                     LIMIT ?2 OFFSET ?3"
+                );
+                let mut stmt = conn.prepare(&sql)?;
+                let rows = stmt.query_map(params![now, limit_i, offset_i], row_to_entity_row)?;
+                collect_rows(rows)
+            }
+        })
     }
 
     /// Active observations for `entity_id`, sorted by `observed_at` DESC.
