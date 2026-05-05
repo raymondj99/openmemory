@@ -15,9 +15,28 @@ sqlite = ["open-memory-graph/sqlite", "open-memory-index/sqlite"]
 fts5 = ["sqlite", "open-memory-graph/fts5", "open-memory-index/fts5"]
 hnsw = ["open-memory-graph/hnsw", "open-memory-index/hnsw"]
 embeddings = ["open-memory-graph/embeddings"]
-http = []
+mcp-http = ["dep:axum", "dep:tower", "dep:tower-http"]
+testing = ["open-memory-graph/testing", "open-memory-core/testing"]
 
 [dependencies]
 open-memory-core = { workspace = true }
 open-memory-index = { workspace = true, default-features = false }
 open-memory-graph = { workspace = true, default-features = false }
+
+schemars = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "io-util", "io-std", "sync"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+axum = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+open-memory-graph = { workspace = true, default-features = false, features = ["testing"] }
+open-memory-core = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt", "io-util"] }

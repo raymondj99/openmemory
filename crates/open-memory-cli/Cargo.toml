@@ -19,7 +19,7 @@ sqlite = ["open-memory-mcp/sqlite", "open-memory-graph/sqlite", "open-memory-ind
 fts5 = ["sqlite", "open-memory-mcp/fts5", "open-memory-graph/fts5", "open-memory-index/fts5"]
 hnsw = ["open-memory-mcp/hnsw", "open-memory-graph/hnsw", "open-memory-index/hnsw"]
 embeddings = ["open-memory-graph/embeddings", "open-memory-mcp/embeddings"]
-mcp-http = ["open-memory-mcp/http"]
+mcp-http = ["open-memory-mcp/mcp-http"]
 completions = []
 
 [dependencies]
