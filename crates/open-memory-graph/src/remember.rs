@@ -289,6 +289,11 @@ impl MemoryStore {
     /// Embed a search text via the attached embedder, if any. Returns an
     /// empty vector when no embedder is attached — the FTS5/BM25 path still
     /// indexes the text either way, so recall keeps working keyword-only.
+    //
+    // `&self` is unused under default features but required so the
+    // `testing`-feature variant can read `self.embedder()`. Suppressing
+    // the lint keeps a single signature across both builds.
+    #[allow(clippy::unused_self)]
     pub(crate) fn embed_text(&self, text: &str) -> Vec<f32> {
         #[cfg(feature = "testing")]
         if let Some(emb) = self.embedder() {
