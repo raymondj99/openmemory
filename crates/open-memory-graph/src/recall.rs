@@ -14,9 +14,12 @@
 //!   final_score    = search_score * base_decay * retrieval * correction * confidence
 //! ```
 //!
-//! The recall path takes `read_rebuild()` for the duration of the search to
-//! keep concurrent rebuilds (commits 26 / 29) from exposing a half-rebuilt
-//! index.
+//! Recall holds `read_rebuild()` only while the hybrid engine is doing its
+//! search, so concurrent rebuilds (commits 26 / 29) cannot expose a
+//! half-rebuilt index. SQLite work runs through the read-only `ReadPool`
+//! (commit 8a) — multiple recall calls execute in parallel without
+//! serialising on the writer's mutex. The post-recall `bump_access_counts`
+//! still goes through `lock_db()` because it is a write.
 
 use std::collections::{HashMap, HashSet};
 
@@ -118,74 +121,76 @@ impl MemoryStore {
         let valid_at = filters.valid_at.unwrap_or_else(|| self.clock().now_secs());
         let lambda = self.decay_rate();
 
-        let mut hits: Vec<RecallResult> = Vec::with_capacity(raw_results.len());
-        let conn = self.lock_db();
-        for r in &raw_results {
-            let Some(obs_id) = r.uri.strip_prefix("memory://observation/") else {
-                continue;
-            };
+        let mut hits: Vec<RecallResult> = self.with_reader(|conn| {
+            let mut hits: Vec<RecallResult> = Vec::with_capacity(raw_results.len());
+            for r in &raw_results {
+                let Some(obs_id) = r.uri.strip_prefix("memory://observation/") else {
+                    continue;
+                };
 
-            let lookup = conn
-                .query_row(
-                    "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
-                            o.valid_until, o.confidence, o.source, o.tombstoned, o.access_count,
-                            e.name, e.entity_type
-                     FROM observations o
-                     JOIN entities e ON o.entity_id = e.id
-                     WHERE o.id = ?1",
-                    [obs_id],
-                    |row| {
-                        let obs = row_to_observation(row)?;
-                        let entity_name: String = row.get(10)?;
-                        let entity_type_str: String = row.get(11)?;
-                        Ok((obs, entity_name, entity_type_str))
-                    },
-                )
-                .optional()?;
-            let Some((obs, entity_name, entity_type_str)) = lookup else {
-                continue;
-            };
+                let lookup = conn
+                    .query_row(
+                        "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
+                                o.valid_until, o.confidence, o.source, o.tombstoned,
+                                o.access_count, e.name, e.entity_type
+                         FROM observations o
+                         JOIN entities e ON o.entity_id = e.id
+                         WHERE o.id = ?1",
+                        [obs_id],
+                        |row| {
+                            let obs = row_to_observation(row)?;
+                            let entity_name: String = row.get(10)?;
+                            let entity_type_str: String = row.get(11)?;
+                            Ok((obs, entity_name, entity_type_str))
+                        },
+                    )
+                    .optional()?;
+                let Some((obs, entity_name, entity_type_str)) = lookup else {
+                    continue;
+                };
 
-            if obs.tombstoned || !obs.is_valid_at(valid_at) {
-                continue;
-            }
-            if let Some(min_conf) = filters.min_confidence {
-                if obs.confidence < min_conf {
+                if obs.tombstoned || !obs.is_valid_at(valid_at) {
                     continue;
                 }
-            }
-            if let Some(ref filter_source) = filters.source {
-                if &obs.source != filter_source {
-                    continue;
+                if let Some(min_conf) = filters.min_confidence {
+                    if obs.confidence < min_conf {
+                        continue;
+                    }
                 }
-            }
-            let entity_type = EntityType::parse(&entity_type_str).unwrap_or(EntityType::Concept);
-            if let Some(ref filter_type) = filters.entity_type {
-                if &entity_type != filter_type {
-                    continue;
+                if let Some(ref filter_source) = filters.source {
+                    if &obs.source != filter_source {
+                        continue;
+                    }
                 }
-            }
-            if let Some(ref names) = filters.entity_names {
-                let name_lower = entity_name.to_lowercase();
-                if !names.iter().any(|n| n.to_lowercase() == name_lower) {
-                    continue;
+                let entity_type =
+                    EntityType::parse(&entity_type_str).unwrap_or(EntityType::Concept);
+                if let Some(ref filter_type) = filters.entity_type {
+                    if &entity_type != filter_type {
+                        continue;
+                    }
                 }
-            }
+                if let Some(ref names) = filters.entity_names {
+                    let name_lower = entity_name.to_lowercase();
+                    if !names.iter().any(|n| n.to_lowercase() == name_lower) {
+                        continue;
+                    }
+                }
 
-            let raw_score = r.score;
-            let score = compute_score(&obs, raw_score, valid_at, lambda);
-            if score < RECALL_MIN_SCORE {
-                continue;
+                let raw_score = r.score;
+                let score = compute_score(&obs, raw_score, valid_at, lambda);
+                if score < RECALL_MIN_SCORE {
+                    continue;
+                }
+                hits.push(RecallResult {
+                    observation: obs,
+                    entity_name,
+                    entity_type,
+                    raw_score,
+                    score,
+                });
             }
-            hits.push(RecallResult {
-                observation: obs,
-                entity_name,
-                entity_type,
-                raw_score,
-                score,
-            });
-        }
-        drop(conn);
+            Ok(hits)
+        })?;
 
         hits.sort_by(|a, b| {
             b.score
@@ -225,7 +230,6 @@ impl MemoryStore {
         if max_extra == 0 || seeds.is_empty() {
             return Ok(Vec::new());
         }
-        let conn = self.lock_db();
         let mut seen: HashSet<String> = seeds.iter().map(|r| r.observation.id.clone()).collect();
         let mut seed_entities: HashMap<String, f32> = HashMap::new();
         for s in seeds {
@@ -239,92 +243,94 @@ impl MemoryStore {
                 .or_insert(s.score);
         }
 
-        let mut out = Vec::new();
-        let mut rel_stmt = conn.prepare(
-            "SELECT to_entity, weight FROM relations
-             WHERE from_entity = ?1
-                AND (valid_until IS NULL OR valid_until > ?2)
-             UNION ALL
-             SELECT from_entity, weight FROM relations
-             WHERE to_entity = ?1
-                AND (valid_until IS NULL OR valid_until > ?2)",
-        )?;
-        let mut obs_stmt = conn.prepare(
-            "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
-                    o.valid_until, o.confidence, o.source, o.tombstoned, o.access_count,
-                    e.name, e.entity_type
-             FROM observations o
-             JOIN entities e ON o.entity_id = e.id
-             WHERE o.entity_id = ?1
-                AND o.tombstoned = 0
-                AND (o.valid_until IS NULL OR o.valid_until > ?2)
-             ORDER BY o.observed_at DESC
-             LIMIT ?3",
-        )?;
+        self.with_reader(|conn| {
+            let mut out = Vec::new();
+            let mut rel_stmt = conn.prepare(
+                "SELECT to_entity, weight FROM relations
+                 WHERE from_entity = ?1
+                    AND (valid_until IS NULL OR valid_until > ?2)
+                 UNION ALL
+                 SELECT from_entity, weight FROM relations
+                 WHERE to_entity = ?1
+                    AND (valid_until IS NULL OR valid_until > ?2)",
+            )?;
+            let mut obs_stmt = conn.prepare(
+                "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
+                        o.valid_until, o.confidence, o.source, o.tombstoned, o.access_count,
+                        e.name, e.entity_type
+                 FROM observations o
+                 JOIN entities e ON o.entity_id = e.id
+                 WHERE o.entity_id = ?1
+                    AND o.tombstoned = 0
+                    AND (o.valid_until IS NULL OR o.valid_until > ?2)
+                 ORDER BY o.observed_at DESC
+                 LIMIT ?3",
+            )?;
 
-        for (seed_entity, seed_score) in &seed_entities {
-            let mut neighbours = rel_stmt.query(params![seed_entity, valid_at])?;
-            while let Some(row) = neighbours.next()? {
-                let neighbour_id: String = row.get(0)?;
-                let weight: f32 = row.get(1)?;
-                if seed_entities.contains_key(&neighbour_id) {
-                    continue;
-                }
-
-                let limit_remaining = i64::try_from(max_extra - out.len())
-                    .unwrap_or(i64::MAX)
-                    .max(1);
-                let mut obs_rows =
-                    obs_stmt.query(params![neighbour_id, valid_at, limit_remaining])?;
-                while let Some(orow) = obs_rows.next()? {
-                    let obs = row_to_observation(orow)?;
-                    if !obs.is_valid_at(valid_at) {
-                        continue;
-                    }
-                    let entity_name: String = orow.get(10)?;
-                    let entity_type_str: String = orow.get(11)?;
-                    let entity_type =
-                        EntityType::parse(&entity_type_str).unwrap_or(EntityType::Concept);
-
-                    if let Some(ref filter_type) = filters.entity_type {
-                        if entity_type != *filter_type {
-                            continue;
-                        }
-                    }
-                    if let Some(min_conf) = filters.min_confidence {
-                        if obs.confidence < min_conf {
-                            continue;
-                        }
-                    }
-                    if let Some(ref filter_source) = filters.source {
-                        if &obs.source != filter_source {
-                            continue;
-                        }
-                    }
-                    if !seen.insert(obs.id.clone()) {
+            for (seed_entity, seed_score) in &seed_entities {
+                let mut neighbours = rel_stmt.query(params![seed_entity, valid_at])?;
+                while let Some(row) = neighbours.next()? {
+                    let neighbour_id: String = row.get(0)?;
+                    let weight: f32 = row.get(1)?;
+                    if seed_entities.contains_key(&neighbour_id) {
                         continue;
                     }
 
-                    let base_score =
-                        SPREADING_DISTANCE_DECAY * weight.clamp(0.0, 1.0) * *seed_score;
-                    let score = compute_score(&obs, base_score, valid_at, lambda);
-                    if score < RECALL_MIN_SCORE * 0.5 {
-                        continue;
-                    }
-                    out.push(RecallResult {
-                        observation: obs,
-                        entity_name,
-                        entity_type,
-                        raw_score: base_score,
-                        score,
-                    });
-                    if out.len() >= max_extra {
-                        return Ok(out);
+                    let limit_remaining = i64::try_from(max_extra - out.len())
+                        .unwrap_or(i64::MAX)
+                        .max(1);
+                    let mut obs_rows =
+                        obs_stmt.query(params![neighbour_id, valid_at, limit_remaining])?;
+                    while let Some(orow) = obs_rows.next()? {
+                        let obs = row_to_observation(orow)?;
+                        if !obs.is_valid_at(valid_at) {
+                            continue;
+                        }
+                        let entity_name: String = orow.get(10)?;
+                        let entity_type_str: String = orow.get(11)?;
+                        let entity_type =
+                            EntityType::parse(&entity_type_str).unwrap_or(EntityType::Concept);
+
+                        if let Some(ref filter_type) = filters.entity_type {
+                            if entity_type != *filter_type {
+                                continue;
+                            }
+                        }
+                        if let Some(min_conf) = filters.min_confidence {
+                            if obs.confidence < min_conf {
+                                continue;
+                            }
+                        }
+                        if let Some(ref filter_source) = filters.source {
+                            if &obs.source != filter_source {
+                                continue;
+                            }
+                        }
+                        if !seen.insert(obs.id.clone()) {
+                            continue;
+                        }
+
+                        let base_score =
+                            SPREADING_DISTANCE_DECAY * weight.clamp(0.0, 1.0) * *seed_score;
+                        let score = compute_score(&obs, base_score, valid_at, lambda);
+                        if score < RECALL_MIN_SCORE * 0.5 {
+                            continue;
+                        }
+                        out.push(RecallResult {
+                            observation: obs,
+                            entity_name,
+                            entity_type,
+                            raw_score: base_score,
+                            score,
+                        });
+                        if out.len() >= max_extra {
+                            return Ok(out);
+                        }
                     }
                 }
             }
-        }
-        Ok(out)
+            Ok(out)
+        })
     }
 
     /// Increment `access_count` on the listed observations. Best-effort:
