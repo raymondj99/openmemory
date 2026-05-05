@@ -11,6 +11,7 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod forget;
 pub mod recall;
 pub mod remember;
 pub mod schema;
@@ -18,6 +19,7 @@ pub mod store;
 pub mod types;
 
 pub use error::{MemoryError, MemoryResult};
+pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use open_memory_index::SearchMode;
 pub use recall::{
     RecallFilters, RecallResult, CORRECTION_RETRIEVAL_BOOST, RECALL_MIN_SCORE,
