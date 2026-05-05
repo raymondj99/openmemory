@@ -53,6 +53,20 @@ pub enum Command {
     /// Register open-memory in an external integration's config.
     #[command(subcommand)]
     Integrate(IntegrateTarget),
+    /// Append observations to an entity from the command line. Mainly for
+    /// scripting / testing — the MCP `open_memory_remember` tool is the
+    /// in-agent path.
+    Remember(RememberArgs),
+    /// Search memory by natural-language query. Use `--json` to emit one
+    /// JSON line per result.
+    Recall(RecallArgs),
+    /// List entities, optionally filtered by type.
+    ListEntities(ListEntitiesArgs),
+    /// Hard-delete an entity. Requires `--yes` to confirm.
+    ForgetEntity(ForgetEntityArgs),
+    /// Emit shell completions for the named shell.
+    #[cfg(feature = "completions")]
+    Completions(CompletionsArgs),
 }
 
 /// Subcommands for `open-memory integrate <target>`.
@@ -61,6 +75,87 @@ pub enum IntegrateTarget {
     /// Add or update the `open-memory` MCP server entry in OpenClaw's
     /// JSON5 config.
     Openclaw(IntegrateOpenclawArgs),
+}
+
+/// `remember` arguments.
+#[derive(Debug, Args)]
+pub struct RememberArgs {
+    /// Entity name to attach observations to.
+    pub entity: String,
+    /// Entity type. Defaults to `concept`.
+    #[arg(long, value_name = "TYPE", default_value = "concept")]
+    pub entity_type: String,
+    /// One or more facts. Pass multiple `--observation` flags to append
+    /// several observations in one transaction.
+    #[arg(long = "observation", value_name = "TEXT", required = true)]
+    pub observations: Vec<String>,
+    /// Optional relation. Format: `TYPE=NAME[:ENTITY_TYPE]`. Repeatable.
+    #[arg(long, value_name = "TYPE=NAME[:ENTITY_TYPE]")]
+    pub relation: Vec<String>,
+    /// Origin tag for audit. Defaults to "cli".
+    #[arg(long)]
+    pub source: Option<String>,
+    /// Emit a single-line JSON result instead of human text.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `recall` arguments.
+#[derive(Debug, Args)]
+pub struct RecallArgs {
+    /// Natural-language query.
+    pub query: String,
+    /// Maximum results to return.
+    #[arg(long)]
+    pub limit: Option<u32>,
+    /// Restrict to a single entity type.
+    #[arg(long, value_name = "TYPE")]
+    pub entity_type: Option<String>,
+    /// Restrict to observations from this source.
+    #[arg(long)]
+    pub source: Option<String>,
+    /// Minimum confidence in [0.0, 1.0].
+    #[arg(long)]
+    pub min_confidence: Option<f32>,
+    /// Emit a JSON array instead of human text.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `list-entities` arguments.
+#[derive(Debug, Args)]
+pub struct ListEntitiesArgs {
+    /// Filter by entity type.
+    #[arg(long, value_name = "TYPE")]
+    pub entity_type: Option<String>,
+    /// Maximum entities to return.
+    #[arg(long)]
+    pub limit: Option<u32>,
+    /// Skip first N entities.
+    #[arg(long)]
+    pub offset: Option<u32>,
+    /// Emit a JSON array instead of human text.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `forget-entity` arguments.
+#[derive(Debug, Args)]
+pub struct ForgetEntityArgs {
+    /// Entity name to delete.
+    pub entity: String,
+    /// Confirm the destructive action. Required.
+    #[arg(long)]
+    pub yes: bool,
+}
+
+/// `completions` arguments.
+#[cfg(feature = "completions")]
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Target shell.
+    #[arg(value_enum)]
+    pub shell: clap_complete::Shell,
 }
 
 /// `integrate openclaw` arguments.
@@ -133,6 +228,16 @@ where
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {
             commands::integrate::run(&cli.profile, args)
         }
+        Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
+        Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
+        Command::ListEntities(args) => {
+            commands::scriptable::list_entities(&cli.profile, args)
+        }
+        Command::ForgetEntity(args) => {
+            commands::scriptable::forget_entity(&cli.profile, args)
+        }
+        #[cfg(feature = "completions")]
+        Command::Completions(args) => commands::completions::run(args.shell),
     }
 }
 
