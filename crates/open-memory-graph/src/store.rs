@@ -74,6 +74,10 @@ pub struct MemoryStore {
     clock: Arc<dyn Clock>,
     #[cfg(feature = "testing")]
     embedder: Option<Arc<dyn Embedder>>,
+    /// Holds an owning tempdir handle when [`Self::open_in_memory`] was
+    /// used, so the engine's on-disk files are cleaned up when the store
+    /// drops. `None` for the regular `open` path.
+    _temp_dir: Option<tempfile::TempDir>,
 }
 
 impl MemoryStore {
@@ -100,11 +104,14 @@ impl MemoryStore {
             clock: Arc::new(SystemClock),
             #[cfg(feature = "testing")]
             embedder: None,
+            _temp_dir: None,
         })
     }
 
-    /// Open a fully in-memory store. Both SQLite and the search engine live
-    /// in RAM and disappear when the store drops. Sized for tests.
+    /// Open a fully in-memory store. SQLite is `:memory:` and the search
+    /// engine's files live in a fresh tempdir that is cleaned up when the
+    /// store drops. Sized for tests; production callers should use
+    /// [`Self::open`].
     pub fn open_in_memory(config: &Config) -> MemoryResult<Self> {
         let conn = Connection::open_in_memory()?;
         // PRAGMA journal_mode=WAL is silently ignored on :memory: databases —
@@ -112,21 +119,22 @@ impl MemoryStore {
         configure(&conn)?;
         migrate(&conn)?;
 
-        // The hybrid engine still needs *somewhere* to land its on-disk files,
-        // even though the in-memory store doesn't expose persistence. Park it
-        // in an empty path; FlatVectorIndex / Fts5Store both default-open
-        // their in-memory equivalents when handed a missing path.
-        let engine = open_engine(config, Path::new(""))?;
+        // The hybrid engine needs an on-disk home for its FTS5/vector files.
+        // tempfile cleans the directory up when the returned `_temp_dir`
+        // drops alongside the store.
+        let temp_dir = tempfile::tempdir().map_err(MemoryError::Io)?;
+        let engine = open_engine(config, temp_dir.path())?;
 
         Ok(Self {
             db: Mutex::new(conn),
             engine,
             rebuild_lock: RwLock::new(()),
-            data_dir: PathBuf::new(),
+            data_dir: temp_dir.path().to_path_buf(),
             decay_rate: config.memory.decay_rate,
             clock: Arc::new(SystemClock),
             #[cfg(feature = "testing")]
             embedder: None,
+            _temp_dir: Some(temp_dir),
         })
     }
 

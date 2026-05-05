@@ -11,12 +11,18 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod recall;
 pub mod remember;
 pub mod schema;
 pub mod store;
 pub mod types;
 
 pub use error::{MemoryError, MemoryResult};
+pub use open_memory_index::SearchMode;
+pub use recall::{
+    RecallFilters, RecallResult, CORRECTION_RETRIEVAL_BOOST, RECALL_MIN_SCORE,
+    SPREADING_DISTANCE_DECAY,
+};
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
 pub use schema::MEMORY_SCHEMA_VERSION;
 pub use store::{EntityListRow, MemoryStatus, MemoryStore, MEMORY_DB_FILE};
