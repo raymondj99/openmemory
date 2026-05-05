@@ -56,6 +56,8 @@ const INDEX_TEXT_DESC: &str =
      retrieve by topic without modelling it as a graph entity. URIs starting with \
      `memory://observation/` are reserved for the graph store.";
 
+/// Handler for the `open_memory_index_text` MCP tool. Indexes raw text
+/// under a caller-supplied URI for hybrid recall.
 pub struct OpenMemoryIndexTextTool;
 impl Tool for OpenMemoryIndexTextTool {
     const NAME: &'static str = "open_memory_index_text";
@@ -127,6 +129,8 @@ const SEARCH_DESC: &str =
      relevance with optional URI-prefix scoping and a minimum-score floor. Set `mode` to \
      `keyword` to skip the vector path; `vector` to skip keyword.";
 
+/// Handler for the `open_memory_search` MCP tool. Hybrid search across
+/// every indexed source with URI-prefix scoping and score floor.
 pub struct OpenMemorySearchTool;
 impl Tool for OpenMemorySearchTool {
     const NAME: &'static str = "open_memory_search";
@@ -200,6 +204,8 @@ const DELETE_DESC: &str =
     "Remove a URI from the search index. Drops the entry from both the vector and full-text \
      stores. Returns the number of records actually removed (0 if the URI wasn't indexed).";
 
+/// Handler for the `open_memory_delete` MCP tool. Drops a URI from
+/// both the vector and full-text stores.
 pub struct OpenMemoryDeleteTool;
 impl Tool for OpenMemoryDeleteTool {
     const NAME: &'static str = "open_memory_delete";

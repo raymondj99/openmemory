@@ -39,6 +39,8 @@ const CONSOLIDATE_DESC: &str =
      entities that became orphaned. Idempotent: running twice in a row reports zero merges \
      and zero prunes on the second call.";
 
+/// Handler for the `open_memory_consolidate` MCP tool. Runs the
+/// dedup + decay-prune sweep over the knowledge graph; idempotent.
 pub struct OpenMemoryConsolidateTool;
 impl Tool for OpenMemoryConsolidateTool {
     const NAME: &'static str = "open_memory_consolidate";

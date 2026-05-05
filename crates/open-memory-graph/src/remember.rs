@@ -40,6 +40,9 @@ pub struct ObservationInput {
 }
 
 impl ObservationInput {
+    /// Build a new observation. Confidence defaults to `1.0`, source to
+    /// the empty string, validity to open-ended, and tier to
+    /// [`MemoryTier::Episodic`]; refine via the `with_*` builders.
     #[must_use]
     pub fn new(content: impl Into<String>) -> Self {
         Self {
@@ -52,12 +55,16 @@ impl ObservationInput {
         }
     }
 
+    /// Override the confidence score. Values are clamped into `[0.0, 1.0]`.
     #[must_use]
     pub fn with_confidence(mut self, confidence: f32) -> Self {
         self.confidence = confidence.clamp(0.0, 1.0);
         self
     }
 
+    /// Tag the observation with a free-text source label, e.g. the agent
+    /// or transcript that produced it. Used by recall as a soft filter and
+    /// retrieval-boost signal.
     #[must_use]
     pub fn with_source(mut self, source: impl Into<String>) -> Self {
         self.source = source.into();

@@ -93,6 +93,8 @@ const REMEMBER_DESC: &str =
      entities, creating those entities lazily if they do not yet exist. Use this to persist \
      knowledge across sessions — user preferences, project decisions, learned patterns.";
 
+/// Handler for the `open_memory_remember` MCP tool. Stores or updates
+/// an entity and appends observations + optional relations atomically.
 pub struct OpenMemoryRememberTool;
 impl Tool for OpenMemoryRememberTool {
     const NAME: &'static str = "open_memory_remember";
@@ -208,6 +210,8 @@ const RECALL_DESC: &str =
      specific entity names. Spreading activation through the relation graph fills in related \
      observations when direct hits underflow.";
 
+/// Handler for the `open_memory_recall` MCP tool. Hybrid search over
+/// observations with Ebbinghaus decay scoring and spreading activation.
 pub struct OpenMemoryRecallTool;
 impl Tool for OpenMemoryRecallTool {
     const NAME: &'static str = "open_memory_recall";
@@ -290,6 +294,9 @@ const LIST_ENTITIES_DESC: &str =
      metadata plus its live observation count, so callers can render a one-shot summary \
      without a second round-trip. Pagination via limit + offset.";
 
+/// Handler for the `open_memory_list_entities` MCP tool. Browses all
+/// entities with their observation counts; supports type filter and
+/// limit/offset pagination.
 pub struct OpenMemoryListEntitiesTool;
 impl Tool for OpenMemoryListEntitiesTool {
     const NAME: &'static str = "open_memory_list_entities";
@@ -355,6 +362,8 @@ const GET_ENTITY_DESC: &str =
     "Look up an entity by name and return all of its live observations + relations. Returns \
      `null` (and a `found: false` flag in the JSON) if the entity does not exist.";
 
+/// Handler for the `open_memory_get_entity` MCP tool. Returns one
+/// entity bundled with its live observations and relations.
 pub struct OpenMemoryGetEntityTool;
 impl Tool for OpenMemoryGetEntityTool {
     const NAME: &'static str = "open_memory_get_entity";
@@ -458,6 +467,9 @@ const FORGET_DESC: &str =
      subsequent recalls but remain in the database until `open_memory_consolidate` sweeps \
      them. Idempotent — calling with an already-tombstoned ID is a no-op.";
 
+/// Handler for the `open_memory_forget` MCP tool. Soft-deletes one
+/// observation by ID; tombstoned rows are excluded from subsequent
+/// recalls and removed by the next `consolidate` sweep.
 pub struct OpenMemoryForgetTool;
 impl Tool for OpenMemoryForgetTool {
     const NAME: &'static str = "open_memory_forget";
@@ -497,6 +509,8 @@ const FORGET_ENTITY_DESC: &str =
     "Hard-delete an entity by name, cascading to its observations and relations. Returns the \
      observation count purged. Returns an `entity not found` error for unknown names.";
 
+/// Handler for the `open_memory_forget_entity` MCP tool. Hard-deletes
+/// an entity by name and cascades to its observations and relations.
 pub struct OpenMemoryForgetEntityTool;
 impl Tool for OpenMemoryForgetEntityTool {
     const NAME: &'static str = "open_memory_forget_entity";
@@ -533,6 +547,9 @@ const STATUS_DESC: &str =
      breakdowns and the current schema version. Use this first to understand what's in \
      memory before running queries.";
 
+/// Handler for the `open_memory_status` MCP tool. Reports schema
+/// version and aggregate counts of entities, observations, relations,
+/// and tombstones in the active store.
 pub struct OpenMemoryStatusTool;
 impl Tool for OpenMemoryStatusTool {
     const NAME: &'static str = "open_memory_status";
