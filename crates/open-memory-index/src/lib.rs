@@ -17,10 +17,14 @@
 
 pub mod error;
 pub mod flat;
+#[cfg(feature = "sqlite")]
+pub mod metadata;
 pub mod traits;
 
 pub use error::{IndexError, IndexResult};
 pub use flat::FlatVectorIndex;
+#[cfg(feature = "sqlite")]
+pub use metadata::{MetadataStats, MetadataStore, SourceKind, SourceRecord};
 pub use traits::{
     ExportEntry, FullTextStore, IndexEntry, SearchMode, SearchResult, VectorIndex, VectorStore,
 };
