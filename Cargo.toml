@@ -7,6 +7,7 @@ members = [
     "crates/open-memory-graph",
     "crates/open-memory-mcp",
     "crates/open-memory-cli",
+    "crates/open-memory-watch",
 ]
 
 [workspace.package]
@@ -25,6 +26,7 @@ open-memory-index = { path = "crates/open-memory-index", version = "0.1.0", defa
 open-memory-embed = { path = "crates/open-memory-embed", version = "0.1.0", default-features = false }
 open-memory-graph = { path = "crates/open-memory-graph", version = "0.1.0", default-features = false }
 open-memory-mcp = { path = "crates/open-memory-mcp", version = "0.1.0", default-features = false }
+open-memory-watch = { path = "crates/open-memory-watch", version = "0.1.0", default-features = false }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }
@@ -74,6 +76,13 @@ ureq = { version = "2", features = ["json"] }
 tempfile = "3"
 fs4 = "0.12"
 json5 = "0.4"
+
+# File watcher (Phase 9 — open-memory-watch crate). MSRV 1.85 for both
+# notify-debouncer-full 0.7 (the latest stable; 0.8 is RC) and notify 8.
+notify = "8"
+notify-debouncer-full = "0.7"
+ignore = "0.4"
+walkdir = "2"
 
 # Random (retry jitter)
 rand = "0.8"

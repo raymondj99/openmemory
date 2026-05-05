@@ -1,0 +1,39 @@
+[package]
+name = "open-memory-watch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "open-memory: filesystem watcher with incremental re-indexing"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# `default = []` rather than putting watch behind a feature inside this
+# crate: the feature gate lives one level up at the CLI / MCP crates,
+# which choose whether to depend on us at all.
+default = []
+
+[dependencies]
+open-memory-core = { workspace = true }
+open-memory-index = { workspace = true, default-features = false }
+open-memory-graph = { workspace = true, default-features = false }
+
+# File watching + walking
+notify = { workspace = true }
+notify-debouncer-full = { workspace = true }
+ignore = { workspace = true }
+walkdir = { workspace = true }
+
+# Hashing + IDs
+blake3 = { workspace = true }
+
+# Diagnostics
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+open-memory-core = { workspace = true, features = ["testing"] }
+open-memory-graph = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }

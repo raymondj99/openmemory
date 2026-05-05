@@ -13,6 +13,8 @@ pub struct Config {
     pub memory: MemorySection,
     #[serde(default)]
     pub index: IndexSection,
+    #[serde(default)]
+    pub watch: WatchSection,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -49,6 +51,27 @@ pub struct IndexSection {
     pub chunk_size: usize,
     #[serde(default = "IndexSection::default_max_chars")]
     pub max_chars: usize,
+}
+
+/// Filesystem-watcher tuning. Read by `open-memory-watch` when the
+/// optional `watch` feature is enabled and `open-memory watch` is
+/// invoked. Sensible defaults — most users never touch this section.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatchSection {
+    /// Quiet window before debounced events fire, in milliseconds.
+    /// Lower = more responsive, higher = fewer redundant re-indexes.
+    #[serde(default = "WatchSection::default_debounce_ms")]
+    pub debounce_ms: u64,
+    /// File extensions (without leading dot) the watcher considers
+    /// observation-shaped text. Empty list defaults to a curated set
+    /// at construction time inside `open-memory-watch`.
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    /// Skip files larger than this many bytes. Defaults to 10 MiB —
+    /// big enough for prose / code, small enough to keep BLAKE3 +
+    /// indexing snappy on an editor save loop.
+    #[serde(default = "WatchSection::default_max_size")]
+    pub max_size: u64,
 }
 
 impl Config {
@@ -191,6 +214,25 @@ impl Default for IndexSection {
         Self {
             chunk_size: Self::default_chunk_size(),
             max_chars: Self::default_max_chars(),
+        }
+    }
+}
+
+impl WatchSection {
+    fn default_debounce_ms() -> u64 {
+        200
+    }
+    fn default_max_size() -> u64 {
+        10 * 1024 * 1024
+    }
+}
+
+impl Default for WatchSection {
+    fn default() -> Self {
+        Self {
+            debounce_ms: Self::default_debounce_ms(),
+            extensions: Vec::new(),
+            max_size: Self::default_max_size(),
         }
     }
 }
