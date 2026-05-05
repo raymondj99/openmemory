@@ -31,7 +31,9 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod events;
 pub mod index;
+pub mod runtime;
 pub mod scan;
 
 pub use error::{WatchError, WatchResult};
@@ -39,6 +41,7 @@ pub use index::{
     path_to_uri, process_file, remove_path, ProcessOutcome, ScanReport, SkipReason,
     SOURCE_TYPE_FILE_WATCHER,
 };
+pub use runtime::BatchSummary;
 
 use std::path::PathBuf;
 use std::sync::Arc;
