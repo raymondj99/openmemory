@@ -467,6 +467,12 @@ fn integration_concurrent_recall_runs_in_parallel() {
     // 2) Parallel time stays well under the fully-serial bound.
     let serial_estimate = single_median * u32::try_from(n).unwrap_or(u32::MAX);
     let cap = (serial_estimate / 2).max(Duration::from_millis(100));
+    let speedup = serial_estimate.as_secs_f64() / parallel_elapsed.as_secs_f64();
+    println!(
+        "concurrent_recall: n={n} iters={iters} \
+         single_median={single_median:?} serial={serial_estimate:?} \
+         parallel={parallel_elapsed:?} speedup={speedup:.2}x"
+    );
     assert!(
         parallel_elapsed <= cap,
         "concurrent recall took {parallel_elapsed:?} — expected ≤ {cap:?} \
