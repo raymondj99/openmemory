@@ -7,3 +7,6 @@ pub mod config;
 pub mod error;
 pub mod migrations;
 pub mod retry;
+
+#[cfg(feature = "testing")]
+pub mod testing;

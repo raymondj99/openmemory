@@ -48,6 +48,7 @@ where
 
     for attempt in 0..config.max_retries {
         let delay = calculate_delay(config, attempt);
+        #[allow(clippy::disallowed_methods)]
         std::thread::sleep(delay);
 
         match operation() {

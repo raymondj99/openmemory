@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{OmError, OmResult};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub default: DefaultSection,
@@ -15,7 +15,7 @@ pub struct Config {
     pub index: IndexSection,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DefaultSection {
     #[serde(default)]
     pub jobs: usize,
@@ -131,22 +131,6 @@ impl Config {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            default: DefaultSection::default(),
-            search: SearchSection::default(),
-            memory: MemorySection::default(),
-            index: IndexSection::default(),
-        }
-    }
-}
-
-impl Default for DefaultSection {
-    fn default() -> Self {
-        Self { jobs: 0 }
-    }
-}
 
 impl SearchSection {
     fn default_hybrid_alpha() -> f32 {
