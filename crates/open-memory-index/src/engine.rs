@@ -19,7 +19,10 @@ use open_memory_core::config::Config;
 
 use crate::cache::CachedSearchEngine;
 use crate::error::IndexResult;
+#[cfg(not(feature = "hnsw"))]
 use crate::flat::FlatVectorIndex;
+#[cfg(feature = "hnsw")]
+use crate::hnsw::HnswIndex;
 use crate::hybrid::HybridSearchEngine;
 #[cfg(feature = "sqlite")]
 use crate::metadata::MetadataStore;
@@ -34,6 +37,11 @@ type DefaultFts = Fts5Store;
 #[cfg(not(feature = "fts5"))]
 type DefaultFts = Bm25Store;
 
+#[cfg(feature = "hnsw")]
+type DefaultVec = HnswIndex;
+#[cfg(not(feature = "hnsw"))]
+type DefaultVec = FlatVectorIndex;
+
 /// File names under `data_dir`.
 pub const METADATA_FILE: &str = "metadata.sqlite";
 pub const VECTORS_FILE: &str = "vectors.bin";
@@ -45,7 +53,7 @@ pub const FULLTEXT_FILE: &str = "bm25.json";
 /// Bundle of stores returned by [`open_engine`]. Keep them together so
 /// callers don't have to thread three independent handles.
 pub struct OpenEngine {
-    pub engine: CachedSearchEngine<FlatVectorIndex, DefaultFts>,
+    pub engine: CachedSearchEngine<DefaultVec, DefaultFts>,
     #[cfg(feature = "sqlite")]
     pub metadata: MetadataStore,
     pub data_dir: PathBuf,
@@ -59,6 +67,9 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
         std::fs::create_dir_all(data_dir)?;
     }
 
+    #[cfg(feature = "hnsw")]
+    let vector_store = HnswIndex::load_or_create(data_dir)?;
+    #[cfg(not(feature = "hnsw"))]
     let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
 
     #[cfg(feature = "fts5")]

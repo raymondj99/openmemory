@@ -25,6 +25,8 @@ pub mod error;
 pub mod flat;
 #[cfg(feature = "fts5")]
 pub mod fts5;
+#[cfg(feature = "hnsw")]
+pub mod hnsw;
 pub mod hybrid;
 #[cfg(feature = "sqlite")]
 pub mod metadata;
@@ -38,6 +40,8 @@ pub use error::{IndexError, IndexResult};
 pub use flat::FlatVectorIndex;
 #[cfg(feature = "fts5")]
 pub use fts5::Fts5Store;
+#[cfg(feature = "hnsw")]
+pub use hnsw::HnswIndex;
 pub use hybrid::{HybridSearchEngine, DEFAULT_RRF_K};
 #[cfg(feature = "sqlite")]
 pub use metadata::{MetadataStats, MetadataStore, SourceKind, SourceRecord};
@@ -45,9 +49,11 @@ pub use traits::{
     ExportEntry, FullTextStore, IndexEntry, SearchMode, SearchResult, VectorIndex, VectorStore,
 };
 
-/// The default vector backend selected by feature flags. Currently always
-/// [`FlatVectorIndex`] — when the `hnsw` feature lands, this becomes the
-/// approximate index instead.
+/// The default vector backend selected by feature flags. [`HnswIndex`]
+/// when the `hnsw` feature is enabled, [`FlatVectorIndex`] otherwise.
+#[cfg(feature = "hnsw")]
+pub type DefaultVectorStore = HnswIndex;
+#[cfg(not(feature = "hnsw"))]
 pub type DefaultVectorStore = FlatVectorIndex;
 
 /// The default full-text backend. [`Fts5Store`] when the `fts5` feature is
