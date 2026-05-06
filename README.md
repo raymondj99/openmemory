@@ -82,8 +82,9 @@ Eleven tools, all `open_memory_*`:
 | `open_memory_delete` | index | destructive |
 | `open_memory_consolidate` | maintenance | write |
 
-See [`docs/02-openclaw-integration.md`](docs/02-openclaw-integration.md)
-for the full schema.
+See [`docs/mcp.md`](docs/mcp.md) for the full schema and tool
+reference, and [`docs/openclaw.md`](docs/openclaw.md) for the
+OpenClaw integration contract.
 
 ## HTTP transport
 
@@ -134,12 +135,28 @@ MSRV is **1.85.0** (pinned via `rust-toolchain.toml`).
 
 ## Documentation
 
-See [`docs/00-overview.md`](docs/00-overview.md) for the project
-pitch, [`docs/01-architecture.md`](docs/01-architecture.md) for the
-crate layout, [`docs/02-openclaw-integration.md`](docs/02-openclaw-integration.md)
-for the OpenClaw contract, [`docs/03-roadmap.md`](docs/03-roadmap.md)
-for the build plan, and [`docs/04-quality-gates.md`](docs/04-quality-gates.md)
-for the CI matrix.
+Start at [`docs/index.md`](docs/index.md) for the table of contents
+and project summary. Notable entry points:
+
+- [`docs/overview.md`](docs/overview.md): project pitch, goals, non-goals.
+- [`docs/architecture.md`](docs/architecture.md): workspace layout,
+  crate dependency graph, threading model.
+- [`docs/crates.md`](docs/crates.md): per-crate API reference.
+- [`docs/mcp.md`](docs/mcp.md): MCP server contract and the eleven
+  `open_memory_*` tools.
+- [`docs/openclaw.md`](docs/openclaw.md): OpenClaw integration
+  contract.
+- [`docs/search.md`](docs/search.md): hybrid search, RRF, Ebbinghaus
+  decay scoring.
+- [`docs/storage.md`](docs/storage.md): on-disk layout, SQLite
+  schemas, migrations.
+- [`docs/configuration.md`](docs/configuration.md): config file,
+  env vars, profiles, feature flags.
+- [`docs/cli.md`](docs/cli.md): CLI subcommand reference.
+- [`docs/watcher.md`](docs/watcher.md): filesystem watcher.
+- [`docs/development.md`](docs/development.md): build, test, lint,
+  CI gates.
+- [`docs/roadmap.md`](docs/roadmap.md): release history and backlog.
 
 ## License
 

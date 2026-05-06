@@ -4,9 +4,9 @@
 //!
 //! The crate ships eleven `open_memory_*` tools — seven memory tools, three
 //! index tools, one consolidation tool. See [`tools`] for the full list and
-//! [`docs/02-openclaw-integration.md`] for the wire-level contract.
+//! [`docs/mcp.md`] for the wire-level contract.
 //!
-//! [`docs/02-openclaw-integration.md`]: https://github.com/raymondj99/open-memory/blob/main/docs/02-openclaw-integration.md
+//! [`docs/mcp.md`]: https://github.com/raymondj99/open-memory/blob/main/docs/mcp.md
 //!
 //! # Quick start
 //!

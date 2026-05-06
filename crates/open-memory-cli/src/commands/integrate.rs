@@ -1,7 +1,7 @@
 //! `open-memory integrate openclaw` — register the binary in OpenClaw's
 //! config file.
 //!
-//! See `docs/02-openclaw-integration.md` for the full contract. In short:
+//! See `docs/openclaw.md` for the full contract. In short:
 //!
 //! 1. Resolve `$OPENCLAW_CONFIG_PATH` or fall back to
 //!    `~/.openclaw/openclaw.json`.
