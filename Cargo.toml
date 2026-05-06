@@ -63,7 +63,7 @@ clap_complete = "4"
 # MCP. No rmcp dependency: every published version of rmcp (0.x and 1.x)
 # requires rustc 1.88+ via if-let chains, which conflicts with our 1.85
 # MSRV. openmemory-mcp ships its own minimal JSON-RPC 2.0 server instead.
-schemars = { version = "0.8", default-features = false, features = ["derive"] }
+schemars = { version = "1.2", default-features = false, features = ["derive"] }
 
 # HTTP transport (optional MCP feature)
 axum = "0.8"
