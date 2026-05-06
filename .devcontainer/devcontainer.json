@@ -2,6 +2,16 @@
     "name": "open-memory",
     "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
 
+    // sshd is required for `gh codespace ssh` and `gh codespace exec` —
+    // the base Rust image does not ship one. Without this, the
+    // codespace still works in the browser-based VS Code, but headless
+    // automation (CI smoke tests, scripted setup) would fail.
+    "features": {
+        "ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        }
+    },
+
     // Pre-warm the cargo registry so the first `cargo build` is mostly
     // compile time, not network time. We deliberately don't `cargo build`
     // here — that's ~5 minutes on a 2-core codespace, and the user can
