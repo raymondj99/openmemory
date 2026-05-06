@@ -404,6 +404,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn auth_required_empty_bearer_token_returns_401() {
+        // `Authorization: Bearer ` (trailing space, no token) and the
+        // unspaced `Authorization: Bearer` should both fail closed —
+        // they leave the candidate empty, which never matches a
+        // configured non-empty token.
+        for header in ["Bearer ", "Bearer", "Bearer    "] {
+            let (status, _) =
+                post_mcp_with(auth_router("super-secret"), INIT_REQ, Some(header)).await;
+            assert_eq!(
+                status,
+                StatusCode::UNAUTHORIZED,
+                "header {header:?} should not authenticate"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn auth_required_request_without_bearer_prefix_returns_401() {
         let (status, _) = post_mcp_with(
             auth_router("super-secret"),
