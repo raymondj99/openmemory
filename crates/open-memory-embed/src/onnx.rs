@@ -6,12 +6,14 @@
 //! `Arc` because `ort` Sessions are `Send + Sync` since rc.6.
 
 use crate::error::{EmbedError, EmbedResult};
+use crate::integrity::{verify_sha256, VerificationOutcome};
+use crate::models::Model;
 use crate::traits::Embedder;
 use ort::execution_providers::CPUExecutionProvider;
 use ort::session::Session;
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 const DEFAULT_MAX_TOKENS: usize = 8192;
 const DEFAULT_OUTPUT_TENSOR: &str = "last_hidden_state";
@@ -60,6 +62,53 @@ impl OnnxEmbedder {
     /// `last_hidden_state` output).
     pub fn load(model_dir: &Path, model_name: &str, dimensions: usize) -> EmbedResult<Self> {
         Self::load_with_options(model_dir, model_name, dimensions, OnnxOptions::default())
+    }
+
+    /// Load a model from the registry, verifying the on-disk
+    /// `model.onnx` and `tokenizer.json` files against the
+    /// SHA-256 hashes recorded on the [`Model`] entry before handing
+    /// any bytes to the ONNX runtime.
+    ///
+    /// * A non-empty hash that matches → `Verified` (debug log).
+    /// * A non-empty hash that does *not* match → returns
+    ///   [`EmbedError::ChecksumMismatch`]; the caller never sees a
+    ///   tampered file.
+    /// * An empty hash (the v0.2.0 placeholder state for both shipped
+    ///   models) → `Skipped` with a warning. v0.3 will populate real
+    ///   hashes; once it does, this code path automatically tightens
+    ///   into "always verified" with no further changes here.
+    pub fn load_for_model(model_dir: &Path, model: &Model) -> EmbedResult<Self> {
+        let model_path = model_dir.join("model.onnx");
+        let tokenizer_path = model_dir.join("tokenizer.json");
+
+        // Existence first — `verify_sha256` would otherwise return an
+        // I/O error, but `ModelNotFound` is the more useful surface.
+        if !model_path.exists() {
+            return Err(EmbedError::ModelNotFound(model_path.display().to_string()));
+        }
+        if !tokenizer_path.exists() {
+            return Err(EmbedError::ModelNotFound(
+                tokenizer_path.display().to_string(),
+            ));
+        }
+
+        log_verification(
+            "model.onnx",
+            model.name,
+            verify_sha256(&model_path, model.onnx_sha256)?,
+        );
+        log_verification(
+            "tokenizer.json",
+            model.name,
+            verify_sha256(&tokenizer_path, model.tokenizer_sha256)?,
+        );
+
+        Self::load_with_options(
+            model_dir,
+            model.name,
+            model.dimensions,
+            model.onnx_options(),
+        )
     }
 
     /// Load a model with caller-supplied options.
@@ -328,6 +377,23 @@ fn l2_normalize_in_place(values: &mut [f32]) {
     }
 }
 
+fn log_verification(label: &str, model_name: &str, outcome: VerificationOutcome) {
+    match outcome {
+        VerificationOutcome::Verified => debug!(
+            target: "open_memory_embed::integrity",
+            model = model_name,
+            file = label,
+            "checksum verified",
+        ),
+        VerificationOutcome::Skipped => warn!(
+            target: "open_memory_embed::integrity",
+            model = model_name,
+            file = label,
+            "registry has no recorded SHA-256 for this file; loading without integrity check",
+        ),
+    }
+}
+
 impl Embedder for OnnxEmbedder {
     fn embed(&self, texts: &[&str]) -> Vec<Vec<f32>> {
         match self.try_embed_batch(texts) {
@@ -383,6 +449,105 @@ mod tests {
         let msg = err.to_string();
         assert!(matches!(err, EmbedError::ModelNotFound(_)));
         assert!(msg.contains("tokenizer.json"));
+    }
+
+    // -----------------------------------------------------------------
+    // load_for_model integrity gate — runs before any ORT init, so
+    // these tests do not need a real ONNX model file.
+    // -----------------------------------------------------------------
+
+    fn fake_model_dir(onnx: &[u8], tokenizer: &[u8]) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("model.onnx"), onnx).unwrap();
+        std::fs::write(tmp.path().join("tokenizer.json"), tokenizer).unwrap();
+        tmp
+    }
+
+    fn fake_model(onnx_sha256: &'static str, tokenizer_sha256: &'static str) -> Model {
+        Model {
+            name: "test-fixture",
+            aliases: &[],
+            repo_id: "test/test-fixture",
+            dimensions: 768,
+            max_tokens: 8192,
+            pooling: PoolingStrategy::MeanPooling,
+            output_tensor: "last_hidden_state",
+            search_prefix: "",
+            document_prefix: "",
+            onnx_url: "https://example.invalid/model.onnx",
+            tokenizer_url: "https://example.invalid/tokenizer.json",
+            onnx_sha256,
+            tokenizer_sha256,
+        }
+    }
+
+    const ALL_ZEROS_64: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+    const ALL_F_64: &str = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    #[test]
+    fn load_for_model_rejects_mismatched_onnx_sha256() {
+        let dir = fake_model_dir(b"not actually onnx", b"{\"tok\": true}");
+        let model = fake_model(ALL_ZEROS_64, "");
+        let Err(err) = OnnxEmbedder::load_for_model(dir.path(), &model) else {
+            panic!("expected ChecksumMismatch error");
+        };
+        match err {
+            EmbedError::ChecksumMismatch {
+                path,
+                expected,
+                actual,
+            } => {
+                assert!(path.contains("model.onnx"), "path was {path}");
+                assert_eq!(expected, ALL_ZEROS_64);
+                assert_ne!(actual, expected);
+                assert_eq!(actual.len(), 64);
+            }
+            other => panic!("expected ChecksumMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_for_model_rejects_mismatched_tokenizer_sha256() {
+        let dir = fake_model_dir(b"not actually onnx", b"{\"tok\": true}");
+        // ONNX hash is empty so the model.onnx check is skipped; the
+        // mismatch must therefore come from the tokenizer.
+        let model = fake_model("", ALL_F_64);
+        let Err(err) = OnnxEmbedder::load_for_model(dir.path(), &model) else {
+            panic!("expected ChecksumMismatch error");
+        };
+        match err {
+            EmbedError::ChecksumMismatch { path, .. } => {
+                assert!(path.contains("tokenizer.json"), "path was {path}");
+            }
+            other => panic!("expected ChecksumMismatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_for_model_returns_model_not_found_when_model_onnx_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let model = fake_model("", "");
+        let Err(err) = OnnxEmbedder::load_for_model(tmp.path(), &model) else {
+            panic!("expected ModelNotFound error");
+        };
+        match err {
+            EmbedError::ModelNotFound(p) => assert!(p.contains("model.onnx"), "path was {p}"),
+            other => panic!("expected ModelNotFound, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_for_model_returns_model_not_found_when_tokenizer_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("model.onnx"), b"fake").unwrap();
+        let model = fake_model("", "");
+        let Err(err) = OnnxEmbedder::load_for_model(tmp.path(), &model) else {
+            panic!("expected ModelNotFound error");
+        };
+        match err {
+            EmbedError::ModelNotFound(p) => assert!(p.contains("tokenizer.json"), "path was {p}"),
+            other => panic!("expected ModelNotFound, got {other:?}"),
+        }
     }
 
     // -----------------------------------------------------------------

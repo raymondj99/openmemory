@@ -8,9 +8,20 @@
 //! Each entry carries the metadata needed to download the model
 //! (Hugging Face URL + SHA-256), tokenize inputs (prefixes, max
 //! tokens), and run inference ([`PoolingStrategy`] + ONNX output
-//! tensor name). SHA-256 fields are empty placeholders in v0.1; a
-//! future release will wire them through to a verifying download
-//! path so the integrity check happens before the model is loaded.
+//! tensor name).
+//!
+//! # Integrity verification
+//!
+//! [`OnnxEmbedder::load_for_model`] hashes the on-disk `model.onnx`
+//! and `tokenizer.json` files with SHA-256 and compares against the
+//! `_sha256` fields here before handing any bytes to the ONNX runtime.
+//! v0.2.0 ships with empty placeholders, which the verifier treats as
+//! [`VerificationOutcome::Skipped`] (warns, loads anyway) — populating
+//! real hashes is tracked for v0.3 and tightens the path to "always
+//! verified" with no further code changes.
+//!
+//! [`OnnxEmbedder::load_for_model`]: crate::onnx::OnnxEmbedder::load_for_model
+//! [`VerificationOutcome::Skipped`]: crate::integrity::VerificationOutcome::Skipped
 
 use crate::onnx::{OnnxOptions, PoolingStrategy};
 
