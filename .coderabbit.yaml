@@ -1,0 +1,116 @@
+language: en-US
+
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: false
+  path_filters:
+    - "!target/**"
+    - "!Cargo.lock"
+
+  path_instructions:
+    - path: "crates/open-memory-core/**"
+      instructions: |
+        This is the foundation crate. Changes here affect every downstream
+        crate. Review for:
+        - Migration safety: schema changes must be forward-only and include
+          a version bump in the migration table.
+        - Error type stability: `Error` variants are part of the public API.
+        - Clock discipline: all timestamps must go through the `clock` module,
+          never raw `SystemTime::now()`.
+        - No optional-feature leakage: core must compile with zero features.
+
+    - path: "crates/open-memory-index/**"
+      instructions: |
+        Hybrid search engine (vector + FTS5/BM25, fused via RRF). Review for:
+        - Query performance: watch for full-table scans, missing indices, or
+          unbounded result sets.
+        - SQLite WAL correctness: read connections must never write; the single
+          writer connection is not Send.
+        - RRF parameter changes: alpha, k, and max_results affect recall
+          quality; flag any change for benchmark verification.
+
+    - path: "crates/open-memory-embed/**"
+      instructions: |
+        ONNX Runtime embedding inference. Review for:
+        - Model I/O shape assumptions: input_ids, attention_mask dimensions
+          must match the registered model metadata.
+        - Memory pressure: embedding batches should be bounded; watch for
+          unbounded Vec allocations on user-controlled input.
+        - Thread safety: ORT session is Send+Sync but inference is
+          single-threaded per call; do not hold the session across await points.
+
+    - path: "crates/open-memory-graph/**"
+      instructions: |
+        Knowledge graph (entities, observations, relations, recall scoring).
+        Review for:
+        - Ebbinghaus decay correctness: score = e^(-lambda * age_days);
+          verify lambda and age calculations.
+        - Spreading activation: relation traversal must be depth-bounded
+          to prevent runaway on cyclic graphs.
+        - Transaction discipline: multi-row writes (remember with relations)
+          must be atomic.
+
+    - path: "crates/open-memory-mcp/**"
+      instructions: |
+        MCP server and JSON-RPC 2.0 tool router. Review for:
+        - Protocol compliance: method names, error codes, and capability
+          advertisement must match the MCP spec (version 2024-11-05).
+        - Tool schema stability: renaming a tool or input field is a
+          breaking change. Flag any rename.
+        - Input validation: all user-supplied strings must be bounds-checked
+          before reaching SQLite. Watch for SQL injection via entity names
+          or observation text.
+        - Concurrency: the server handles concurrent tool calls; shared
+          state must be behind Arc<RwLock> or equivalent.
+
+    - path: "crates/open-memory-watch/**"
+      instructions: |
+        Filesystem watcher with incremental re-indexing. Review for:
+        - Debounce correctness: rapid create/modify/delete sequences should
+          collapse to a single re-index, not multiple.
+        - BLAKE3 dedup: content-hash checks prevent redundant re-indexing;
+          verify the hash covers the full file content.
+        - Symlink handling: the watcher must not follow symlinks into
+          directories outside the watched root.
+
+    - path: "crates/open-memory-cli/**"
+      instructions: |
+        CLI binary and integration commands. Review for:
+        - Argument stability: changing a flag name or default is a breaking
+          change for scripts depending on the CLI.
+        - Integration safety: config writes must be atomic (temp + rename)
+          and idempotent (re-running is a no-op when unchanged).
+        - Exit codes: success = 0, user error = 1, internal error = 2.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        CI/CD workflows. Review for:
+        - Pinned action versions: all third-party actions must use a specific
+          tag or SHA, never @main or @latest.
+        - Secret exposure: ensure secrets are never echoed or logged.
+        - Matrix completeness: changes to build flags or features must be
+          reflected in the CI matrix.
+
+    - path: "docs/**"
+      instructions: |
+        Public documentation. Review for:
+        - Accuracy against the current code (stale docs are worse than
+          no docs).
+        - Do not use em-dashes in prose; prefer periods, semicolons,
+          commas, or parentheses.
+
+chat:
+  auto_reply: true
+
+tone_instructions: |
+  Be direct and technical. Focus on correctness, performance, and API
+  stability. Flag any change that could break downstream consumers or
+  degrade search quality. When suggesting alternatives, include concrete
+  code or SQL snippets. Do not use em-dashes in review comments.

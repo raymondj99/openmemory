@@ -79,6 +79,12 @@ pub enum IntegrateTarget {
     /// Add or update the `open-memory` MCP server entry in OpenClaw's
     /// JSON5 config.
     Openclaw(IntegrateOpenclawArgs),
+    /// Register the MCP server in Claude Code's config. Prefers the
+    /// `claude` CLI when available; falls back to writing ~/.claude.json.
+    ClaudeCode(IntegrateClaudeCodeArgs),
+    /// Register the MCP server in Claude Desktop's config at the
+    /// platform-specific path.
+    ClaudeDesktop(IntegrateClaudeDesktopArgs),
 }
 
 /// `remember` arguments.
@@ -179,6 +185,41 @@ pub struct IntegrateOpenclawArgs {
     pub binary: Option<String>,
 }
 
+/// `integrate claude-code` arguments.
+#[derive(Debug, Args)]
+pub struct IntegrateClaudeCodeArgs {
+    /// Override the path to Claude Code's config (defaults to
+    /// ~/.claude.json).
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<std::path::PathBuf>,
+    /// Emit an HTTP-transport entry instead of stdio.
+    #[arg(long, value_name = "ADDR")]
+    pub http: Option<String>,
+    /// Override the binary path written into the entry.
+    #[arg(long, value_name = "PATH")]
+    pub binary: Option<String>,
+    /// Skip the `claude` CLI and write the config file directly.
+    #[arg(long)]
+    pub no_cli: bool,
+}
+
+/// `integrate claude-desktop` arguments.
+#[derive(Debug, Args)]
+pub struct IntegrateClaudeDesktopArgs {
+    /// Override the path to Claude Desktop's config. Platform defaults:
+    /// macOS ~/Library/Application Support/Claude/claude_desktop_config.json,
+    /// Linux ~/.config/Claude/claude_desktop_config.json,
+    /// Windows %APPDATA%\Claude\claude_desktop_config.json.
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<std::path::PathBuf>,
+    /// Emit an HTTP-transport entry instead of stdio.
+    #[arg(long, value_name = "ADDR")]
+    pub http: Option<String>,
+    /// Override the binary path written into the entry.
+    #[arg(long, value_name = "PATH")]
+    pub binary: Option<String>,
+}
+
 /// `init` arguments.
 #[derive(Debug, Args)]
 pub struct InitArgs {
@@ -257,7 +298,13 @@ where
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {
-            commands::integrate::run(&cli.profile, args)
+            commands::integrate::openclaw::run(&cli.profile, args)
+        }
+        Command::Integrate(IntegrateTarget::ClaudeCode(args)) => {
+            commands::integrate::claude_code::run(&cli.profile, args)
+        }
+        Command::Integrate(IntegrateTarget::ClaudeDesktop(args)) => {
+            commands::integrate::claude_desktop::run(&cli.profile, args)
         }
         Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
