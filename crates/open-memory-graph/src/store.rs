@@ -247,8 +247,8 @@ impl MemoryStore {
         self.readers.with_reader(f)
     }
 
-    /// Number of reader slots in the pool. Surfaced for tests + the
-    /// `status` snapshot (commit 8d).
+    /// Number of reader slots in the pool. Surfaced for tests and for
+    /// the `status` snapshot.
     pub fn reader_pool_size(&self) -> usize {
         self.readers.size()
     }
