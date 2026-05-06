@@ -1,6 +1,7 @@
 # openmemory
 
 [![CI](https://github.com/raymondj99/openmemory/actions/workflows/ci.yml/badge.svg)](https://github.com/raymondj99/openmemory/actions/workflows/ci.yml)
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/raymondj99/openmemory)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange)](https://www.rust-lang.org)
 
