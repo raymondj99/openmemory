@@ -85,6 +85,43 @@ Eleven tools, all `open_memory_*`:
 See [`docs/02-openclaw-integration.md`](docs/02-openclaw-integration.md)
 for the full schema.
 
+## HTTP transport
+
+The default transport is stdio (matching what OpenClaw runs locally).
+To serve the same MCP router over HTTPS for remote clients
+(e.g. a [claude.ai connector] or a hosted OpenClaw instance), build
+with the `mcp-http` feature and pass `--http`:
+
+```bash
+cargo build --release --features mcp-http
+open-memory mcp --http 0.0.0.0:7800
+```
+
+The endpoint is `POST /mcp` (Streamable HTTP, JSON-RPC 2.0 envelope)
+plus `GET /healthz` for load-balancer probes.
+
+### Bearer-token auth
+
+For anything bound to a non-loopback address, set
+`OPEN_MEMORY_HTTP_TOKEN` before launching the server. Each `/mcp`
+request must then carry a matching `Authorization: Bearer <token>`
+header; missing or wrong tokens get a 401 with `WWW-Authenticate:
+Bearer` and a JSON-RPC `-32600` error envelope. `/healthz` is never
+auth-gated. With the env var unset (or empty), the server logs a
+warning and serves unauthenticated — fine for `127.0.0.1`, never run
+that on a public address.
+
+```bash
+export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
+open-memory mcp --http 0.0.0.0:7800
+```
+
+The token is compared in constant time against the `Authorization`
+header value; the `BearerToken` type's `Debug` impl never logs the
+secret.
+
+[claude.ai connector]: https://docs.anthropic.com/en/docs/agents-and-tools/mcp
+
 ## Build / test
 
 ```bash

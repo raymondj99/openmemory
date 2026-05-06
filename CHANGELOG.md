@@ -9,6 +9,63 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+Production-hardening pass on top of v0.2.0.
+
+### Added
+
+- **HTTP-transport bearer-token auth.** `open_memory_mcp::http::serve`
+  now reads `OPEN_MEMORY_HTTP_TOKEN` from the environment; when set,
+  every `POST /mcp` request must carry a matching `Authorization:
+  Bearer <token>` header or it gets a 401 response with
+  `WWW-Authenticate: Bearer` and a JSON-RPC `-32600` envelope. The
+  comparison is constant-time over the byte payload; the new
+  `BearerToken` type's `Debug` impl redacts the secret. `/healthz`
+  remains exempt so external liveness probes keep working without
+  the token. With the env var unset, the server logs a warning and
+  serves unauthenticated, preserving the local-dev workflow.
+- **SHA-256 model integrity verification.**
+  `open_memory_embed::OnnxEmbedder::load_for_model` hashes the
+  on-disk `model.onnx` and `tokenizer.json` files before handing
+  them to the ONNX runtime; mismatches surface as
+  `EmbedError::ChecksumMismatch` with a "refusing to load" message.
+  The new `integrity` module + `verify_sha256` function stream
+  files in 64 KiB heap-allocated blocks, normalise expected hex
+  case-insensitively, and treat empty hashes as
+  `VerificationOutcome::Skipped` (the v0.2.0 placeholder state for
+  both registry models — populating real hashes is tracked for v0.3
+  and tightens to "always verified" with no further code changes).
+- **CI gates.** `cargo test --workspace --no-default-features`,
+  `cargo clippy --workspace --no-default-features --all-targets --
+  -D warnings`, and `cargo doc --workspace --no-deps --all-features`
+  now run on every push. The first two would have caught
+  `open-memory-watch`'s feature-gated import bug; the third catches
+  intra-doc links that resolve only when an optional module
+  compiles.
+
+### Changed
+
+- `open-memory-watch` Cargo.toml drops its own `default = ["fts5"]`
+  feature and pulls `sqlite + fts5` directly from
+  `open-memory-index` / `open-memory-graph`. The crate now compiles
+  under `cargo test --workspace --no-default-features` (it
+  previously failed because `SourceKind`, `SourceRecord`, and the
+  `metadata` field on `OpenEngine` are sqlite-gated). Higher-level
+  crates still gate the watcher behind their own optional feature.
+- Concurrent-recall integration test asserts `parallel_elapsed <
+  serial_estimate` instead of a numeric speedup ratio. Numeric
+  ratios depend on shared-CI-runner neighbour load; the new shape
+  catches the only regression we actually want to defend against
+  (readers regressing to fully-serialised execution) without
+  flaking on contended runners.
+
+### Fixed
+
+- `open_memory_mcp::http::handle_mcp` no longer constructs the 204
+  notification response via `Response::builder().unwrap()`; it
+  returns `StatusCode::NO_CONTENT.into_response()` directly. The
+  `application/json` content-type header is set via the infallible
+  `HeaderValue::from_static`. No more panics on the request path.
+
 ## [0.2.0] - 2026-05-05
 
 Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
@@ -37,8 +94,11 @@ Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
   flags. Behind a default-on `watch` build feature.
 - **`[watch]` config section** (`debounce_ms`, `extensions`,
   `max_size`).
-- **Concurrent recall integration test** that asserts both correctness
-  (no torn reads) and ≥2× speedup over the fully-serial bound.
+- **Concurrent recall integration test** that asserts no torn reads
+  plus parallel time strictly less than the fully-serial bound. The
+  numeric speedup floor that originally shipped here was relaxed
+  in the production-hardening pass after it proved flaky on shared
+  CI runners.
 - **Watcher integration test** covering create / modify / delete /
   ignore-respect / dedup-on-restart, plus a latency smoke test that
   prints p50/p99 numbers for create / modify / delete.

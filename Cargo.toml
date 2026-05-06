@@ -53,6 +53,7 @@ ndarray = "0.16"
 
 # Hashing / IDs
 blake3 = "1"
+sha2 = "0.10"
 uuid = { version = "1", features = ["v7"] }
 
 # CLI

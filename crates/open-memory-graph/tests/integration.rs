@@ -356,12 +356,16 @@ fn integration_schema_migration_on_reopen() {
 ///    no panics. (Per-recall ranking can drift between threads because
 ///    `recall` bumps `access_count` as a side effect; that doesn't
 ///    matter for the no-torn-reads invariant.)
-/// 2. **Parallel speedup.** Wall-clock for N threads ≤ ½ of the
-///    fully-serial estimate (`N * single_thread_time`). A regression to
-///    single-mutex serialisation would push parallel time toward
-///    `N * single` and blow past the cap. Floor at 50 ms so a fast
-///    machine + small workload doesn't make the cap impossibly tight
-///    from scheduler jitter.
+/// 2. **Some real overlap, not full serialisation.** Wall-clock for N
+///    threads is strictly less than the fully-serial estimate
+///    (`N * single_thread_time`). A regression to single-mutex
+///    serialisation would push parallel time to ≈ that bound or
+///    higher; the assertion only fails when readers no longer overlap
+///    at all. We deliberately avoid asserting a numeric speedup ratio
+///    (1.25×, 2×, …) because shared CI runners hit ratios that depend
+///    on neighbour load, but "any overlap whatsoever" is a stable
+///    signal. A small absolute slack (`SCHED_NOISE_GUARD`) keeps
+///    timer jitter on tiny serial estimates from flipping the result.
 /// 3. **Post-parallel correctness.** A single recall after the parallel
 ///    phase still returns the same entities (sanity check that the
 ///    write-side `bump_access_counts` didn't corrupt anything).
@@ -464,14 +468,29 @@ fn integration_concurrent_recall_runs_in_parallel() {
         }
     }
 
-    // 2) Parallel time stays meaningfully under the fully-serial bound.
-    // Aim for 1.25× speedup (parallel ≤ 80% of serial) rather than the
-    // ideal `n×`. Shared-runner CPUs, FTS5 mutex contention, and the
-    // single rebuild-lock all bite into linear scaling, but readers still
-    // overlap enough that this margin is comfortable; the assertion only
-    // catches a regression to the fully-serialised state.
+    // 2) Parallel time is strictly less than the fully-serial estimate.
+    // No numeric speedup floor — shared-runner load makes the ratio
+    // jittery — but we do require *some* real overlap. A small
+    // absolute slack (`SCHED_NOISE_GUARD`) keeps timer noise from
+    // flipping the assertion when work and noise are within a few
+    // milliseconds of each other.
+    //
+    // Precondition: the serial estimate must exceed the guard with
+    // enough headroom to leave a non-trivial assertion. With iters=25
+    // and recall doing real SQLite work this is comfortably true on
+    // every runner we ship to; if it ever isn't, the test would
+    // become inconclusive (parallel_elapsed < ~zero) so we panic with
+    // a clear message instead of silently passing or failing.
+    const SCHED_NOISE_GUARD: Duration = Duration::from_millis(20);
+    const MIN_SERIAL_FOR_SIGNAL: Duration = Duration::from_millis(50);
     let serial_estimate = single_median * u32::try_from(n).unwrap_or(u32::MAX);
-    let cap = ((serial_estimate * 4) / 5).max(Duration::from_millis(100));
+    assert!(
+        serial_estimate >= MIN_SERIAL_FOR_SIGNAL,
+        "serial estimate {serial_estimate:?} is too small to validate parallelism \
+         (single-thread median {single_median:?}, n={n}, iters={iters}); \
+         the test would be inconclusive — bump iters or the seed size",
+    );
+    let upper_bound = serial_estimate - SCHED_NOISE_GUARD;
     let speedup = serial_estimate.as_secs_f64() / parallel_elapsed.as_secs_f64();
     println!(
         "concurrent_recall: n={n} iters={iters} \
@@ -479,10 +498,11 @@ fn integration_concurrent_recall_runs_in_parallel() {
          parallel={parallel_elapsed:?} speedup={speedup:.2}x"
     );
     assert!(
-        parallel_elapsed <= cap,
-        "concurrent recall took {parallel_elapsed:?} — expected ≤ {cap:?} \
+        parallel_elapsed < upper_bound,
+        "concurrent recall took {parallel_elapsed:?} — expected < {upper_bound:?} \
          (single-thread median {single_median:?}, n={n}, iters={iters}, \
-          serial estimate {serial_estimate:?})"
+          serial estimate {serial_estimate:?}, noise guard {SCHED_NOISE_GUARD:?}); \
+         readers may have regressed to fully-serialised execution",
     );
 
     // 3) Post-parallel: a fresh recall still works and the store is

@@ -107,6 +107,18 @@ impl JsonRpcError {
         }
     }
 
+    /// `INVALID_REQUEST = -32600`. Use when the JSON parses but the
+    /// envelope is rejected (malformed, missing required fields, or — at
+    /// the transport layer — failing auth before the handler ever runs).
+    #[must_use]
+    pub fn invalid_request(message: impl Into<String>) -> Self {
+        Self {
+            code: -32600,
+            message: message.into(),
+            data: None,
+        }
+    }
+
     /// `PARSE_ERROR = -32700`. Use when the wire payload isn't valid JSON.
     #[must_use]
     pub fn parse_error(message: impl Into<String>) -> Self {

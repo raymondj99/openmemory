@@ -16,6 +16,16 @@ pub enum EmbedError {
     #[error("dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
 
+    #[error(
+        "checksum mismatch for {path}: expected sha256:{expected}, got sha256:{actual}. \
+         The on-disk model file does not match the registry-recorded hash; refusing to load."
+    )]
+    ChecksumMismatch {
+        path: String,
+        expected: String,
+        actual: String,
+    },
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -66,6 +76,20 @@ mod tests {
     fn display_cache_error() {
         let err = EmbedError::Cache("schema corrupt".into());
         assert_eq!(err.to_string(), "cache error: schema corrupt");
+    }
+
+    #[test]
+    fn display_checksum_mismatch() {
+        let err = EmbedError::ChecksumMismatch {
+            path: "/models/nomic/model.onnx".into(),
+            expected: "abc123".into(),
+            actual: "def456".into(),
+        };
+        let s = err.to_string();
+        assert!(s.contains("/models/nomic/model.onnx"));
+        assert!(s.contains("expected sha256:abc123"));
+        assert!(s.contains("got sha256:def456"));
+        assert!(s.contains("refusing to load"));
     }
 
     #[test]
