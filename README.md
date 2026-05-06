@@ -1,47 +1,41 @@
 # open-memory
 
-Persistent agent memory and hybrid (vector + keyword) text search,
-shipped as a single Rust binary and an MCP server. Designed to drop
-into [OpenClaw](https://openclaw.ai) with one command:
+[![CI](https://github.com/raymondj99/open-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/raymondj99/open-memory/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
+[![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange)](https://www.rust-lang.org)
+
+Persistent memory for AI agents. A single Rust binary that gives any
+[MCP](https://modelcontextprotocol.io)-compatible agent a knowledge graph,
+hybrid (vector + keyword) search, and a free-text index. Designed for
+[OpenClaw](https://openclaw.ai); works with any MCP client.
+
+## Install
 
 ```bash
-open-memory integrate openclaw
+# From source (requires Rust 1.85+)
+cargo install --path crates/open-memory-cli
+
+# Or build from a checkout
+git clone https://github.com/raymondj99/open-memory.git
+cd open-memory
+cargo build --release
 ```
-
-> **Status:** v0.2.0 adds multi-agent memory (a pool of read-only
-> WAL connections so concurrent recalls run in parallel) and an
-> incremental file-watcher (`open-memory watch DIR`) backed by
-> `notify-debouncer-full`. v0.1.0 shipped the eleven `open_memory_*`
-> MCP tools, the CLI surface, and the OpenClaw integrator; the MCP
-> tool surface is unchanged at v0.1. CI is green on every commit.
-
-## What you get
-
-- **Knowledge graph memory.** Entities, observations with temporal
-  validity, relations. Hybrid recall scored with Ebbinghaus decay,
-  spreading activation through relations to fill in related context.
-- **Free-text URI index.** `index_text("note://…", body)` then search
-  with the same hybrid engine — mix structured graph memories with
-  ad-hoc notes under one search surface.
-- **MCP server.** Stdio always (the OpenClaw default); Streamable
-  HTTP behind the `mcp-http` feature.
-- **OpenClaw integration.** `open-memory integrate openclaw` writes
-  the config entry idempotently and gets out of your way.
-- **Single static binary.** ~8 MB default; ~18 MB with everything.
 
 ## Quick start
 
 ```bash
-cargo install --path crates/open-memory-cli  # from a checkout
+# 1. Initialize the data directory
 open-memory init
+
+# 2. Register with OpenClaw (one command, done)
 open-memory integrate openclaw
 
-# then, from any OpenClaw agent:
-#   "remember that I prefer Rust over Python"
-#   "what do you remember about my language preferences?"
+# 3. Start using memory from any OpenClaw agent:
+#    "remember that I prefer Rust over Python"
+#    "what do you remember about my language preferences?"
 ```
 
-You can also drive the graph from the shell:
+Or drive the graph from the CLI:
 
 ```bash
 open-memory remember Raymond \
@@ -51,79 +45,80 @@ open-memory remember Raymond \
 
 open-memory recall 'Rust' --limit 3 --json | jq .
 open-memory list-entities
-open-memory consolidate
 open-memory status
 ```
 
-Or watch a directory and incrementally re-index changed files:
+## Features
 
-```bash
-open-memory watch ~/notes --exts md,txt
-# walks the tree once, then tails create/modify/delete events;
-# BLAKE3-deduped against the metadata store, so a re-run over an
-# unchanged tree is free.
-```
+- **Knowledge graph.** Entities, observations with temporal validity,
+  and relations. Recall is scored with Ebbinghaus decay and spreading
+  activation through relations.
+- **Free-text index.** Store and search arbitrary text under URIs
+  (`note://standup`, `file:///path/to/doc.md`) on the same hybrid engine
+  as the graph.
+- **Hybrid search.** Vector (ONNX, local CPU) + keyword (FTS5/BM25)
+  fused via Reciprocal Rank Fusion.
+- **MCP server.** Eleven `open_memory_*` tools over stdio (default) or
+  [Streamable HTTP](docs/mcp.md#streamable-http-behind-mcp-http) with
+  bearer-token auth.
+- **Filesystem watcher.** `open-memory watch ~/notes` incrementally
+  indexes changed files, BLAKE3-deduped.
+- **Multi-agent concurrency.** Read-only WAL connection pool so
+  parallel recall calls scale on multi-agent deployments.
+- **Single binary.** ~8 MB default, ~18 MB with all features. SQLite
+  under the hood; no external services.
 
 ## MCP tools
 
-Eleven tools, all `open_memory_*`:
+All tools are prefixed `open_memory_` and work over stdio or HTTP.
 
-| Tool | Group | Type |
-|------|-------|------|
-| `open_memory_remember` | memory | write |
-| `open_memory_recall` | memory | read |
-| `open_memory_list_entities` | memory | read |
-| `open_memory_get_entity` | memory | read |
-| `open_memory_forget` | memory | destructive |
-| `open_memory_forget_entity` | memory | destructive |
-| `open_memory_status` | memory | read |
-| `open_memory_index_text` | index | write |
-| `open_memory_search` | index | read |
-| `open_memory_delete` | index | destructive |
-| `open_memory_consolidate` | maintenance | write |
+| Tool | Purpose |
+|------|---------|
+| `remember` | Store entities, observations, and relations |
+| `recall` | Semantic search over stored memory |
+| `list_entities` | Browse entities by type |
+| `get_entity` | Full record for one entity |
+| `forget` | Soft-delete one observation |
+| `forget_entity` | Hard-delete an entity and its data |
+| `status` | Store statistics and health |
+| `index_text` | Store free text under a URI |
+| `search` | Hybrid search over indexed text |
+| `delete` | Remove text by URI or prefix |
+| `consolidate` | Deduplicate + decay-prune observations |
 
-See [`docs/mcp.md`](docs/mcp.md) for the full schema and tool
-reference, and [`docs/openclaw.md`](docs/openclaw.md) for the
-OpenClaw integration contract.
+Full schemas and transport details in [`docs/mcp.md`](docs/mcp.md).
 
-## HTTP transport
+## Architecture
 
-The default transport is stdio (matching what OpenClaw runs locally).
-To serve the same MCP router over HTTPS for remote clients
-(e.g. a [claude.ai connector] or a hosted OpenClaw instance), build
-with the `mcp-http` feature and pass `--http`:
+Seven workspace crates with strict layering:
 
-```bash
-cargo build --release --features mcp-http
-open-memory mcp --http 0.0.0.0:7800
+```
+open-memory-core           (clock, config, error, migrations)
+├── open-memory-index      (vector + FTS5 hybrid search engine)
+├── open-memory-embed      (ONNX embeddings, optional)
+│
+└── open-memory-graph      (knowledge graph: entities, relations, recall)
+    ├── open-memory-mcp    (MCP server + tool router)
+    ├── open-memory-watch  (filesystem watcher)
+    └── open-memory-cli    (the `open-memory` binary)
 ```
 
-The endpoint is `POST /mcp` (Streamable HTTP, JSON-RPC 2.0 envelope)
-plus `GET /healthz` for load-balancer probes.
+## Configuration
 
-### Bearer-token auth
+`open-memory init` creates `~/.open-memory/config.toml` with sensible
+defaults. Most users never edit it.
 
-For anything bound to a non-loopback address, set
-`OPEN_MEMORY_HTTP_TOKEN` before launching the server. Each `/mcp`
-request must then carry a matching `Authorization: Bearer <token>`
-header; missing or wrong tokens get a 401 with `WWW-Authenticate:
-Bearer` and a JSON-RPC `-32600` error envelope. `/healthz` is never
-auth-gated. With the env var unset (or empty), the server logs a
-warning and serves unauthenticated — fine for `127.0.0.1`, never run
-that on a public address.
+| Knob | Where |
+|------|-------|
+| Search tuning (alpha, RRF k, max results) | `[search]` in `config.toml` |
+| Decay rate, dedup threshold, prune floor | `[memory]` in `config.toml` |
+| Data root override | `$OPEN_MEMORY_HOME` or `--home` |
+| Memory profiles | `--profile <name>` |
+| Bearer-token auth (HTTP transport) | `$OPEN_MEMORY_HTTP_TOKEN` |
 
-```bash
-export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
-open-memory mcp --http 0.0.0.0:7800
-```
+Full reference in [`docs/configuration.md`](docs/configuration.md).
 
-The token is compared in constant time against the `Authorization`
-header value; the `BearerToken` type's `Debug` impl never logs the
-secret.
-
-[claude.ai connector]: https://docs.anthropic.com/en/docs/agents-and-tools/mcp
-
-## Build / test
+## Build from source
 
 ```bash
 cargo build --workspace
@@ -133,30 +128,38 @@ cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 MSRV is **1.85.0** (pinned via `rust-toolchain.toml`).
 
+### Feature flags
+
+| Feature | Default | Effect |
+|---------|---------|--------|
+| `fts5` | on | SQLite FTS5 keyword backend |
+| `embeddings` | on | ONNX Runtime local embeddings |
+| `completions` | on | Shell completion generation |
+| `watch` | on | Filesystem watcher |
+| `hnsw` | off | usearch HNSW vector index |
+| `mcp-http` | off | Streamable HTTP transport |
+
 ## Documentation
 
-Start at [`docs/index.md`](docs/index.md) for the table of contents
-and project summary. Notable entry points:
+| Document | Summary |
+|----------|---------|
+| [Overview](docs/overview.md) | Goals, non-goals, project pitch |
+| [Architecture](docs/architecture.md) | Workspace layout, threading model, design philosophy |
+| [MCP reference](docs/mcp.md) | Tool schemas, transports, error codes |
+| [OpenClaw integration](docs/openclaw.md) | Integration contract and config shape |
+| [Search](docs/search.md) | Hybrid search, RRF, Ebbinghaus decay scoring |
+| [Storage](docs/storage.md) | On-disk layout, SQLite schemas |
+| [Configuration](docs/configuration.md) | Config file, env vars, profiles, feature flags |
+| [CLI reference](docs/cli.md) | All subcommands and flags |
+| [Watcher](docs/watcher.md) | Filesystem watcher internals |
+| [Development](docs/development.md) | Build, test, lint, CI |
+| [Roadmap](docs/roadmap.md) | Release history and backlog |
 
-- [`docs/overview.md`](docs/overview.md): project pitch, goals, non-goals.
-- [`docs/architecture.md`](docs/architecture.md): workspace layout,
-  crate dependency graph, threading model.
-- [`docs/crates.md`](docs/crates.md): per-crate API reference.
-- [`docs/mcp.md`](docs/mcp.md): MCP server contract and the eleven
-  `open_memory_*` tools.
-- [`docs/openclaw.md`](docs/openclaw.md): OpenClaw integration
-  contract.
-- [`docs/search.md`](docs/search.md): hybrid search, RRF, Ebbinghaus
-  decay scoring.
-- [`docs/storage.md`](docs/storage.md): on-disk layout, SQLite
-  schemas, migrations.
-- [`docs/configuration.md`](docs/configuration.md): config file,
-  env vars, profiles, feature flags.
-- [`docs/cli.md`](docs/cli.md): CLI subcommand reference.
-- [`docs/watcher.md`](docs/watcher.md): filesystem watcher.
-- [`docs/development.md`](docs/development.md): build, test, lint,
-  CI gates.
-- [`docs/roadmap.md`](docs/roadmap.md): release history and backlog.
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development workflow,
+commit guidelines, and the hosted-Codespace walkthrough for testing the
+HTTP transport.
 
 ## License
 
