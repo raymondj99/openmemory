@@ -1,0 +1,47 @@
+{
+    "name": "open-memory",
+    "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+
+    // Pre-warm the cargo registry so the first `cargo build` is mostly
+    // compile time, not network time. We deliberately don't `cargo build`
+    // here — that's ~5 minutes on a 2-core codespace, and the user can
+    // pick the feature set they want before the first build.
+    "postCreateCommand": "cargo fetch --locked",
+
+    // The HTTP transport's default bind port. Forwarding it makes the
+    // panel show up automatically; the user must manually flip
+    // visibility to "Public" in the Ports tab before claude.ai can
+    // reach it. Bearer-token auth (OPEN_MEMORY_HTTP_TOKEN) is what
+    // makes a public port safe.
+    "forwardPorts": [7800],
+    "portsAttributes": {
+        "7800": {
+            "label": "open-memory MCP (set visibility to Public for remote MCP clients)",
+            "onAutoForward": "silent",
+            "requireLocalPort": false
+        }
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml"
+            ],
+            "settings": {
+                "rust-analyzer.cargo.allFeatures": false,
+                "rust-analyzer.cargo.features": [
+                    "mcp-http"
+                ]
+            }
+        }
+    },
+
+    // Codespaces ships with 2 vCPU / 8 GB by default, which builds
+    // open-memory comfortably. Bump if linking gets oomy on a heavier
+    // dev session.
+    "hostRequirements": {
+        "cpus": 2,
+        "memory": "8gb"
+    }
+}

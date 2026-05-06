@@ -120,6 +120,58 @@ The token is compared in constant time against the `Authorization`
 header value; the `BearerToken` type's `Debug` impl never logs the
 secret.
 
+### Test from a hosted instance (GitHub Codespaces + claude.ai)
+
+The repo ships a `.devcontainer/devcontainer.json` so you can stand
+up a sandboxed open-memory server in Codespaces and point a claude.ai
+custom connector at it without installing anything on your laptop.
+
+1. **Open a codespace.** From the GitHub repo page → `Code` →
+   `Codespaces` → `Create codespace on main`. The devcontainer
+   pre-fetches the cargo registry; first launch is ~30 seconds.
+
+2. **Build with the HTTP transport feature.** Inside the codespace
+   terminal:
+
+   ```bash
+   cargo build --release --features mcp-http -p open-memory-cli
+   ```
+
+   ~5 minutes on a 2 vCPU codespace. Drop `--release` for a faster
+   debug build if you only want to smoke-test the wire format.
+
+3. **Generate a token and start the server.**
+
+   ```bash
+   export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
+   echo "Token: $OPEN_MEMORY_HTTP_TOKEN"   # save this — claude.ai needs it
+   ./target/release/open-memory init
+   ./target/release/open-memory mcp --http 0.0.0.0:7800
+   ```
+
+4. **Make port 7800 public.** In the VS Code "Ports" panel, right-click
+   the forwarded `7800` row and set `Port Visibility → Public`. Copy
+   the resulting `https://<codespace>-7800.app.github.dev` URL.
+
+5. **Register as a connector in claude.ai.** Settings →
+   *Connectors* → *Add custom MCP server*:
+
+   - **URL:** `https://<codespace>-7800.app.github.dev/mcp`
+   - **Authentication:** Custom header `Authorization: Bearer <token>`
+
+   Save. claude.ai will hit `POST /mcp` with the bearer token; the
+   `OPEN_MEMORY_HTTP_TOKEN` you set in step 3 must match.
+
+6. **Smoke test.** From a claude.ai conversation, ask the model to
+   "remember that I prefer Rust" and then "what do you remember about
+   my language preferences?" The connector should call
+   `open_memory_remember` followed by `open_memory_recall`.
+
+Codespaces public ports are reachable from anywhere with the URL,
+so do not skip step 3 — without `OPEN_MEMORY_HTTP_TOKEN` the server
+logs a warning and serves the world. Codespaces also auto-suspend
+after 30 minutes idle; the token + bind survive a resume.
+
 [claude.ai connector]: https://docs.anthropic.com/en/docs/agents-and-tools/mcp
 
 ## Build / test
