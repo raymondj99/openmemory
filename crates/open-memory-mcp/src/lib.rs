@@ -51,6 +51,9 @@ pub mod tools;
 #[cfg(feature = "mcp-http")]
 pub mod http;
 
+#[cfg(feature = "mcp-http")]
+pub use http::{BearerToken, BEARER_TOKEN_ENV};
+
 pub use params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
 pub use protocol::{
     Content, JsonRpcError, JsonRpcRequest, JsonRpcResponse, RequestId, ServerCapabilities,
