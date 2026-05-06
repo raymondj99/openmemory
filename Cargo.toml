@@ -8,6 +8,7 @@ members = [
     "crates/openmemory-mcp",
     "crates/openmemory-cli",
     "crates/openmemory-watch",
+    "crates/openmemory-bench",
 ]
 
 [workspace.package]
@@ -92,8 +93,10 @@ rand = "0.8"
 proptest = "1"
 paste = "1"
 
-# Benchmarks
-criterion = { version = "0.5", features = ["html_reports"] }
+# Benchmarks (codspeed-criterion-compat is a transparent drop-in for criterion
+# that instruments runs when executed via `cargo codspeed`; behaves as vanilla
+# criterion otherwise)
+criterion = { version = "4", default-features = false, package = "codspeed-criterion-compat" }
 
 [workspace.lints.rust]
 unsafe_code = "warn"
@@ -137,3 +140,9 @@ lto = "fat"
 codegen-units = 1
 strip = true
 panic = "abort"
+
+[profile.profiling]
+inherits = "release"
+strip = false
+debug = "full"
+lto = false

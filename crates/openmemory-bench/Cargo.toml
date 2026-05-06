@@ -1,0 +1,29 @@
+[package]
+name = "openmemory-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: performance benchmarks"
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+doctest = false
+bench = false
+test = false
+
+[dependencies]
+openmemory-core = { workspace = true, features = ["testing"] }
+openmemory-index = { workspace = true, features = ["fts5"] }
+openmemory-graph = { workspace = true, features = ["fts5", "testing"] }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "openmemory"
+path = "benches/openmemory.rs"
+harness = false

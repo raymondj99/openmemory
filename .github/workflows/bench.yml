@@ -1,0 +1,71 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  determine-changes:
+    name: Detect benchmark-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      run-bench: ${{ steps.changed.outputs.bench }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        name: Check for Rust or benchmark changes
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+          else
+            BASE="${{ github.event.pull_request.base.sha }}"
+          fi
+          DIFF=$(git diff --name-only "$BASE" HEAD 2>/dev/null || echo "force-run")
+          if echo "$DIFF" | grep -qE '(\.rs$|Cargo\.(toml|lock)$|\.github/workflows/bench\.yml$|force-run)'; then
+            echo "bench=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bench=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  benchmarks:
+    name: CodSpeed benchmarks
+    needs: determine-changes
+    if: ${{ needs.determine-changes.outputs.run-bench == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed
+
+      - name: Build benchmarks
+        run: cargo codspeed build --profile profiling --locked -p openmemory-bench
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          run: cargo codspeed run
+          mode: instrumentation
+          token: ${{ secrets.CODSPEED_TOKEN }}
