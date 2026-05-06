@@ -1323,18 +1323,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
-name = "open-memory-cli"
+name = "openmemory-cli"
 version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
  "clap_complete",
  "json5",
- "open-memory-core",
- "open-memory-graph",
- "open-memory-index",
- "open-memory-mcp",
- "open-memory-watch",
+ "openmemory-core",
+ "openmemory-graph",
+ "openmemory-index",
+ "openmemory-mcp",
+ "openmemory-watch",
  "serde",
  "serde_json",
  "tempfile",
@@ -1344,7 +1344,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-core"
+name = "openmemory-core"
 version = "0.2.0"
 dependencies = [
  "rand 0.8.6",
@@ -1356,12 +1356,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-embed"
+name = "openmemory-embed"
 version = "0.2.0"
 dependencies = [
  "blake3",
  "ndarray",
- "open-memory-core",
+ "openmemory-core",
  "ort",
  "rusqlite",
  "serde",
@@ -1374,13 +1374,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-graph"
+name = "openmemory-graph"
 version = "0.2.0"
 dependencies = [
  "blake3",
- "open-memory-core",
- "open-memory-embed",
- "open-memory-index",
+ "openmemory-core",
+ "openmemory-embed",
+ "openmemory-index",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1391,12 +1391,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-index"
+name = "openmemory-index"
 version = "0.2.0"
 dependencies = [
  "criterion",
  "lru",
- "open-memory-core",
+ "openmemory-core",
  "paste",
  "proptest",
  "rusqlite",
@@ -1409,14 +1409,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-mcp"
+name = "openmemory-mcp"
 version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
- "open-memory-core",
- "open-memory-graph",
- "open-memory-index",
+ "openmemory-core",
+ "openmemory-graph",
+ "openmemory-index",
  "schemars",
  "serde",
  "serde_json",
@@ -1429,16 +1429,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-memory-watch"
+name = "openmemory-watch"
 version = "0.2.0"
 dependencies = [
  "blake3",
  "ignore",
  "notify",
  "notify-debouncer-full",
- "open-memory-core",
- "open-memory-graph",
- "open-memory-index",
+ "openmemory-core",
+ "openmemory-graph",
+ "openmemory-index",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",

@@ -1,12 +1,12 @@
 # Storage layout
 
-Everything `open-memory` persists lives under one root directory.
-The default is `~/.open-memory/`; override with `$OPEN_MEMORY_HOME`
+Everything `openmemory` persists lives under one root directory.
+The default is `~/.openmemory/`; override with `$OPENMEMORY_HOME`
 or the global `--home <PATH>` flag. Within that root, the data
 directory holds one subdirectory per "profile" (the default profile
 name is `default`, mirroring OpenClaw's `--profile <name>` concept).
 
-> The on-disk layout under `~/.open-memory/data/<profile>/` is
+> The on-disk layout under `~/.openmemory/data/<profile>/` is
 > **not** part of the public-stability contract. Treat the data
 > directory as opaque from outside the binary. The shape below is
 > documentation for contributors and operators, not a contract.
@@ -14,7 +14,7 @@ name is `default`, mirroring OpenClaw's `--profile <name>` concept).
 ## Directory layout
 
 ```
-~/.open-memory/
+~/.openmemory/
 ├── config.toml                    # user-level config (TOML; see configuration.md)
 └── data/                          # one directory per profile
     └── default/                   # profile name (default = "default")
@@ -59,7 +59,7 @@ that's only relevant to the single writer. See
 ## Schema versions
 
 Every database carries its current schema version in a `*_meta`
-table. The `open_memory_core::migrations::Migrator` reads the
+table. The `openmemory_core::migrations::Migrator` reads the
 version on open, applies forward migrations idempotently, and
 **refuses to open** a database whose version is higher than the
 binary supports. This prevents an older binary from corrupting a
@@ -67,10 +67,10 @@ newer database after a downgrade.
 
 | Database | Version table | Current version | Owned by |
 |----------|---------------|-----------------|----------|
-| `memory.sqlite` | `memory_meta` | 2 (from `MEMORY_SCHEMA_VERSION` in [`crates/open-memory-graph/src/schema.rs`](../crates/open-memory-graph/src/schema.rs)) | `open-memory-graph` |
-| `metadata.sqlite` | `index_meta` | 1 | `open-memory-index` |
-| `fulltext.sqlite` | (FTS5 virtual table; no version row) | n/a | `open-memory-index` |
-| `embeddings/cache.sqlite` | `embed_meta` | 1 | `open-memory-embed` |
+| `memory.sqlite` | `memory_meta` | 2 (from `MEMORY_SCHEMA_VERSION` in [`crates/openmemory-graph/src/schema.rs`](../crates/openmemory-graph/src/schema.rs)) | `openmemory-graph` |
+| `metadata.sqlite` | `index_meta` | 1 | `openmemory-index` |
+| `fulltext.sqlite` | (FTS5 virtual table; no version row) | n/a | `openmemory-index` |
+| `embeddings/cache.sqlite` | `embed_meta` | 1 | `openmemory-embed` |
 
 Schema upgrades are forward-only. v1 always migrates to v2; the
 reverse never works. If you need to roll back, restore from a
@@ -79,7 +79,7 @@ backup taken before the upgrade.
 ## `memory.sqlite` schema
 
 The core tables, owned by
-[`crates/open-memory-graph/src/schema.rs`](../crates/open-memory-graph/src/schema.rs):
+[`crates/openmemory-graph/src/schema.rs`](../crates/openmemory-graph/src/schema.rs):
 
 ### `entities`
 
@@ -139,7 +139,7 @@ The schema-version row. Read on every open.
 ## `metadata.sqlite` schema
 
 Owned by
-[`crates/open-memory-index/src/metadata.rs`](../crates/open-memory-index/src/metadata.rs):
+[`crates/openmemory-index/src/metadata.rs`](../crates/openmemory-index/src/metadata.rs):
 
 The `sources` table tracks every URI the index knows about,
 regardless of which store created it. The `kind` discriminator
@@ -244,10 +244,10 @@ writes outside SQLite (the `config.toml`, the
 
 ## Multi-profile coexistence
 
-`open-memory --profile alt status` opens
-`~/.open-memory/data/alt/`. Two profiles share `config.toml` but
+`openmemory --profile alt status` opens
+`~/.openmemory/data/alt/`. Two profiles share `config.toml` but
 have entirely independent SQLite databases. The OpenClaw
-integrator (`open-memory integrate openclaw --profile alt`)
-registers the entry under `mcp.servers.open-memory-alt`, so two
+integrator (`openmemory integrate openclaw --profile alt`)
+registers the entry under `mcp.servers.openmemory-alt`, so two
 profiles can coexist in one OpenClaw config without colliding. See
 [openclaw.md](openclaw.md#config-resolution).

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `open-memory` will be documented in this file.
+All notable changes to `openmemory` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
@@ -13,8 +13,8 @@ Production-hardening pass on top of v0.2.0.
 
 ### Added
 
-- **HTTP-transport bearer-token auth.** `open_memory_mcp::http::serve`
-  now reads `OPEN_MEMORY_HTTP_TOKEN` from the environment; when set,
+- **HTTP-transport bearer-token auth.** `openmemory_mcp::http::serve`
+  now reads `OPENMEMORY_HTTP_TOKEN` from the environment; when set,
   every `POST /mcp` request must carry a matching `Authorization:
   Bearer <token>` header or it gets a 401 response with
   `WWW-Authenticate: Bearer` and a JSON-RPC `-32600` envelope. The
@@ -24,7 +24,7 @@ Production-hardening pass on top of v0.2.0.
   the token. With the env var unset, the server logs a warning and
   serves unauthenticated, preserving the local-dev workflow.
 - **SHA-256 model integrity verification.**
-  `open_memory_embed::OnnxEmbedder::load_for_model` hashes the
+  `openmemory_embed::OnnxEmbedder::load_for_model` hashes the
   on-disk `model.onnx` and `tokenizer.json` files before handing
   them to the ONNX runtime; mismatches surface as
   `EmbedError::ChecksumMismatch` with a "refusing to load" message.
@@ -38,15 +38,15 @@ Production-hardening pass on top of v0.2.0.
   `cargo clippy --workspace --no-default-features --all-targets --
   -D warnings`, and `cargo doc --workspace --no-deps --all-features`
   now run on every push. The first two would have caught
-  `open-memory-watch`'s feature-gated import bug; the third catches
+  `openmemory-watch`'s feature-gated import bug; the third catches
   intra-doc links that resolve only when an optional module
   compiles.
 
 ### Changed
 
-- `open-memory-watch` Cargo.toml drops its own `default = ["fts5"]`
+- `openmemory-watch` Cargo.toml drops its own `default = ["fts5"]`
   feature and pulls `sqlite + fts5` directly from
-  `open-memory-index` / `open-memory-graph`. The crate now compiles
+  `openmemory-index` / `openmemory-graph`. The crate now compiles
   under `cargo test --workspace --no-default-features` (it
   previously failed because `SourceKind`, `SourceRecord`, and the
   `metadata` field on `OpenEngine` are sqlite-gated). Higher-level
@@ -60,7 +60,7 @@ Production-hardening pass on top of v0.2.0.
 
 ### Fixed
 
-- `open_memory_mcp::http::handle_mcp` no longer constructs the 204
+- `openmemory_mcp::http::handle_mcp` no longer constructs the 204
   notification response via `Response::builder().unwrap()`; it
   returns `StatusCode::NO_CONTENT.into_response()` directly. The
   `application/json` content-type header is set via the infallible
@@ -83,13 +83,13 @@ Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
   on-disk and in-memory stores.
 - **`MemoryStatus::reader_pool_size`** — surfaced through the
   `status` snapshot so callers can verify multi-reader concurrency.
-- **`open-memory-watch` crate** — filesystem watcher with
+- **`openmemory-watch` crate** — filesystem watcher with
   incremental re-indexing. `notify-debouncer-full` powers the
   event loop; `ignore` powers the initial-tree walk and a per-tree
-  `.open-memory-ignore` custom-ignore filename. BLAKE3 deduplication
+  `.openmemory-ignore` custom-ignore filename. BLAKE3 deduplication
   against the existing `MetadataStore` makes a re-run over an
   unchanged tree free.
-- **`open-memory watch <PATH>` CLI subcommand** with
+- **`openmemory watch <PATH>` CLI subcommand** with
   `--debounce-ms`, `--exts`, `--max-size`, `--no-initial-scan`
   flags. Behind a default-on `watch` build feature.
 - **`[watch]` config section** (`debounce_ms`, `extensions`,
@@ -107,7 +107,7 @@ Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
 
 - Workspace version bumped to **0.2.0** to reflect the new public
   API surface (`MemoryStatus::reader_pool_size`, the
-  `open-memory-watch` crate, the `[watch]` config section). The MCP
+  `openmemory-watch` crate, the `[watch]` config section). The MCP
   tool surface is unchanged at v0.1; no MCP tool was added,
   renamed, or removed.
 - `MemoryStore::open` now spins up `Config::num_jobs()` read-only
@@ -120,7 +120,7 @@ Phase 8 + Phase 9: multi-agent memory and a filesystem watcher.
 
 - Runtime path filtering for the watcher honours always-ignore
   directories (`.git`, `target`, `node_modules`, …) and a small set
-  of always-ignore globs (`*.lock*`). Per-tree `.open-memory-ignore`
+  of always-ignore globs (`*.lock*`). Per-tree `.openmemory-ignore`
   rules are honoured by the initial scan but not re-evaluated on
   every event — that's a v0.3 follow-up.
 - The watcher currently has no graceful-shutdown signal hook on
@@ -135,35 +135,35 @@ into OpenClaw with one command.
 
 ### Added
 
-- **Crate `open-memory-core`** — `Clock` trait + `SystemClock` /
+- **Crate `openmemory-core`** — `Clock` trait + `SystemClock` /
   `FixedClock`; `OmError` / `OmResult` thiserror enum; SQLite
   `Migrator` schema-versioning helper; `Config` loader / saver with
-  `~/.open-memory/config.toml` and `OPEN_MEMORY_HOME` env override;
+  `~/.openmemory/config.toml` and `OPENMEMORY_HOME` env override;
   exponential-backoff `with_retry` helper; `Embedder` trait +
   `FakeEmbedder` test double behind a `testing` feature.
-- **Crate `open-memory-index`** — vector + keyword + hybrid search
+- **Crate `openmemory-index`** — vector + keyword + hybrid search
   engine: `FlatVectorIndex` (brute-force cosine), optional
   `HnswIndex` (usearch, behind `hnsw`), `Fts5Store` (default) /
   `Bm25Store` (`--no-default-features`) keyword backends,
   `MetadataStore`, `HybridSearchEngine` with RRF fusion,
   `CachedSearchEngine` (50-entry LRU, 60s TTL), `open_engine`
   factory, criterion benches.
-- **Crate `open-memory-embed`** — ONNX runner (CPU only), model
+- **Crate `openmemory-embed`** — ONNX runner (CPU only), model
   registry with `nomic-embed-text-v1.5` (default, 768-dim) +
   `snowflake-arctic-embed-l-v2.0` (alternate, 1024-dim), SQLite
   embedding cache keyed by BLAKE3.
-- **Crate `open-memory-graph`** — `MemoryStore` with bi-temporal
+- **Crate `openmemory-graph`** — `MemoryStore` with bi-temporal
   `Entity` / `Observation` / `Relation` types, atomic `remember`
   write, hybrid `recall` with Ebbinghaus decay + spreading
   activation, `forget` (soft) / `forget_entity` (hard cascade) /
   `prune` (sweep tombstones + orphans), `consolidate` (dedup +
   decay-prune, idempotent). 89 unit tests + 14 integration tests.
-- **Crate `open-memory-mcp`** — minimal hand-rolled JSON-RPC 2.0
+- **Crate `openmemory-mcp`** — minimal hand-rolled JSON-RPC 2.0
   MCP server (no `rmcp` dependency: every published version of
-  rmcp 0.13+ requires rustc 1.88+). Eleven `open_memory_*` tools
+  rmcp 0.13+ requires rustc 1.88+). Eleven `openmemory_*` tools
   registered through a single `Tool` trait; stdio transport always
   available; Streamable HTTP transport behind `mcp-http`.
-- **Crate `open-memory-cli`** — `open-memory` binary with `init`,
+- **Crate `openmemory-cli`** — `openmemory` binary with `init`,
   `status`, `mcp`, `consolidate`, `integrate openclaw`, plus
   scriptable `remember` / `recall` / `list-entities` /
   `forget-entity` and shell `completions`.
@@ -172,11 +172,11 @@ into OpenClaw with one command.
 
 ### Notes
 
-- **rmcp dependency.** open-memory does not depend on the upstream
+- **rmcp dependency.** openmemory does not depend on the upstream
   `rmcp` Rust SDK in v0.1. Every published rmcp release uses
   `if-let` chain syntax that requires Rust 1.88+; we pin MSRV to
   1.85 and ship a hand-rolled JSON-RPC 2.0 server in
-  `open-memory-mcp`. The Tool / ToolRouter shape mirrors rmcp
+  `openmemory-mcp`. The Tool / ToolRouter shape mirrors rmcp
   closely; swapping upstream in once MSRV catches up is a
   mechanical change.
 - **Default features.** `fts5`, `embeddings`, `completions`. Build
@@ -186,6 +186,6 @@ into OpenClaw with one command.
   `$OPENCLAW_CONFIG_PATH`). The legacy `~/.openclaw/mcp.json`
   filename is intentionally not probed.
 
-[Unreleased]: https://github.com/raymondj99/open-memory/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/raymondj99/open-memory/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/raymondj99/open-memory/releases/tag/v0.1.0
+[Unreleased]: https://github.com/raymondj99/openmemory/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/raymondj99/openmemory/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/raymondj99/openmemory/releases/tag/v0.1.0

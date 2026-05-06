@@ -1,6 +1,6 @@
 # Integrations
 
-`open-memory integrate <target>` registers the MCP server in a client's
+`openmemory integrate <target>` registers the MCP server in a client's
 config file. One command, no manual JSON editing. Run it again after
 upgrading and it updates the entry idempotently.
 
@@ -8,22 +8,22 @@ upgrading and it updates the entry idempotently.
 
 | Client | Command | Config written |
 |--------|---------|----------------|
-| Claude Code | `open-memory integrate claude-code` | `~/.claude.json` |
-| Claude Desktop | `open-memory integrate claude-desktop` | platform-specific (see below) |
-| OpenClaw | `open-memory integrate openclaw` | `~/.openclaw/openclaw.json` |
+| Claude Code | `openmemory integrate claude-code` | `~/.claude.json` |
+| Claude Desktop | `openmemory integrate claude-desktop` | platform-specific (see below) |
+| OpenClaw | `openmemory integrate openclaw` | `~/.openclaw/openclaw.json` |
 
 All targets share the same flags:
 
 ```text
 --http ADDR      Emit an HTTP-transport entry (streamable-http) instead of stdio
---binary PATH    Override the binary path in the entry (default: open-memory)
+--binary PATH    Override the binary path in the entry (default: openmemory)
 --config PATH    Override the target config file path
 ```
 
 ## Claude Code
 
 ```bash
-open-memory integrate claude-code
+openmemory integrate claude-code
 ```
 
 When the `claude` CLI is on PATH, the integrator delegates to
@@ -37,12 +37,12 @@ The entry is written under `mcpServers`:
 ```json
 {
   "mcpServers": {
-    "open-memory": {
-      "command": "open-memory",
+    "openmemory": {
+      "command": "openmemory",
       "args": ["mcp"],
       "env": {
-        "OPEN_MEMORY_HOME": "/Users/<user>/.open-memory",
-        "OPEN_MEMORY_PROFILE": "default"
+        "OPENMEMORY_HOME": "/Users/<user>/.openmemory",
+        "OPENMEMORY_PROFILE": "default"
       }
     }
   }
@@ -52,7 +52,7 @@ The entry is written under `mcpServers`:
 ## Claude Desktop
 
 ```bash
-open-memory integrate claude-desktop
+openmemory integrate claude-desktop
 ```
 
 Platform-specific config paths:
@@ -69,7 +69,7 @@ Restart Claude Desktop after running the command.
 ## OpenClaw
 
 ```bash
-open-memory integrate openclaw
+openmemory integrate openclaw
 ```
 
 See [openclaw.md](openclaw.md) for the full integration contract,
@@ -81,14 +81,14 @@ Any target accepts `--http <addr>` to emit an HTTP-transport entry
 instead of the default stdio entry:
 
 ```bash
-open-memory integrate claude-code --http 127.0.0.1:7800
+openmemory integrate claude-code --http 127.0.0.1:7800
 ```
 
 This writes a streamable-http entry:
 
 ```json
 {
-  "open-memory": {
+  "openmemory": {
     "url": "http://127.0.0.1:7800/mcp",
     "transport": "streamable-http"
   }
@@ -96,7 +96,7 @@ This writes a streamable-http entry:
 ```
 
 The integrator does not start the server. Run
-`open-memory mcp --http 127.0.0.1:7800` separately. See
+`openmemory mcp --http 127.0.0.1:7800` separately. See
 [mcp.md](mcp.md#streamable-http-behind-mcp-http) for bearer-token
 auth setup.
 
@@ -106,27 +106,27 @@ auth setup.
 entry so multiple profiles can coexist:
 
 ```bash
-open-memory --profile work integrate claude-code
-# writes entry as "open-memory-work" pointing at ~/.open-memory/data/work/
+openmemory --profile work integrate claude-code
+# writes entry as "openmemory-work" pointing at ~/.openmemory/data/work/
 ```
 
 ## Other MCP clients
 
-Any MCP client that accepts stdio server entries can use open-memory.
+Any MCP client that accepts stdio server entries can use openmemory.
 Add this to your client's server config:
 
 ```json
 {
-  "command": "open-memory",
+  "command": "openmemory",
   "args": ["mcp"],
   "env": {
-    "OPEN_MEMORY_HOME": "/path/to/.open-memory",
-    "OPEN_MEMORY_PROFILE": "default"
+    "OPENMEMORY_HOME": "/path/to/.openmemory",
+    "OPENMEMORY_PROFILE": "default"
   }
 }
 ```
 
-The env block is optional; defaults are `~/.open-memory` and `default`.
+The env block is optional; defaults are `~/.openmemory` and `default`.
 
 If your client is popular enough to warrant a first-class `integrate`
 target, open an issue.

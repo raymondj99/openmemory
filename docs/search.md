@@ -1,7 +1,7 @@
 # Search and recall
 
-Hybrid search is the engine that powers both `open_memory_recall`
-(graph) and `open_memory_search` (free-text URI store). It combines
+Hybrid search is the engine that powers both `openmemory_recall`
+(graph) and `openmemory_search` (free-text URI store). It combines
 a vector backend with a keyword backend, fuses their rankings via
 Reciprocal Rank Fusion, and (for graph recall) re-scores with
 Ebbinghaus forgetting-curve decay.
@@ -11,7 +11,7 @@ This document explains the math and the moving parts.
 ## The hybrid engine
 
 `HybridSearchEngine<V, F>` (in
-[`crates/open-memory-index/src/hybrid.rs`](../crates/open-memory-index/src/hybrid.rs))
+[`crates/openmemory-index/src/hybrid.rs`](../crates/openmemory-index/src/hybrid.rs))
 is generic over a `VectorStore` and a `FullTextStore`. The active
 backend pair is chosen at compile time by feature flags:
 
@@ -60,7 +60,7 @@ short-circuits to keyword only (alpha = 0.0).
 ## Caching
 
 `CachedSearchEngine` (in
-[`src/cache.rs`](../crates/open-memory-index/src/cache.rs)) wraps
+[`src/cache.rs`](../crates/openmemory-index/src/cache.rs)) wraps
 the hybrid engine with an LRU + TTL cache:
 
 - `DEFAULT_CACHE_CAPACITY = 1000` entries.
@@ -72,13 +72,13 @@ hybrid engine is rebuilt under the `RwLock<()>` rebuild barrier).
 
 ## Embeddings
 
-Vector search needs vectors. `open-memory-embed` provides them via
+Vector search needs vectors. `openmemory-embed` provides them via
 ONNX Runtime running locally on CPU.
 
 ### Model registry
 
 Two models ship in
-[`crates/open-memory-embed/src/models.rs`](../crates/open-memory-embed/src/models.rs):
+[`crates/openmemory-embed/src/models.rs`](../crates/openmemory-embed/src/models.rs):
 
 | Constant | Dimensions | Pooling | Notes |
 |----------|------------|---------|-------|
@@ -124,7 +124,7 @@ loses the semantic-similarity contribution.
 
 Once the hybrid engine returns a list of candidate observations,
 `MemoryStore::recall` (in
-[`crates/open-memory-graph/src/recall.rs`](../crates/open-memory-graph/src/recall.rs))
+[`crates/openmemory-graph/src/recall.rs`](../crates/openmemory-graph/src/recall.rs))
 re-scores each with the Ebbinghaus forgetting curve plus
 retrieval, correction, and confidence boosts:
 
@@ -182,7 +182,7 @@ passes.
 ## Consolidation
 
 `MemoryStore::consolidate(config)` (in
-[`crates/open-memory-graph/src/consolidate.rs`](../crates/open-memory-graph/src/consolidate.rs))
+[`crates/openmemory-graph/src/consolidate.rs`](../crates/openmemory-graph/src/consolidate.rs))
 runs two phases:
 
 1. **Dedup.** For each entity, compute Jaccard text similarity
@@ -195,7 +195,7 @@ runs two phases:
 
 Consolidation is **idempotent**: a second call right after the
 first reports zero work. Run it on a schedule (the Unreleased
-`open_memory_consolidate` MCP tool exists for that).
+`openmemory_consolidate` MCP tool exists for that).
 
 ## SearchMode reference
 

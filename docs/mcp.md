@@ -1,14 +1,14 @@
 # MCP server reference
 
 The MCP (Model Context Protocol) server is the public contract.
-Eleven `open_memory_*` tools cover the entire knowledge-graph and
+Eleven `openmemory_*` tools cover the entire knowledge-graph and
 free-text-index API. The same `OpenMemoryMcpServer::handle` path
 serves both stdio and Streamable HTTP transports.
 
 ## Protocol
 
-`open-memory-mcp` ships a hand-rolled JSON-RPC 2.0 server in
-[`src/protocol.rs`](../crates/open-memory-mcp/src/protocol.rs). It
+`openmemory-mcp` ships a hand-rolled JSON-RPC 2.0 server in
+[`src/protocol.rs`](../crates/openmemory-mcp/src/protocol.rs). It
 does **not** depend on the upstream `rmcp` Rust SDK because every
 published rmcp release uses Rust 1.88+ if-let chain syntax that
 breaks the workspace's MSRV pin at 1.85. The `Tool` and `ToolRouter`
@@ -18,7 +18,7 @@ up is a mechanical change.
 | Field | Value |
 |-------|-------|
 | Protocol version (advertised in `initialize`) | `"2024-11-05"` |
-| Server name | `"open-memory"` |
+| Server name | `"openmemory"` |
 | Server version | `0.2.0` (workspace version) |
 | Wire format | JSON-RPC 2.0 |
 | Default transport | stdio (line-buffered, one JSON object per line) |
@@ -43,7 +43,7 @@ else.
 
 ## The eleven tools
 
-All tools use `snake_case`. All tools are prefixed `open_memory_`:
+All tools use `snake_case`. All tools are prefixed `openmemory_`:
 short to keep them under any 64-char tool-name budget the agent
 runner imposes, and namespaced cleanly against `memoclaw_*` and
 other memory MCPs.
@@ -52,27 +52,27 @@ other memory MCPs.
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `open_memory_remember` | write | Create or update an entity, append observations and relations atomically. Returns `RememberOutcome` (`Created` / `Updated` / `Unchanged`). |
-| `open_memory_recall` | read | Hybrid (vector + keyword) search over observations, scored with Ebbinghaus decay. Optional spreading-activation expansion to related entities. |
-| `open_memory_list_entities` | read | Browse entities. Optional filter by `entity_type`; pagination via `limit` / `offset`. |
-| `open_memory_get_entity` | read | All observations and relations for one entity, lookup by `entity_id` or `name`. Used after `recall` to drill in. |
-| `open_memory_forget` | destructive | Soft-delete a single observation by id. Lineage preserved (the row is tomb-stoned, not removed). |
-| `open_memory_forget_entity` | destructive | Hard-delete an entity and its observations and relations. Irreversible. |
-| `open_memory_status` | read | Counts, schema versions, oldest/newest observation timestamps, entity-type and tier breakdowns, vector count, reader-pool size. |
+| `openmemory_remember` | write | Create or update an entity, append observations and relations atomically. Returns `RememberOutcome` (`Created` / `Updated` / `Unchanged`). |
+| `openmemory_recall` | read | Hybrid (vector + keyword) search over observations, scored with Ebbinghaus decay. Optional spreading-activation expansion to related entities. |
+| `openmemory_list_entities` | read | Browse entities. Optional filter by `entity_type`; pagination via `limit` / `offset`. |
+| `openmemory_get_entity` | read | All observations and relations for one entity, lookup by `entity_id` or `name`. Used after `recall` to drill in. |
+| `openmemory_forget` | destructive | Soft-delete a single observation by id. Lineage preserved (the row is tomb-stoned, not removed). |
+| `openmemory_forget_entity` | destructive | Hard-delete an entity and its observations and relations. Irreversible. |
+| `openmemory_status` | read | Counts, schema versions, oldest/newest observation timestamps, entity-type and tier breakdowns, vector count, reader-pool size. |
 
 ### Index tools (free-text URI store)
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `open_memory_index_text` | write | Upsert plain text under a caller-supplied URI (e.g. `note://2026-05-04/standup`). Returns the inserted chunk count. |
-| `open_memory_search` | read | Hybrid search over the URI corpus. Filter by URI prefix, content type, score threshold, search mode. |
-| `open_memory_delete` | destructive | Remove all chunks for a URI (or URI prefix). |
+| `openmemory_index_text` | write | Upsert plain text under a caller-supplied URI (e.g. `note://2026-05-04/standup`). Returns the inserted chunk count. |
+| `openmemory_search` | read | Hybrid search over the URI corpus. Filter by URI prefix, content type, score threshold, search mode. |
+| `openmemory_delete` | destructive | Remove all chunks for a URI (or URI prefix). |
 
 ### Maintenance tools
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `open_memory_consolidate` | write | Run dedup (Jaccard text similarity within an entity) plus decay-prune (Ebbinghaus scoring with floor). Idempotent. |
+| `openmemory_consolidate` | write | Run dedup (Jaccard text similarity within an entity) plus decay-prune (Ebbinghaus scoring with floor). Idempotent. |
 
 ### Why split graph vs. index
 
@@ -88,7 +88,7 @@ MCP boundary keeps each tool description short and unambiguous.
 
 All eleven tools are registered in one place, the `registry()`
 function in
-[`crates/open-memory-mcp/src/tools/mod.rs`](../crates/open-memory-mcp/src/tools/mod.rs).
+[`crates/openmemory-mcp/src/tools/mod.rs`](../crates/openmemory-mcp/src/tools/mod.rs).
 Adding a new tool is a one-line change to that registry.
 
 ```rust
@@ -125,9 +125,9 @@ in lockstep.
 ## Tool input schemas
 
 Every tool input is JSON Schema 2020-12, generated from a `serde +
-schemars` Rust struct in [`tools/memory.rs`](../crates/open-memory-mcp/src/tools/memory.rs),
-[`tools/index.rs`](../crates/open-memory-mcp/src/tools/index.rs), and
-[`tools/maintenance.rs`](../crates/open-memory-mcp/src/tools/maintenance.rs)
+schemars` Rust struct in [`tools/memory.rs`](../crates/openmemory-mcp/src/tools/memory.rs),
+[`tools/index.rs`](../crates/openmemory-mcp/src/tools/index.rs), and
+[`tools/maintenance.rs`](../crates/openmemory-mcp/src/tools/maintenance.rs)
 via `schema_for::<T>()`. Wire enums use camelCase names to keep
 JSON-Schema output ergonomic for OpenClaw's tool inspector:
 
@@ -174,7 +174,7 @@ Errors are returned as a `JsonRpcError` with an MCP `code` and
 | `-32700` | `PARSE_ERROR` | The wire payload was not valid JSON. |
 | `-32600` | (generic application) | Bearer-token auth failure on the HTTP transport. |
 
-`open-memory` never panics on the request path. Every panic in any
+`openmemory` never panics on the request path. Every panic in any
 tool is treated as a CI-blocking bug. The release-hardening pass
 (`Unreleased` in `CHANGELOG.md`) replaced a stray
 `Response::builder().unwrap()` in `http::handle_mcp` with
@@ -188,14 +188,14 @@ contract.
 The default. `OpenMemoryMcpServer` reads JSON-RPC requests from
 stdin (one object per line) and writes responses to stdout. This
 is what OpenClaw runs by default and what `cargo install
-open-memory` ships out of the box.
+openmemory` ships out of the box.
 
 ```bash
-open-memory mcp        # equivalent to: open-memory mcp (stdio)
+openmemory mcp        # equivalent to: openmemory mcp (stdio)
 ```
 
 The transport implementation is `run_stdio_server` in
-[`src/stdio.rs`](../crates/open-memory-mcp/src/stdio.rs). Tokio
+[`src/stdio.rs`](../crates/openmemory-mcp/src/stdio.rs). Tokio
 runs single-threaded current-thread; one stdio session is plenty.
 
 ### Streamable HTTP (behind `mcp-http`)
@@ -206,11 +206,11 @@ liveness probes. Built with `--features mcp-http`:
 
 ```bash
 cargo build --release --features mcp-http
-open-memory mcp --http 0.0.0.0:7800
+openmemory mcp --http 0.0.0.0:7800
 ```
 
 The implementation lives in
-[`src/http.rs`](../crates/open-memory-mcp/src/http.rs). It uses
+[`src/http.rs`](../crates/openmemory-mcp/src/http.rs). It uses
 `axum` plus `tower-http` for CORS and tracing middleware. Each
 request still goes through `handle()`, so behaviour is identical
 to stdio modulo the wire framing.
@@ -218,7 +218,7 @@ to stdio modulo the wire framing.
 #### Bearer-token authentication
 
 For anything bound to a non-loopback address, set
-`OPEN_MEMORY_HTTP_TOKEN` before launching the server. Each `/mcp`
+`OPENMEMORY_HTTP_TOKEN` before launching the server. Each `/mcp`
 request must carry a matching `Authorization: Bearer <token>`
 header; missing or wrong tokens get a `401` with
 `WWW-Authenticate: Bearer` and a JSON-RPC `-32600` error envelope.
@@ -226,8 +226,8 @@ header; missing or wrong tokens get a `401` with
 without the token.
 
 ```bash
-export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
-open-memory mcp --http 0.0.0.0:7800
+export OPENMEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
+openmemory mcp --http 0.0.0.0:7800
 ```
 
 With the env var unset (or empty), the server logs a warning and
@@ -249,30 +249,30 @@ OpenClaw and other inspectors render to the user.
 The instructions look approximately like this:
 
 ```text
-open-memory is a local persistent agent memory + hybrid text search engine.
+openmemory is a local persistent agent memory + hybrid text search engine.
 
 MEMORY TOOLS:
-- open_memory_remember: store entities, observations, relations
-- open_memory_recall: semantic search over stored memory
-- open_memory_list_entities: browse entities by type
-- open_memory_get_entity: full record for one entity
-- open_memory_forget: soft-delete one observation
-- open_memory_forget_entity: hard-delete an entity
-- open_memory_status: store statistics
+- openmemory_remember: store entities, observations, relations
+- openmemory_recall: semantic search over stored memory
+- openmemory_list_entities: browse entities by type
+- openmemory_get_entity: full record for one entity
+- openmemory_forget: soft-delete one observation
+- openmemory_forget_entity: hard-delete an entity
+- openmemory_status: store statistics
 
 INDEX TOOLS:
-- open_memory_index_text: store text under a URI
-- open_memory_search: hybrid search over indexed text
-- open_memory_delete: remove text by URI or prefix
+- openmemory_index_text: store text under a URI
+- openmemory_search: hybrid search over indexed text
+- openmemory_delete: remove text by URI or prefix
 
 MAINTENANCE TOOLS:
-- open_memory_consolidate: run dedup + decay-prune
+- openmemory_consolidate: run dedup + decay-prune
 
 WORKFLOW:
-1. Use open_memory_remember to store facts about named entities.
-2. Use open_memory_recall to find facts by natural-language query.
-3. Use open_memory_index_text + open_memory_search for free-text content.
-4. Run open_memory_consolidate periodically to dedup + decay-prune.
+1. Use openmemory_remember to store facts about named entities.
+2. Use openmemory_recall to find facts by natural-language query.
+3. Use openmemory_index_text + openmemory_search for free-text content.
+4. Run openmemory_consolidate periodically to dedup + decay-prune.
 ```
 
 The exact text is generated from the registry; if you add a new
@@ -281,7 +281,7 @@ tool to the registry, the instructions update automatically.
 ## Tool naming conventions
 
 - `snake_case` everywhere.
-- All tools prefixed `open_memory_`. Short to keep them under
+- All tools prefixed `openmemory_`. Short to keep them under
   informal 64-char tool-name budgets.
 - Verb-second naming (`*_remember`, `*_recall`, `*_search`) keeps
   related tools alphabetically grouped in agent listings.
@@ -292,7 +292,7 @@ tool to the registry, the instructions update automatically.
 
 The following are part of the public contract from v0.1.0 onwards:
 
-- Tool **names** under `open_memory_*` are stable across minor
+- Tool **names** under `openmemory_*` are stable across minor
   version bumps. Renaming requires a major bump. Adding new tools
   is a minor bump.
 - Tool input **field names** are stable. Renaming a field
@@ -306,7 +306,7 @@ The following are **not** part of the contract:
 
 - The internal Rust API (any `pub` symbol in any crate). Library
   consumers should pin patch versions.
-- The on-disk directory layout under `~/.open-memory/data/<profile>/`.
+- The on-disk directory layout under `~/.openmemory/data/<profile>/`.
   Treat the data directory as opaque.
-- Log line wording. `OPEN_MEMORY_LOG=json` is stable; the
+- Log line wording. `OPENMEMORY_LOG=json` is stable; the
   human-readable text is not.

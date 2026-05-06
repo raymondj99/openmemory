@@ -1,47 +1,47 @@
 # CLI reference
 
-The `open-memory` binary is a thin clap surface. Every subcommand
+The `openmemory` binary is a thin clap surface. Every subcommand
 is a small adapter to a function in
-[`crates/open-memory-cli/src/commands/`](../crates/open-memory-cli/src/commands/)
+[`crates/openmemory-cli/src/commands/`](../crates/openmemory-cli/src/commands/)
 that does the real work. The clap definitions live in
-[`crates/open-memory-cli/src/cli.rs`](../crates/open-memory-cli/src/cli.rs):
+[`crates/openmemory-cli/src/cli.rs`](../crates/openmemory-cli/src/cli.rs):
 
 ## Top-level invocation
 
 ```text
-open-memory [--home <PATH>] [--profile <NAME>] <SUBCOMMAND> [ARGS...]
+openmemory [--home <PATH>] [--profile <NAME>] <SUBCOMMAND> [ARGS...]
 ```
 
 | Global flag | Effect |
 |-------------|--------|
-| `--home <PATH>` | Override the data root. Defaults to `$OPEN_MEMORY_HOME` or `~/.open-memory`. Setting it also exports `OPEN_MEMORY_HOME` to the process so subprocesses inherit the override. |
+| `--home <PATH>` | Override the data root. Defaults to `$OPENMEMORY_HOME` or `~/.openmemory`. Setting it also exports `OPENMEMORY_HOME` to the process so subprocesses inherit the override. |
 | `--profile <NAME>` | Memory profile under the data root. Defaults to `default`. |
 
 Built-in `--help`, `--version`, and shell completions all work.
 
-## `open-memory init`
+## `openmemory init`
 
 Initialise the data directory and write a default `config.toml`.
 
 ```text
-open-memory init [--force]
+openmemory init [--force]
 ```
 
 | Flag | Effect |
 |------|--------|
 | `--force` | Overwrite an existing `config.toml`. Without it, `init` refuses to clobber. |
 
-Creates `~/.open-memory/`, `~/.open-memory/data/<profile>/`, and
+Creates `~/.openmemory/`, `~/.openmemory/data/<profile>/`, and
 writes a populated `config.toml` from the
 `Config::default()` shape. Idempotent across re-runs unless
 something changed.
 
-## `open-memory status`
+## `openmemory status`
 
 Print summary of memory and index state. No flags.
 
 ```text
-open-memory status
+openmemory status
 ```
 
 Output (human-readable; one short line per fact):
@@ -56,12 +56,12 @@ Output (human-readable; one short line per fact):
 - Reader-pool size (multi-agent concurrency surface).
 - Last consolidation timestamp.
 
-## `open-memory mcp`
+## `openmemory mcp`
 
 Start the MCP server.
 
 ```text
-open-memory mcp [--http <ADDR>]
+openmemory mcp [--http <ADDR>]
 ```
 
 | Flag | Effect |
@@ -73,26 +73,26 @@ Examples:
 
 ```bash
 # Stdio (the default OpenClaw entry point)
-open-memory mcp
+openmemory mcp
 
 # HTTP (requires --features mcp-http)
-open-memory mcp --http 0.0.0.0:7800
+openmemory mcp --http 0.0.0.0:7800
 
 # HTTP with bearer-token auth (recommended for any non-loopback bind)
-export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
-open-memory mcp --http 0.0.0.0:7800
+export OPENMEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
+openmemory mcp --http 0.0.0.0:7800
 ```
 
 Stdio mode runs Tokio current-thread; HTTP mode runs Tokio
 multi-thread. See [mcp.md](mcp.md#transports) for transport detail
 including the bearer-token contract.
 
-## `open-memory consolidate`
+## `openmemory consolidate`
 
 Run dedup plus decay-prune once and print the report.
 
 ```text
-open-memory consolidate [--dedup-threshold <F>] [--prune-floor <F>] [--min-age-secs <SECS>]
+openmemory consolidate [--dedup-threshold <F>] [--prune-floor <F>] [--min-age-secs <SECS>]
 ```
 
 | Flag | Effect |
@@ -104,46 +104,46 @@ open-memory consolidate [--dedup-threshold <F>] [--prune-floor <F>] [--min-age-s
 Idempotent: a second call right after the first reports zero work.
 See [search.md](search.md#consolidation) for the math.
 
-## `open-memory integrate openclaw`
+## `openmemory integrate openclaw`
 
-Register `open-memory` in OpenClaw's MCP config. The defining
+Register `openmemory` in OpenClaw's MCP config. The defining
 "out-of-the-box" command.
 
 ```text
-open-memory integrate openclaw [--config <PATH>] [--http <ADDR>] [--binary <PATH>]
+openmemory integrate openclaw [--config <PATH>] [--http <ADDR>] [--binary <PATH>]
 ```
 
 | Flag | Effect |
 |------|--------|
 | `--config <PATH>` | Override the OpenClaw config path. Defaults to `$OPENCLAW_CONFIG_PATH` or `~/.openclaw/openclaw.json`. |
 | `--http <ADDR>` | Emit an HTTP-transport entry (`streamable-http`) pointing at the given address (e.g. `127.0.0.1:7821`) instead of the default stdio entry. |
-| `--binary <PATH>` | Override the binary path written into the entry. Defaults to the bare `open-memory`, which OpenClaw resolves via `$PATH`. |
+| `--binary <PATH>` | Override the binary path written into the entry. Defaults to the bare `openmemory`, which OpenClaw resolves via `$PATH`. |
 
 Examples:
 
 ```bash
-# Default: stdio entry under mcp.servers.open-memory
-open-memory integrate openclaw
+# Default: stdio entry under mcp.servers.openmemory
+openmemory integrate openclaw
 
 # HTTP-transport entry pointing at a locally-running mcp --http server
-open-memory integrate openclaw --http 127.0.0.1:7821
+openmemory integrate openclaw --http 127.0.0.1:7821
 
 # Pin the binary path explicitly (for non-PATH-resolvable installs)
-open-memory integrate openclaw --binary /opt/open-memory/bin/open-memory
+openmemory integrate openclaw --binary /opt/openmemory/bin/openmemory
 ```
 
 Idempotent: a re-run with no changes reports "no changes". A re-run
 with a changed entry prints the diff. Full integration contract in
 [openclaw.md](openclaw.md):
 
-## `open-memory remember`
+## `openmemory remember`
 
 Append observations to an entity from the command line. Mainly for
-scripting and testing; the MCP `open_memory_remember` tool is the
+scripting and testing; the MCP `openmemory_remember` tool is the
 in-agent path.
 
 ```text
-open-memory remember <ENTITY>
+openmemory remember <ENTITY>
     --observation <TEXT>... (repeatable, at least one required)
     [--entity-type <TYPE>]
     [--relation <TYPE=NAME[:ENTITY_TYPE]>...]
@@ -163,20 +163,20 @@ open-memory remember <ENTITY>
 Example:
 
 ```bash
-open-memory remember Raymond \
+openmemory remember Raymond \
     --entity-type person \
     --observation 'prefers Rust' \
-    --observation 'maintains open-memory' \
-    --relation 'maintains=open-memory:project'
+    --observation 'maintains openmemory' \
+    --relation 'maintains=openmemory:project'
 ```
 
-## `open-memory recall`
+## `openmemory recall`
 
 Search memory by natural-language query. CLI counterpart to
-`open_memory_recall`.
+`openmemory_recall`.
 
 ```text
-open-memory recall <QUERY>
+openmemory recall <QUERY>
     [--limit <N>]
     [--entity-type <TYPE>]
     [--source <ORIGIN>]
@@ -197,55 +197,55 @@ Hybrid mode (vector + keyword + RRF + Ebbinghaus decay + spreading
 activation) is hard-coded for the CLI; for finer-grained control,
 use the MCP tool. See [search.md](search.md):
 
-## `open-memory list-entities`
+## `openmemory list-entities`
 
 Browse entities, optionally filtered by type.
 
 ```text
-open-memory list-entities
+openmemory list-entities
     [--entity-type <TYPE>]
     [--limit <N>]
     [--offset <N>]
     [--json]
 ```
 
-## `open-memory forget-entity`
+## `openmemory forget-entity`
 
 Hard-delete an entity and its observations and relations.
 
 ```text
-open-memory forget-entity <ENTITY> --yes
+openmemory forget-entity <ENTITY> --yes
 ```
 
 `--yes` is required to confirm the destructive action; the command
 aborts otherwise.
 
-## `open-memory completions <SHELL>`
+## `openmemory completions <SHELL>`
 
 Emit shell completions for the named shell. Behind the
 default-on `completions` feature.
 
 ```text
-open-memory completions <bash|fish|zsh|elvish|powershell>
+openmemory completions <bash|fish|zsh|elvish|powershell>
 ```
 
 The output goes to stdout; redirect into the appropriate location
 for your shell:
 
 ```bash
-open-memory completions fish > ~/.config/fish/completions/open-memory.fish
-open-memory completions bash > /etc/bash_completion.d/open-memory
-open-memory completions zsh  > "${fpath[1]}/_open-memory"
+openmemory completions fish > ~/.config/fish/completions/openmemory.fish
+openmemory completions bash > /etc/bash_completion.d/openmemory
+openmemory completions zsh  > "${fpath[1]}/_openmemory"
 ```
 
-## `open-memory watch <PATH>`
+## `openmemory watch <PATH>`
 
 Watch a directory and incrementally re-index changed files. Behind
 the default-on `watch` feature. Full crate detail in
 [watcher.md](watcher.md):
 
 ```text
-open-memory watch <PATH>
+openmemory watch <PATH>
     [--debounce-ms <MS>]
     [--exts <LIST>]
     [--max-size <BYTES>]
@@ -263,14 +263,14 @@ open-memory watch <PATH>
 Example:
 
 ```bash
-open-memory watch ~/notes --exts md,txt
+openmemory watch ~/notes --exts md,txt
 # Walks ~/notes once, then tails create/modify/delete events.
 # BLAKE3-deduped against the metadata store, so a re-run over an
 # unchanged tree is free.
 ```
 
 The watcher takes an `Arc<MemoryStore>` so a future
-`open-memory mcp --watch DIR` mode can share the MCP server's
+`openmemory mcp --watch DIR` mode can share the MCP server's
 handle without opening a second SQLite connection.
 
 ## Exit codes
@@ -279,7 +279,7 @@ handle without opening a second SQLite connection.
 |------|---------|
 | `0` | Success. |
 | `1` | Generic failure. The error message goes to stderr. |
-| `2` | clap argument parsing error (`open-memory --help` covers most cases). |
+| `2` | clap argument parsing error (`openmemory --help` covers most cases). |
 
 The scriptable subcommands (`remember`, `recall`, `list-entities`,
 `forget-entity`) preserve `0` / `1` semantics so shell pipelines

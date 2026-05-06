@@ -1,19 +1,19 @@
 # Filesystem watcher
 
-The `open-memory-watch` crate gives `open-memory` an opt-in
+The `openmemory-watch` crate gives `openmemory` an opt-in
 filesystem watcher. It walks a directory tree once on startup
 (BLAKE3-deduped against the existing metadata store), then tails
 `notify-debouncer-full` events to re-index only what changed. The
-CLI exposes it as `open-memory watch <PATH>`.
+CLI exposes it as `openmemory watch <PATH>`.
 
 The crate ships behind a default-on `watch` build feature on
-`open-memory-cli`; the rest of the workspace builds without it.
+`openmemory-cli`; the rest of the workspace builds without it.
 
 ## What it does
 
 - **Initial scan.** On startup, walk the tree under `<PATH>` using
   the `ignore` crate (which respects `.gitignore`, `.ignore`, and
-  `.open-memory-ignore` files in precedence order). For each
+  `.openmemory-ignore` files in precedence order). For each
   surviving file: read it, BLAKE3-hash the contents, look up the
   hash in the metadata store. If the hash matches, skip; if not,
   write the file's text into the index and store the new hash.
@@ -24,7 +24,7 @@ The crate ships behind a default-on `watch` build feature on
   the initial scan uses applies to events, so a save with no
   byte-level change is a no-op.
 - **Concurrent friendliness.** The watcher takes an
-  `Arc<MemoryStore>`. A future `open-memory mcp --watch DIR` mode
+  `Arc<MemoryStore>`. A future `openmemory mcp --watch DIR` mode
   can share the running MCP server's store handle without opening
   a second SQLite connection.
 
@@ -49,7 +49,7 @@ Multi-chunk file ingestion is tracked for a future release.
 ## Default extensions
 
 `DEFAULT_EXTENSIONS` (in
-[`crates/open-memory-watch/src/lib.rs`](../crates/open-memory-watch/src/lib.rs))
+[`crates/openmemory-watch/src/lib.rs`](../crates/openmemory-watch/src/lib.rs))
 is the curated allowlist for the watcher when no other configuration
 overrides it:
 
@@ -83,8 +83,8 @@ Two sets bypass the configurable allowlist entirely:
   uninteresting for memory and they churn often.
 
 Repository owners can add per-tree rules via a
-`.open-memory-ignore` file (`IGNORE_FILE_NAME`). It uses the same
-syntax as `.gitignore`. Note: `.open-memory-ignore` rules are
+`.openmemory-ignore` file (`IGNORE_FILE_NAME`). It uses the same
+syntax as `.gitignore`. Note: `.openmemory-ignore` rules are
 honoured by the **initial scan** but not re-evaluated on every
 event in v0.2; that is tracked for v0.3.
 
@@ -98,9 +98,9 @@ loop on a multi-second read. CLI override: `--max-size <BYTES>`.
 ## Dedup with BLAKE3
 
 The metadata store (`metadata.sqlite`, owned by
-`open-memory-index`) carries a `content_hash BLOB` column. The
+`openmemory-index`) carries a `content_hash BLOB` column. The
 watcher writes the BLAKE3 hash of the file contents on each
-successful index. Subsequent scans (including a fresh `open-memory
+successful index. Subsequent scans (including a fresh `openmemory
 watch` invocation over the same tree) compare incoming hashes
 against the stored hash and skip when they match.
 
@@ -151,11 +151,11 @@ impl Watcher {
 
 ## CLI surface
 
-See [cli.md](cli.md#open-memory-watch-path) for the full flag
+See [cli.md](cli.md#openmemory-watch-path) for the full flag
 reference. Quick summary:
 
 ```bash
-open-memory watch ~/notes \
+openmemory watch ~/notes \
     --exts md,txt \
     --debounce-ms 250 \
     --max-size 5242880   # 5 MiB
@@ -168,7 +168,7 @@ open-memory watch ~/notes \
 - Create / modify / delete event handling.
 - BLAKE3 dedup on restart (re-running over an unchanged tree is a
   no-op).
-- Ignore-precedence (`.gitignore` and `.open-memory-ignore`).
+- Ignore-precedence (`.gitignore` and `.openmemory-ignore`).
 - Latency smoke test that prints p50/p99 numbers for each
   operation. The numbers are not gated; they are recorded in the
   test output for trend tracking.
@@ -181,7 +181,7 @@ contended CI runners.
 
 - One chunk per file (`chunk_index = 0`). Multi-chunk per-file
   ingestion is tracked for v0.3.
-- `.open-memory-ignore` is honoured by the initial scan but not
+- `.openmemory-ignore` is honoured by the initial scan but not
   re-evaluated on every event.
 - No graceful-shutdown signal hook on the CLI side. SIGINT /
   SIGTERM kills the process cleanly because every write goes

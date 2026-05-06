@@ -1,0 +1,31 @@
+[package]
+name = "openmemory-embed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: ONNX Runtime text embeddings (optional)"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+testing = []
+
+[dependencies]
+openmemory-core = { workspace = true, features = ["testing"] }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+ort = { workspace = true }
+tokenizers = { workspace = true }
+ndarray = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

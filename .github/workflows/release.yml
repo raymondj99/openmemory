@@ -49,7 +49,7 @@ jobs:
           key: release-${{ matrix.target }}
 
       - name: Build release binary
-        run: cargo build --release --bin open-memory --target ${{ matrix.target }}
+        run: cargo build --release --bin openmemory --target ${{ matrix.target }}
 
       - name: Resolve version
         id: ver
@@ -64,9 +64,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          name="open-memory-${{ steps.ver.outputs.version }}-${{ matrix.target }}"
+          name="openmemory-${{ steps.ver.outputs.version }}-${{ matrix.target }}"
           mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/open-memory" "dist/$name/"
+          cp "target/${{ matrix.target }}/release/openmemory" "dist/$name/"
           cp README.md CHANGELOG.md LICENSE-MIT LICENSE-APACHE "dist/$name/"
           cd dist
           tar -czf "$name.tar.gz" "$name"
@@ -89,15 +89,15 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: cargo publish --dry-run on open-memory-core
+      - name: cargo publish --dry-run on openmemory-core
         # Only the foundation crate dry-runs cleanly before any
         # workspace member is on crates.io — every downstream crate
-        # picks up `open-memory-core` via a path dep, so cargo
+        # picks up `openmemory-core` via a path dep, so cargo
         # publish/package on those would need the registered
-        # `open-memory-core` on crates.io to verify. The first release
+        # `openmemory-core` on crates.io to verify. The first release
         # publishes them in dependency order; subsequent releases
         # extend the loop here once the chain is registered.
-        run: cargo publish --dry-run -p open-memory-core --allow-dirty
+        run: cargo publish --dry-run -p openmemory-core --allow-dirty
 
   github-release:
     name: GitHub release
@@ -124,15 +124,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: open-memory ${{ steps.ver.outputs.version }}
+          name: openmemory ${{ steps.ver.outputs.version }}
           body: |
-            See [CHANGELOG.md](https://github.com/raymondj99/open-memory/blob/${{ steps.ver.outputs.tag }}/CHANGELOG.md)
+            See [CHANGELOG.md](https://github.com/raymondj99/openmemory/blob/${{ steps.ver.outputs.tag }}/CHANGELOG.md)
             for the full release notes.
 
             Binaries are signed with sha256 checksums; verify before installing:
 
             ```bash
-            shasum -a 256 -c open-memory-${{ steps.ver.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz.sha256
+            shasum -a 256 -c openmemory-${{ steps.ver.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz.sha256
             ```
           files: |
             dist/*.tar.gz

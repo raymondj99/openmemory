@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Install the latest open-memory release binary.
+# Install the latest openmemory release binary.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/raymondj99/open-memory/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/raymondj99/openmemory/main/scripts/install.sh | bash
 #
 # Environment variables:
 #   INSTALL_DIR   Where to place the binary (default: ~/.local/bin)
@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-REPO="raymondj99/open-memory"
+REPO="raymondj99/openmemory"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 main() {
@@ -20,8 +20,8 @@ main() {
     resolve_version
     download_and_install
     verify_path
-    printf "\nopen-memory %s installed to %s/open-memory\n" "$VERSION" "$INSTALL_DIR"
-    printf "Run 'open-memory init' to get started.\n"
+    printf "\nopenmemory %s installed to %s/openmemory\n" "$VERSION" "$INSTALL_DIR"
+    printf "Run 'openmemory init' to get started.\n"
 }
 
 check_dependencies() {
@@ -80,7 +80,7 @@ resolve_version() {
 
 download_and_install() {
     local version_num="${VERSION#v}"
-    local archive="open-memory-${version_num}-${TARGET}.tar.gz"
+    local archive="openmemory-${version_num}-${TARGET}.tar.gz"
     local url="https://github.com/${REPO}/releases/download/${VERSION}/${archive}"
     local checksum_url="${url}.sha256"
 
@@ -99,8 +99,8 @@ download_and_install() {
     tar -xzf "${tmpdir}/${archive}" -C "$tmpdir"
 
     mkdir -p "$INSTALL_DIR"
-    mv "${tmpdir}/open-memory-${version_num}-${TARGET}/open-memory" "$INSTALL_DIR/open-memory"
-    chmod +x "$INSTALL_DIR/open-memory"
+    mv "${tmpdir}/openmemory-${version_num}-${TARGET}/openmemory" "$INSTALL_DIR/openmemory"
+    chmod +x "$INSTALL_DIR/openmemory"
 }
 
 verify_path() {

@@ -21,12 +21,12 @@ Two themes:
   `Config::num_jobs()` (CPU count). The shared-writer fallback for
   `MemoryStore::open_in_memory` keeps the API uniform across
   on-disk and ephemeral test instances.
-- **Filesystem watcher.** New `open-memory-watch` crate with
+- **Filesystem watcher.** New `openmemory-watch` crate with
   initial-tree walk plus `notify-debouncer-full` event loop,
   BLAKE3-deduped against the metadata store, ignore-file
-  precedence (`.gitignore`, `.ignore`, `.open-memory-ignore`),
+  precedence (`.gitignore`, `.ignore`, `.openmemory-ignore`),
   and a curated default extension list. CLI exposed as
-  `open-memory watch <PATH>`.
+  `openmemory watch <PATH>`.
 
 Behind the scenes:
 
@@ -35,8 +35,8 @@ Behind the scenes:
   `rust-version` metadata is at or below 1.85, so MSRV stays
   pinned.
 - New public surface: `MemoryStatus::reader_pool_size`, the
-  `open-memory-watch` crate, the `[watch]` section in
-  `config.toml`, the `open-memory watch` CLI subcommand. Workspace
+  `openmemory-watch` crate, the `[watch]` section in
+  `config.toml`, the `openmemory watch` CLI subcommand. Workspace
   version bumped to `0.2.0` to reflect the breaking surface
   changes.
 - The MCP tool surface is **unchanged** at v0.1; no MCP tool was
@@ -58,32 +58,32 @@ integrated into OpenClaw with one command.
 
 Crates landed:
 
-- `open-memory-core`. `Clock` trait + `SystemClock` /
+- `openmemory-core`. `Clock` trait + `SystemClock` /
   `FixedClock`; `OmError` / `OmResult` thiserror enum; SQLite
   `Migrator`; `Config` loader/saver with
-  `~/.open-memory/config.toml` and `OPEN_MEMORY_HOME` override;
+  `~/.openmemory/config.toml` and `OPENMEMORY_HOME` override;
   exponential-backoff retry helper; `Embedder` trait stub.
-- `open-memory-index`. `FlatVectorIndex` (brute-force cosine);
+- `openmemory-index`. `FlatVectorIndex` (brute-force cosine);
   optional `HnswIndex` (usearch, behind `hnsw`); `Fts5Store`
   (default) and `Bm25Store` (`--no-default-features`); `MetadataStore`;
   `HybridSearchEngine` with RRF fusion; `CachedSearchEngine`;
   `open_engine` factory; criterion benches.
-- `open-memory-embed`. ONNX runner (CPU only); model registry
+- `openmemory-embed`. ONNX runner (CPU only); model registry
   with `nomic-embed-text-v1.5` (default, 768-dim) and
   `snowflake-arctic-embed-l-v2.0` (alternate, 1024-dim); SQLite
   embedding cache keyed by BLAKE3.
-- `open-memory-graph`. `MemoryStore` with bi-temporal entity /
+- `openmemory-graph`. `MemoryStore` with bi-temporal entity /
   observation / relation types; atomic `remember`; hybrid
   `recall` with Ebbinghaus decay + spreading activation;
   `forget` (soft) / `forget_entity` (hard cascade) / `prune`
   (sweep tombstones + orphans); idempotent `consolidate` (dedup +
   decay-prune).
-- `open-memory-mcp`: minimal hand-rolled JSON-RPC 2.0 MCP
+- `openmemory-mcp`: minimal hand-rolled JSON-RPC 2.0 MCP
   server (no `rmcp` dependency: every published rmcp release
-  requires rustc 1.88+); eleven `open_memory_*` tools registered
+  requires rustc 1.88+); eleven `openmemory_*` tools registered
   through a single `Tool` trait; stdio always; Streamable HTTP
   behind `mcp-http`.
-- `open-memory-cli`. `open-memory` binary with `init`, `status`,
+- `openmemory-cli`. `openmemory` binary with `init`, `status`,
   `mcp`, `consolidate`, `integrate openclaw`, plus scriptable
   `remember` / `recall` / `list-entities` / `forget-entity` and
   shell `completions`.
@@ -97,7 +97,7 @@ and exercises every tool over stdio JSON-RPC.
 [`CHANGELOG.md`](../CHANGELOG.md#unreleased) is the production-
 hardening pass on top of v0.2.0. The themes:
 
-- **HTTP-transport bearer-token auth.** `OPEN_MEMORY_HTTP_TOKEN`
+- **HTTP-transport bearer-token auth.** `OPENMEMORY_HTTP_TOKEN`
   reads on startup; when set, every `POST /mcp` request must carry
   `Authorization: Bearer <token>` or it gets a 401 with
   `WWW-Authenticate: Bearer` and a JSON-RPC `-32600` envelope.
@@ -117,10 +117,10 @@ hardening pass on top of v0.2.0. The themes:
   `cargo clippy --workspace --no-default-features --all-targets
   -- -D warnings`, and `cargo doc --workspace --no-deps
   --all-features` now run on every push. The first two would have
-  caught a feature-gated import bug in `open-memory-watch`; the
+  caught a feature-gated import bug in `openmemory-watch`; the
   third catches intra-doc links that resolve only when an
   optional module compiles.
-- **Bug fix.** `open_memory_mcp::http::handle_mcp` no longer
+- **Bug fix.** `openmemory_mcp::http::handle_mcp` no longer
   constructs the 204 notification response via
   `Response::builder().unwrap()`; it returns
   `StatusCode::NO_CONTENT.into_response()` directly. The
@@ -128,9 +128,9 @@ hardening pass on top of v0.2.0. The themes:
   infallible `HeaderValue::from_static`. No more panics on the
   request path.
 
-The `open-memory-watch` Cargo.toml also dropped its own `default
+The `openmemory-watch` Cargo.toml also dropped its own `default
 = ["fts5"]` feature and pulls `sqlite + fts5` directly from
-`open-memory-index` and `open-memory-graph`, so the crate now
+`openmemory-index` and `openmemory-graph`, so the crate now
 compiles under `cargo test --workspace --no-default-features`.
 
 ## Backlog (post-v0.2)
@@ -151,7 +151,7 @@ future minor versions:
   chunk per file (`chunk_index = 0`). Multi-chunk per-file
   ingestion lets long files surface fragments individually in
   recall. Earliest target: v0.3.
-- **`.open-memory-ignore` re-evaluation on events.** v0.2 honours
+- **`.openmemory-ignore` re-evaluation on events.** v0.2 honours
   it on the initial scan only. The event loop should re-walk the
   ignore matcher when ignore files themselves change.
 - **Homebrew tap and `install.sh`.** Cross-arch release pipelines
@@ -183,14 +183,14 @@ The release process is documented in
 
 ## Stability commitments going forward
 
-The MCP tool surface (`open_memory_*` tool names and field
+The MCP tool surface (`openmemory_*` tool names and field
 names), the SQLite schema versions (forward-only migration), and
 the OpenClaw config JSON keys are stable across minor versions.
 Renames or removals require a major-version bump.
 
 The Rust crate API (any `pub` symbol in any crate) is **not**
 stable. Library consumers should pin patch versions. The on-disk
-directory layout under `~/.open-memory/data/<profile>/` is **not**
+directory layout under `~/.openmemory/data/<profile>/` is **not**
 stable; treat the data directory as opaque.
 
 See [architecture.md](architecture.md#public-api-stability) for

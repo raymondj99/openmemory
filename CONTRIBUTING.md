@@ -1,4 +1,4 @@
-# Contributing to open-memory
+# Contributing to openmemory
 
 Thanks for considering a contribution. The repo is small enough that
 this file fits in one screen — read it before opening a PR.
@@ -23,7 +23,7 @@ misses.
 MSRV is **1.85.0** (pinned via `rust-toolchain.toml`). `rmcp` and
 several model-runtime crates require 1.88+; the workspace
 deliberately ships hand-rolled equivalents in
-`open-memory-mcp::protocol` and pins `ort` / `ort-sys` to
+`openmemory-mcp::protocol` and pins `ort` / `ort-sys` to
 `2.0.0-rc.9` to stay under that bar. If a new dependency needs
 1.88+, find an older version that doesn't.
 
@@ -50,7 +50,7 @@ a claude.ai custom connector is the cheapest path.
    terminal:
 
    ```bash
-   cargo build --release --features mcp-http -p open-memory-cli
+   cargo build --release --features mcp-http -p openmemory-cli
    ```
 
    ~2 minutes on the default 4 vCPU / 16 GB codespace. Drop
@@ -60,10 +60,10 @@ a claude.ai custom connector is the cheapest path.
 3. **Generate a token and start the server.**
 
    ```bash
-   export OPEN_MEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
-   echo "Token: $OPEN_MEMORY_HTTP_TOKEN"   # save this — claude.ai needs it
-   ./target/release/open-memory init
-   ./target/release/open-memory mcp --http 0.0.0.0:7800
+   export OPENMEMORY_HTTP_TOKEN="$(openssl rand -hex 32)"
+   echo "Token: $OPENMEMORY_HTTP_TOKEN"   # save this — claude.ai needs it
+   ./target/release/openmemory init
+   ./target/release/openmemory mcp --http 0.0.0.0:7800
    ```
 
 4. **Make port 7800 public.** In the VS Code "Ports" panel,
@@ -85,10 +85,10 @@ a claude.ai custom connector is the cheapest path.
 6. **Smoke test.** From a claude.ai conversation, ask the model to
    "remember that I prefer Rust" and then "what do you remember
    about my language preferences?" The connector should call
-   `open_memory_remember` followed by `open_memory_recall`.
+   `openmemory_remember` followed by `openmemory_recall`.
 
 Codespaces public ports are reachable from anywhere with the URL,
-so do not skip step 3 — without `OPEN_MEMORY_HTTP_TOKEN` the server
+so do not skip step 3 — without `OPENMEMORY_HTTP_TOKEN` the server
 logs a warning and serves the world. Codespaces also auto-suspend
 after 30 minutes idle; the URL stays the same on resume but you'll
 need to relaunch the server.
@@ -99,7 +99,7 @@ Open a GitHub issue with:
 
 - The exact command + feature flags you ran.
 - What you expected vs. what happened.
-- Output of `open-memory status --json` (memory state) and the
+- Output of `openmemory status --json` (memory state) and the
   relevant subset of `~/server.log` if the HTTP transport is
   involved (mask any bearer tokens before pasting).
 

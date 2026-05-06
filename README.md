@@ -1,6 +1,6 @@
-# open-memory
+# openmemory
 
-[![CI](https://github.com/raymondj99/open-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/raymondj99/open-memory/actions/workflows/ci.yml)
+[![CI](https://github.com/raymondj99/openmemory/actions/workflows/ci.yml/badge.svg)](https://github.com/raymondj99/openmemory/actions/workflows/ci.yml)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange)](https://www.rust-lang.org)
 
@@ -15,27 +15,27 @@ MCP client.
 **Pre-built binary** (macOS, Linux):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/raymondj99/open-memory/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raymondj99/openmemory/main/scripts/install.sh | bash
 ```
 
 **From source** (requires Rust 1.85+):
 
 ```bash
-cargo install --locked --git https://github.com/raymondj99/open-memory.git open-memory
+cargo install --locked --git https://github.com/raymondj99/openmemory.git openmemory
 ```
 
 ## Quick start
 
-Pick your MCP client, then run one command to register `open-memory`:
+Pick your MCP client, then run one command to register `openmemory`:
 
 ```bash
-open-memory init
-open-memory integrate claude-code      # Claude Code
-open-memory integrate claude-desktop   # Claude Desktop
-open-memory integrate openclaw         # OpenClaw
+openmemory init
+openmemory integrate claude-code      # Claude Code
+openmemory integrate claude-desktop   # Claude Desktop
+openmemory integrate openclaw         # OpenClaw
 ```
 
-That's it. The next session in your client has all `open_memory_*` tools
+That's it. The next session in your client has all `openmemory_*` tools
 available. Try it:
 
 ```
@@ -46,14 +46,14 @@ available. Try it:
 Or drive the graph from the CLI:
 
 ```bash
-open-memory remember Raymond \
+openmemory remember Raymond \
   --entity-type person \
   --observation 'prefers Rust' \
-  --observation 'maintains open-memory'
+  --observation 'maintains openmemory'
 
-open-memory recall 'Rust' --limit 3 --json | jq .
-open-memory list-entities
-open-memory status
+openmemory recall 'Rust' --limit 3 --json | jq .
+openmemory list-entities
+openmemory status
 ```
 
 ### Manual configuration
@@ -63,8 +63,8 @@ server config (the key path varies by client):
 
 ```json
 {
-  "open-memory": {
-    "command": "open-memory",
+  "openmemory": {
+    "command": "openmemory",
     "args": ["mcp"]
   }
 }
@@ -86,10 +86,10 @@ server config (the key path varies by client):
   as the graph.
 - **Hybrid search.** Vector (ONNX, local CPU) + keyword (FTS5/BM25)
   fused via Reciprocal Rank Fusion.
-- **MCP server.** Eleven `open_memory_*` tools over stdio (default) or
+- **MCP server.** Eleven `openmemory_*` tools over stdio (default) or
   [Streamable HTTP](docs/mcp.md#streamable-http-behind-mcp-http) with
   bearer-token auth.
-- **Filesystem watcher.** `open-memory watch ~/notes` incrementally
+- **Filesystem watcher.** `openmemory watch ~/notes` incrementally
   indexes changed files, BLAKE3-deduped.
 - **Multi-agent concurrency.** Read-only WAL connection pool so
   parallel recall calls scale on multi-agent deployments.
@@ -98,7 +98,7 @@ server config (the key path varies by client):
 
 ## MCP tools
 
-All tools are prefixed `open_memory_` and work over stdio or HTTP.
+All tools are prefixed `openmemory_` and work over stdio or HTTP.
 
 | Tool | Purpose |
 |------|---------|
@@ -121,28 +121,28 @@ Full schemas and transport details in [`docs/mcp.md`](docs/mcp.md).
 Seven workspace crates with strict layering:
 
 ```
-open-memory-core           (clock, config, error, migrations)
-├── open-memory-index      (vector + FTS5 hybrid search engine)
-├── open-memory-embed      (ONNX embeddings, optional)
+openmemory-core           (clock, config, error, migrations)
+├── openmemory-index      (vector + FTS5 hybrid search engine)
+├── openmemory-embed      (ONNX embeddings, optional)
 │
-└── open-memory-graph      (knowledge graph: entities, relations, recall)
-    ├── open-memory-mcp    (MCP server + tool router)
-    ├── open-memory-watch  (filesystem watcher)
-    └── open-memory-cli    (the `open-memory` binary)
+└── openmemory-graph      (knowledge graph: entities, relations, recall)
+    ├── openmemory-mcp    (MCP server + tool router)
+    ├── openmemory-watch  (filesystem watcher)
+    └── openmemory-cli    (the `openmemory` binary)
 ```
 
 ## Configuration
 
-`open-memory init` creates `~/.open-memory/config.toml` with sensible
+`openmemory init` creates `~/.openmemory/config.toml` with sensible
 defaults. Most users never edit it.
 
 | Knob | Where |
 |------|-------|
 | Search tuning (alpha, RRF k, max results) | `[search]` in `config.toml` |
 | Decay rate, dedup threshold, prune floor | `[memory]` in `config.toml` |
-| Data root override | `$OPEN_MEMORY_HOME` or `--home` |
+| Data root override | `$OPENMEMORY_HOME` or `--home` |
 | Memory profiles | `--profile <name>` |
-| Bearer-token auth (HTTP transport) | `$OPEN_MEMORY_HTTP_TOKEN` |
+| Bearer-token auth (HTTP transport) | `$OPENMEMORY_HTTP_TOKEN` |
 
 Full reference in [`docs/configuration.md`](docs/configuration.md).
 

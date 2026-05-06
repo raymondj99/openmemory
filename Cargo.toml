@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/open-memory-core",
-    "crates/open-memory-index",
-    "crates/open-memory-embed",
-    "crates/open-memory-graph",
-    "crates/open-memory-mcp",
-    "crates/open-memory-cli",
-    "crates/open-memory-watch",
+    "crates/openmemory-core",
+    "crates/openmemory-index",
+    "crates/openmemory-embed",
+    "crates/openmemory-graph",
+    "crates/openmemory-mcp",
+    "crates/openmemory-cli",
+    "crates/openmemory-watch",
 ]
 
 [workspace.package]
@@ -16,17 +16,17 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 description = "Persistent agent memory + hybrid text search, behind an MCP server"
-repository = "https://github.com/raymondj99/open-memory"
-homepage = "https://github.com/raymondj99/open-memory"
+repository = "https://github.com/raymondj99/openmemory"
+homepage = "https://github.com/raymondj99/openmemory"
 
 [workspace.dependencies]
 # Internal crates
-open-memory-core = { path = "crates/open-memory-core", version = "0.2.0" }
-open-memory-index = { path = "crates/open-memory-index", version = "0.2.0", default-features = false }
-open-memory-embed = { path = "crates/open-memory-embed", version = "0.2.0", default-features = false }
-open-memory-graph = { path = "crates/open-memory-graph", version = "0.2.0", default-features = false }
-open-memory-mcp = { path = "crates/open-memory-mcp", version = "0.2.0", default-features = false }
-open-memory-watch = { path = "crates/open-memory-watch", version = "0.2.0", default-features = false }
+openmemory-core = { path = "crates/openmemory-core", version = "0.2.0" }
+openmemory-index = { path = "crates/openmemory-index", version = "0.2.0", default-features = false }
+openmemory-embed = { path = "crates/openmemory-embed", version = "0.2.0", default-features = false }
+openmemory-graph = { path = "crates/openmemory-graph", version = "0.2.0", default-features = false }
+openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.2.0", default-features = false }
+openmemory-watch = { path = "crates/openmemory-watch", version = "0.2.0", default-features = false }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }
@@ -62,7 +62,7 @@ clap_complete = "4"
 
 # MCP. No rmcp dependency: every published version of rmcp (0.x and 1.x)
 # requires rustc 1.88+ via if-let chains, which conflicts with our 1.85
-# MSRV. open-memory-mcp ships its own minimal JSON-RPC 2.0 server instead.
+# MSRV. openmemory-mcp ships its own minimal JSON-RPC 2.0 server instead.
 schemars = { version = "0.8", default-features = false, features = ["derive"] }
 
 # HTTP transport (optional MCP feature)
@@ -78,7 +78,7 @@ tempfile = "3"
 fs4 = "0.12"
 json5 = "0.4"
 
-# File watcher (Phase 9 — open-memory-watch crate). MSRV 1.85 for both
+# File watcher (Phase 9 — openmemory-watch crate). MSRV 1.85 for both
 # notify-debouncer-full 0.7 (the latest stable; 0.8 is RC) and notify 8.
 notify = "8"
 notify-debouncer-full = "0.7"

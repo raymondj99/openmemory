@@ -1,0 +1,49 @@
+[package]
+name = "openmemory-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: command-line interface"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "openmemory"
+path = "src/main.rs"
+
+[features]
+default = ["fts5", "embeddings", "completions", "watch"]
+sqlite = ["openmemory-mcp/sqlite", "openmemory-graph/sqlite", "openmemory-index/sqlite"]
+fts5 = [
+    "sqlite",
+    "openmemory-mcp/fts5",
+    "openmemory-graph/fts5",
+    "openmemory-index/fts5",
+]
+hnsw = ["openmemory-mcp/hnsw", "openmemory-graph/hnsw", "openmemory-index/hnsw"]
+embeddings = ["openmemory-graph/embeddings", "openmemory-mcp/embeddings"]
+mcp-http = ["openmemory-mcp/mcp-http"]
+completions = ["dep:clap_complete"]
+watch = ["dep:openmemory-watch"]
+
+[dependencies]
+openmemory-core = { workspace = true }
+openmemory-index = { workspace = true, default-features = false }
+openmemory-graph = { workspace = true, default-features = false }
+openmemory-mcp = { workspace = true, default-features = false }
+openmemory-watch = { workspace = true, default-features = false, optional = true }
+
+clap = { workspace = true }
+clap_complete = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+json5 = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "io-util", "io-std"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

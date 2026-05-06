@@ -1,0 +1,42 @@
+[package]
+name = "openmemory-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: MCP server exposing memory + index tools"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5"]
+sqlite = ["openmemory-graph/sqlite", "openmemory-index/sqlite"]
+fts5 = ["sqlite", "openmemory-graph/fts5", "openmemory-index/fts5"]
+hnsw = ["openmemory-graph/hnsw", "openmemory-index/hnsw"]
+embeddings = ["openmemory-graph/embeddings"]
+mcp-http = ["dep:axum", "dep:tower", "dep:tower-http"]
+testing = ["openmemory-graph/testing", "openmemory-core/testing"]
+
+[dependencies]
+openmemory-core = { workspace = true }
+openmemory-index = { workspace = true, default-features = false }
+openmemory-graph = { workspace = true, default-features = false }
+
+schemars = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "io-util", "io-std", "sync"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+axum = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+openmemory-graph = { workspace = true, default-features = false, features = ["testing"] }
+openmemory-core = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt", "io-util"] }

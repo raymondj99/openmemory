@@ -15,7 +15,7 @@ reviews:
     - "!Cargo.lock"
 
   path_instructions:
-    - path: "crates/open-memory-core/**"
+    - path: "crates/openmemory-core/**"
       instructions: |
         This is the foundation crate. Changes here affect every downstream
         crate. Review for:
@@ -26,7 +26,7 @@ reviews:
           never raw `SystemTime::now()`.
         - No optional-feature leakage: core must compile with zero features.
 
-    - path: "crates/open-memory-index/**"
+    - path: "crates/openmemory-index/**"
       instructions: |
         Hybrid search engine (vector + FTS5/BM25, fused via RRF). Review for:
         - Query performance: watch for full-table scans, missing indices, or
@@ -36,7 +36,7 @@ reviews:
         - RRF parameter changes: alpha, k, and max_results affect recall
           quality; flag any change for benchmark verification.
 
-    - path: "crates/open-memory-embed/**"
+    - path: "crates/openmemory-embed/**"
       instructions: |
         ONNX Runtime embedding inference. Review for:
         - Model I/O shape assumptions: input_ids, attention_mask dimensions
@@ -46,7 +46,7 @@ reviews:
         - Thread safety: ORT session is Send+Sync but inference is
           single-threaded per call; do not hold the session across await points.
 
-    - path: "crates/open-memory-graph/**"
+    - path: "crates/openmemory-graph/**"
       instructions: |
         Knowledge graph (entities, observations, relations, recall scoring).
         Review for:
@@ -57,7 +57,7 @@ reviews:
         - Transaction discipline: multi-row writes (remember with relations)
           must be atomic.
 
-    - path: "crates/open-memory-mcp/**"
+    - path: "crates/openmemory-mcp/**"
       instructions: |
         MCP server and JSON-RPC 2.0 tool router. Review for:
         - Protocol compliance: method names, error codes, and capability
@@ -70,7 +70,7 @@ reviews:
         - Concurrency: the server handles concurrent tool calls; shared
           state must be behind Arc<RwLock> or equivalent.
 
-    - path: "crates/open-memory-watch/**"
+    - path: "crates/openmemory-watch/**"
       instructions: |
         Filesystem watcher with incremental re-indexing. Review for:
         - Debounce correctness: rapid create/modify/delete sequences should
@@ -80,7 +80,7 @@ reviews:
         - Symlink handling: the watcher must not follow symlinks into
           directories outside the watched root.
 
-    - path: "crates/open-memory-cli/**"
+    - path: "crates/openmemory-cli/**"
       instructions: |
         CLI binary and integration commands. Review for:
         - Argument stability: changing a flag name or default is a breaking

@@ -1,19 +1,19 @@
 # Configuration
 
-Three layers of configuration converge on a running `open-memory`
+Three layers of configuration converge on a running `openmemory`
 process: the TOML config file, environment variables, and CLI
 flags. CLI flags win over env vars, env vars win over config-file
 values, config-file values win over compiled defaults.
 
 ## Config file
 
-The default location is `~/.open-memory/config.toml`. Override
-with `$OPEN_MEMORY_HOME` (which moves the entire data root) or
-the global `--home <PATH>` flag. `open-memory init` creates the
+The default location is `~/.openmemory/config.toml`. Override
+with `$OPENMEMORY_HOME` (which moves the entire data root) or
+the global `--home <PATH>` flag. `openmemory init` creates the
 file with all sections present and defaults populated.
 
 The schema is owned by
-[`crates/open-memory-core/src/config.rs`](../crates/open-memory-core/src/config.rs):
+[`crates/openmemory-core/src/config.rs`](../crates/openmemory-core/src/config.rs):
 
 ```toml
 [default]
@@ -72,7 +72,7 @@ max_size    = 10_485_760   # 10 MiB
 
 ### `[watch]` section
 
-Used only by the `open-memory-watch` crate.
+Used only by the `openmemory-watch` crate.
 
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
@@ -88,20 +88,20 @@ process only.
 
 | Variable | Read by | Effect |
 |----------|---------|--------|
-| `OPEN_MEMORY_HOME` | every subcommand | Override the data root. Defaults to `~/.open-memory`. The OpenClaw integrator writes this into the MCP entry's `env` block so re-locating the config does not silently break the integration. |
-| `OPEN_MEMORY_PROFILE` | every subcommand (informational) | The OpenClaw integrator writes this so a multi-profile OpenClaw user can pin which memory store is attached to which OpenClaw profile. The CLI's `--profile` flag is what actually selects the data subdirectory at runtime. |
-| `OPEN_MEMORY_LOG` | tracing initialisation | Set to `json` for one JSON object per log line (suitable for OpenClaw log capture). Anything else (or unset) gives the human-readable text output. |
-| `OPEN_MEMORY_HTTP_TOKEN` | `mcp --http` (with `mcp-http` feature) | Bearer token for the Streamable HTTP transport. When set, `/mcp` requires `Authorization: Bearer <token>`. When unset, the server logs a warning and serves unauthenticated. See [mcp.md](mcp.md#bearer-token-authentication). |
+| `OPENMEMORY_HOME` | every subcommand | Override the data root. Defaults to `~/.openmemory`. The OpenClaw integrator writes this into the MCP entry's `env` block so re-locating the config does not silently break the integration. |
+| `OPENMEMORY_PROFILE` | every subcommand (informational) | The OpenClaw integrator writes this so a multi-profile OpenClaw user can pin which memory store is attached to which OpenClaw profile. The CLI's `--profile` flag is what actually selects the data subdirectory at runtime. |
+| `OPENMEMORY_LOG` | tracing initialisation | Set to `json` for one JSON object per log line (suitable for OpenClaw log capture). Anything else (or unset) gives the human-readable text output. |
+| `OPENMEMORY_HTTP_TOKEN` | `mcp --http` (with `mcp-http` feature) | Bearer token for the Streamable HTTP transport. When set, `/mcp` requires `Authorization: Bearer <token>`. When unset, the server logs a warning and serves unauthenticated. See [mcp.md](mcp.md#bearer-token-authentication). |
 | `OPENCLAW_CONFIG_PATH` | `integrate openclaw` | Override the OpenClaw config path. Defaults to `~/.openclaw/openclaw.json`. |
 
 Other variables `clap` reads for global flags:
 
 | Variable | Equivalent CLI flag |
 |----------|--------------------|
-| `OPEN_MEMORY_HOME` | `--home <PATH>` |
+| `OPENMEMORY_HOME` | `--home <PATH>` |
 
-`open-memory` deliberately does **not** read any `*_KEY`,
-`*_TOKEN`, or `*_SECRET` variables besides `OPEN_MEMORY_HTTP_TOKEN`.
+`openmemory` deliberately does **not** read any `*_KEY`,
+`*_TOKEN`, or `*_SECRET` variables besides `OPENMEMORY_HTTP_TOKEN`.
 That keeps the secret surface auditable. (The `llm` feature, if it
 ships in a future release, will add `ANTHROPIC_API_KEY` /
 `OPENAI_API_KEY` / `OLLAMA_HOST` reads behind the same feature
@@ -110,7 +110,7 @@ gate.)
 ## Profiles
 
 A profile is a named subdirectory under
-`~/.open-memory/data/<profile>/`. The default profile name is
+`~/.openmemory/data/<profile>/`. The default profile name is
 `default`. Two profiles share the user-level `config.toml` but
 have entirely independent SQLite databases, vector files, and
 embedding caches.
@@ -118,32 +118,32 @@ embedding caches.
 Switch profiles with `--profile <NAME>`:
 
 ```bash
-open-memory --profile work status
-open-memory --profile personal recall "rust"
+openmemory --profile work status
+openmemory --profile personal recall "rust"
 ```
 
 The OpenClaw integrator handles multi-profile setups by suffixing
-the entry name (`mcp.servers.open-memory-work`,
-`mcp.servers.open-memory-personal`) so two profiles can coexist
+the entry name (`mcp.servers.openmemory-work`,
+`mcp.servers.openmemory-personal`) so two profiles can coexist
 in one OpenClaw config without collision. See
 [openclaw.md](openclaw.md):
 
 ## Feature flags
 
 Feature flags are opt-in compilation switches. The default install
-(`cargo install open-memory`) enables `fts5`, `embeddings`,
+(`cargo install openmemory`) enables `fts5`, `embeddings`,
 `completions`, and `watch`.
 
-### Workspace-level features (relevant to `cargo install open-memory`)
+### Workspace-level features (relevant to `cargo install openmemory`)
 
 | Feature | Default | Effect |
 |---------|---------|--------|
 | `fts5` | on | SQLite FTS5 keyword backend (BM25 ranking). When off, falls back to the pure-Rust `Bm25Store`. |
-| `embeddings` | on | Compiles `open-memory-embed` and links ONNX Runtime via `ort` (load-dynamic). When off, recall is keyword-only. |
+| `embeddings` | on | Compiles `openmemory-embed` and links ONNX Runtime via `ort` (load-dynamic). When off, recall is keyword-only. |
 | `hnsw` | off | Compiles `HnswIndex` (usearch). Adds a C++ build-time dep. Useful at >10⁵ vectors. |
 | `mcp-http` | off | Streamable HTTP transport for the MCP server. Adds `axum`, `tower-http`. |
-| `completions` | on | The `open-memory completions <SHELL>` subcommand. Adds `clap_complete`. |
-| `watch` | on | The `open-memory watch <PATH>` subcommand. Compiles `open-memory-watch`. |
+| `completions` | on | The `openmemory completions <SHELL>` subcommand. Adds `clap_complete`. |
+| `watch` | on | The `openmemory watch <PATH>` subcommand. Compiles `openmemory-watch`. |
 
 ### Crate-level features (for library consumers)
 
@@ -151,12 +151,12 @@ Each crate has its own feature set; see
 [crates.md](crates.md) for the per-crate Cargo.toml summary. Most
 features in higher-level crates re-export the same names from
 lower crates so a single `--features embeddings` passed to the CLI
-flows down to `open-memory-graph` and `open-memory-embed`.
+flows down to `openmemory-graph` and `openmemory-embed`.
 
 A common reduced build for a keyword-only deployment:
 
 ```bash
-cargo install --path crates/open-memory-cli \
+cargo install --path crates/openmemory-cli \
     --no-default-features \
     --features fts5,completions,watch
 ```
@@ -169,12 +169,12 @@ and HNSW so the binary has no ONNX or C++ build dep.)
 | Knob | Where it lives | Wins over |
 |------|----------------|-----------|
 | Compile-time (feature flags) | Cargo features | nothing |
-| `config.toml` defaults | `~/.open-memory/config.toml` | compiled defaults |
-| Environment variables | `$OPEN_MEMORY_*`, `$OPENCLAW_*` | config.toml |
+| `config.toml` defaults | `~/.openmemory/config.toml` | compiled defaults |
+| Environment variables | `$OPENMEMORY_*`, `$OPENCLAW_*` | config.toml |
 | CLI flags | `--home`, `--profile`, per-subcommand flags | env vars |
 
 The "defaults are good" principle holds: most operators run
-`open-memory init && open-memory integrate openclaw` and never
+`openmemory init && openmemory integrate openclaw` and never
 edit `config.toml`. The settings are documented because they are
 real escape hatches when default behaviour does not fit the
 workload.

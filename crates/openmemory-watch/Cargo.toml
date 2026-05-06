@@ -1,0 +1,41 @@
+[package]
+name = "openmemory-watch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: filesystem watcher with incremental re-indexing"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+# The watcher writes to `MetadataStore` and the FTS5 index unconditionally,
+# so its `openmemory-index` and `openmemory-graph` dependencies pull in
+# `sqlite` + `fts5` directly. This means the crate has no opt-in features
+# of its own — `cargo build -p openmemory-watch` with no flags is the
+# single supported configuration. Higher-level crates (notably the CLI)
+# gate the watcher behind their own `watch` feature so a slim build can
+# omit it entirely; once present, however, it is fully wired.
+
+[dependencies]
+openmemory-core = { workspace = true }
+openmemory-index = { workspace = true, default-features = false, features = ["fts5"] }
+openmemory-graph = { workspace = true, default-features = false, features = ["fts5"] }
+
+# File watching + walking
+notify = { workspace = true }
+notify-debouncer-full = { workspace = true }
+ignore = { workspace = true }
+walkdir = { workspace = true }
+
+# Hashing + IDs
+blake3 = { workspace = true }
+
+# Diagnostics
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+openmemory-core = { workspace = true, features = ["testing"] }
+openmemory-graph = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }

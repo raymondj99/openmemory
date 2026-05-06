@@ -16,7 +16,7 @@ Workspace conventions:
 - All crates inherit the workspace lints (clippy pedantic with a
   pragmatic allow-list, `unsafe_code = "warn"`).
 
-## `open-memory-core`
+## `openmemory-core`
 
 **Purpose.** The thinnest possible foundation: trait abstractions
 (clock, embedder), the shared error type, the config loader/saver,
@@ -25,25 +25,25 @@ crate.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: shared foundations (clock, config,
+- Description: "openmemory: shared foundations (clock, config,
   error, schema migrations)"
 - Dependencies: `thiserror`, `rusqlite`, `serde`, `toml`, `rand`.
 - Features: `testing` (gates the test doubles).
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-core/src/lib.rs): module
+- [`src/lib.rs`](../crates/openmemory-core/src/lib.rs): module
   declarations and re-exports.
-- [`src/clock.rs`](../crates/open-memory-core/src/clock.rs):
+- [`src/clock.rs`](../crates/openmemory-core/src/clock.rs):
   `Clock` trait, `SystemClock`, `FixedClock`.
-- [`src/config.rs`](../crates/open-memory-core/src/config.rs):
+- [`src/config.rs`](../crates/openmemory-core/src/config.rs):
   `Config` plus the section structs and load/save logic.
-- [`src/error.rs`](../crates/open-memory-core/src/error.rs):
+- [`src/error.rs`](../crates/openmemory-core/src/error.rs):
   `OmError`, `OmResult`.
-- [`src/migrations.rs`](../crates/open-memory-core/src/migrations.rs): `Migrator`, the `Migration` trait.
-- [`src/retry.rs`](../crates/open-memory-core/src/retry.rs):
+- [`src/migrations.rs`](../crates/openmemory-core/src/migrations.rs): `Migrator`, the `Migration` trait.
+- [`src/retry.rs`](../crates/openmemory-core/src/retry.rs):
   `with_retry`, `RetryConfig`.
-- [`src/testing.rs`](../crates/open-memory-core/src/testing.rs):
+- [`src/testing.rs`](../crates/openmemory-core/src/testing.rs):
   `Embedder` trait, `FakeEmbedder` (gated on `testing`).
 
 **Key types.**
@@ -67,9 +67,9 @@ crate.
 - `pub trait Embedder: Send + Sync` with
   `embed(&self, &[&str]) -> Result<Vec<Vec<f32>>>`. Behind the
   `testing` feature on this crate; re-exported by
-  `open-memory-embed`.
+  `openmemory-embed`.
 
-## `open-memory-index`
+## `openmemory-index`
 
 **Purpose.** The hybrid (vector + keyword) search engine. Text in
 by URI, hybrid results out, ranked by Reciprocal Rank Fusion.
@@ -78,7 +78,7 @@ compiled at a time.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: hybrid (vector + FTS5) search backend"
+- Description: "openmemory: hybrid (vector + FTS5) search backend"
 - Default features: `fts5`, `sqlite`.
 - Features:
   - `sqlite`: enables the SQLite metadata store.
@@ -86,7 +86,7 @@ compiled at a time.
   - `hnsw`: usearch-backed HNSW vector index.
   - `simd`: reserved.
   - `testing`: test helpers.
-- Dependencies: `open-memory-core`, `thiserror`, `serde`,
+- Dependencies: `openmemory-core`, `thiserror`, `serde`,
   `serde_json`, `rusqlite` (bundled), `lru`, `usearch` (optional),
   `tracing`.
 - Benches: `benches/vector_search.rs`,
@@ -94,27 +94,27 @@ compiled at a time.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-index/src/lib.rs): module
+- [`src/lib.rs`](../crates/openmemory-index/src/lib.rs): module
   declarations, type aliases that pick the active backend by feature.
-- [`src/traits.rs`](../crates/open-memory-index/src/traits.rs):
+- [`src/traits.rs`](../crates/openmemory-index/src/traits.rs):
   `IndexEntry`, `SearchResult`, `SearchMode`, `ExportEntry`, the
   `VectorStore` / `VectorIndex` / `FullTextStore` traits.
-- [`src/flat.rs`](../crates/open-memory-index/src/flat.rs):
+- [`src/flat.rs`](../crates/openmemory-index/src/flat.rs):
   `FlatVectorIndex` (brute-force cosine).
-- [`src/hnsw.rs`](../crates/open-memory-index/src/hnsw.rs):
+- [`src/hnsw.rs`](../crates/openmemory-index/src/hnsw.rs):
   `HnswIndex` (gated on `hnsw`).
-- [`src/fts5.rs`](../crates/open-memory-index/src/fts5.rs):
+- [`src/fts5.rs`](../crates/openmemory-index/src/fts5.rs):
   `Fts5Store` (gated on `fts5`).
-- [`src/bm25.rs`](../crates/open-memory-index/src/bm25.rs):
+- [`src/bm25.rs`](../crates/openmemory-index/src/bm25.rs):
   `Bm25Store` (used when `fts5` is off).
-- [`src/hybrid.rs`](../crates/open-memory-index/src/hybrid.rs):
+- [`src/hybrid.rs`](../crates/openmemory-index/src/hybrid.rs):
   `HybridSearchEngine` with RRF fusion.
-- [`src/cache.rs`](../crates/open-memory-index/src/cache.rs):
+- [`src/cache.rs`](../crates/openmemory-index/src/cache.rs):
   `CachedSearchEngine` with LRU + TTL.
-- [`src/metadata.rs`](../crates/open-memory-index/src/metadata.rs): `MetadataStore` (URI + source tracking, gated on `sqlite`).
-- [`src/engine.rs`](../crates/open-memory-index/src/engine.rs):
+- [`src/metadata.rs`](../crates/openmemory-index/src/metadata.rs): `MetadataStore` (URI + source tracking, gated on `sqlite`).
+- [`src/engine.rs`](../crates/openmemory-index/src/engine.rs):
   `OpenEngine` bundle and `open_engine` factory.
-- [`src/error.rs`](../crates/open-memory-index/src/error.rs):
+- [`src/error.rs`](../crates/openmemory-index/src/error.rs):
   `IndexError`, `IndexResult`.
 
 **Key types.**
@@ -144,7 +144,7 @@ compiled at a time.
 The on-disk layout under the data directory is documented in
 [storage.md](storage.md):
 
-## `open-memory-embed`
+## `openmemory-embed`
 
 **Purpose.** Optional. Loads ONNX Runtime, runs Nomic Embed Text
 v1.5 or Snowflake Arctic Embed L v2.0, and caches embeddings in
@@ -153,10 +153,10 @@ falls back to keyword-only.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: ONNX Runtime text embeddings (optional)"
+- Description: "openmemory: ONNX Runtime text embeddings (optional)"
 - Default features: `sqlite`.
 - Features: `sqlite` (SQLite-backed cache), `testing`.
-- Dependencies: `open-memory-core` (with `testing` for the
+- Dependencies: `openmemory-core` (with `testing` for the
   `Embedder` trait), `thiserror`, `blake3`, `sha2`, `ort`,
   `tokenizers`, `ndarray`, `tracing`, `serde`, `serde_json`,
   `rusqlite` (optional).
@@ -164,22 +164,22 @@ falls back to keyword-only.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-embed/src/lib.rs): module
+- [`src/lib.rs`](../crates/openmemory-embed/src/lib.rs): module
   declarations and re-exports.
-- [`src/traits.rs`](../crates/open-memory-embed/src/traits.rs):
-  re-exports `Embedder` from `open_memory_core::testing`.
-- [`src/models.rs`](../crates/open-memory-embed/src/models.rs):
+- [`src/traits.rs`](../crates/openmemory-embed/src/traits.rs):
+  re-exports `Embedder` from `openmemory_core::testing`.
+- [`src/models.rs`](../crates/openmemory-embed/src/models.rs):
   `Model`, `ModelRegistry`, plus the constants
   `NOMIC_EMBED_TEXT_V1_5` and `SNOWFLAKE_ARCTIC_EMBED_L_V2`.
-- [`src/onnx.rs`](../crates/open-memory-embed/src/onnx.rs):
+- [`src/onnx.rs`](../crates/openmemory-embed/src/onnx.rs):
   `OnnxEmbedder`, `OnnxOptions`, `PoolingStrategy`.
-- [`src/integrity.rs`](../crates/open-memory-embed/src/integrity.rs): `verify_sha256`, `VerificationOutcome`.
-- [`src/cache.rs`](../crates/open-memory-embed/src/cache.rs):
+- [`src/integrity.rs`](../crates/openmemory-embed/src/integrity.rs): `verify_sha256`, `VerificationOutcome`.
+- [`src/cache.rs`](../crates/openmemory-embed/src/cache.rs):
   SQLite-backed `EmbeddingCache`.
-- [`src/json_cache.rs`](../crates/open-memory-embed/src/json_cache.rs): JSON fallback `EmbeddingCache`.
-- [`src/error.rs`](../crates/open-memory-embed/src/error.rs):
+- [`src/json_cache.rs`](../crates/openmemory-embed/src/json_cache.rs): JSON fallback `EmbeddingCache`.
+- [`src/error.rs`](../crates/openmemory-embed/src/error.rs):
   `EmbedError`, `EmbedResult`.
-- [`src/testing.rs`](../crates/open-memory-embed/src/testing.rs):
+- [`src/testing.rs`](../crates/openmemory-embed/src/testing.rs):
   `StubEmbedder`.
 
 **Key types.**
@@ -205,7 +205,7 @@ falls back to keyword-only.
   hex comparison.
 - `pub struct StubEmbedder` for tests (deterministic vectors).
 
-## `open-memory-graph`
+## `openmemory-graph`
 
 **Purpose.** The knowledge graph. Entities, observations, and
 relations on top of SQLite, plus the hybrid recall engine kept in
@@ -213,37 +213,37 @@ lockstep by `MemoryStore`. This is the heart of the project.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: knowledge graph (entities, observations, relations)"
+- Description: "openmemory: knowledge graph (entities, observations, relations)"
 - Default features: `fts5`.
 - Features: `sqlite`, `fts5` (requires `sqlite`), `hnsw`,
   `embeddings`, `testing`.
-- Dependencies: `open-memory-core`, `open-memory-index`
-  (no-defaults), `open-memory-embed` (optional), `serde`,
+- Dependencies: `openmemory-core`, `openmemory-index`
+  (no-defaults), `openmemory-embed` (optional), `serde`,
   `serde_json`, `thiserror`, `tracing`, `uuid` (v7), `rusqlite`,
   `blake3`, `tempfile`.
 - Tests: `tests/integration.rs`.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-graph/src/lib.rs): module
+- [`src/lib.rs`](../crates/openmemory-graph/src/lib.rs): module
   declarations and re-exports (including `SearchMode` from the
   index crate).
-- [`src/types.rs`](../crates/open-memory-graph/src/types.rs):
+- [`src/types.rs`](../crates/openmemory-graph/src/types.rs):
   `Entity`, `EntityType`, `Observation`, `Relation`, `MemoryTier`,
   `new_id()`.
-- [`src/schema.rs`](../crates/open-memory-graph/src/schema.rs):
+- [`src/schema.rs`](../crates/openmemory-graph/src/schema.rs):
   `MEMORY_SCHEMA_VERSION`, the migration list.
-- [`src/store.rs`](../crates/open-memory-graph/src/store.rs):
+- [`src/store.rs`](../crates/openmemory-graph/src/store.rs):
   `MemoryStore`, `MemoryStatus`, `EntityListRow`, `MEMORY_DB_FILE`.
-- [`src/pool.rs`](../crates/open-memory-graph/src/pool.rs):
+- [`src/pool.rs`](../crates/openmemory-graph/src/pool.rs):
   `ReadPool`, the read-only WAL connection pool.
-- [`src/remember.rs`](../crates/open-memory-graph/src/remember.rs): `ObservationInput`, `RelationInput`, `RememberOutcome`.
-- [`src/recall.rs`](../crates/open-memory-graph/src/recall.rs):
+- [`src/remember.rs`](../crates/openmemory-graph/src/remember.rs): `ObservationInput`, `RelationInput`, `RememberOutcome`.
+- [`src/recall.rs`](../crates/openmemory-graph/src/recall.rs):
   `RecallFilters`, `RecallResult`, decay constants.
-- [`src/forget.rs`](../crates/open-memory-graph/src/forget.rs):
+- [`src/forget.rs`](../crates/openmemory-graph/src/forget.rs):
   `PruneReport`, `DEFAULT_TOMBSTONE_TTL_SECS`.
-- [`src/consolidate.rs`](../crates/open-memory-graph/src/consolidate.rs): `ConsolidateConfig`, `ConsolidateReport`.
-- [`src/error.rs`](../crates/open-memory-graph/src/error.rs):
+- [`src/consolidate.rs`](../crates/openmemory-graph/src/consolidate.rs): `ConsolidateConfig`, `ConsolidateReport`.
+- [`src/error.rs`](../crates/openmemory-graph/src/error.rs):
   `MemoryError`, `MemoryResult`.
 
 **Key types.**
@@ -294,9 +294,9 @@ lockstep by `MemoryStore`. This is the heart of the project.
 The decay scoring math and the spreading-activation algorithm are
 documented in [search.md](search.md):
 
-## `open-memory-mcp`
+## `openmemory-mcp`
 
-**Purpose.** The MCP server. Eleven `open_memory_*` tools served
+**Purpose.** The MCP server. Eleven `openmemory_*` tools served
 over stdio (always) and Streamable HTTP (behind the `mcp-http`
 feature). The `Tool` trait colocates the JSON-Schema descriptor
 and the dispatch handler so what `tools/list` advertises cannot
@@ -304,12 +304,12 @@ drift from what the router actually answers.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: MCP server exposing memory + index tools"
+- Description: "openmemory: MCP server exposing memory + index tools"
 - Default features: `fts5`.
 - Features: `sqlite`, `fts5`, `hnsw`, `embeddings`, `mcp-http`,
   `testing`.
-- Dependencies: `open-memory-core`, `open-memory-index`,
-  `open-memory-graph`, `schemars` (no `rmcp` dependency; see
+- Dependencies: `openmemory-core`, `openmemory-index`,
+  `openmemory-graph`, `schemars` (no `rmcp` dependency; see
   [architecture.md](architecture.md#crate-dependency-graph)),
   `tokio` (macros, rt, sync, io-*), `serde`, `serde_json`,
   `tracing`, `anyhow`, `thiserror`, `axum`/`tower`/`tower-http`
@@ -317,25 +317,25 @@ drift from what the router actually answers.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-mcp/src/lib.rs):
+- [`src/lib.rs`](../crates/openmemory-mcp/src/lib.rs):
   `OpenMemoryMcpServer`, the public re-exports, `PROTOCOL_VERSION`.
-- [`src/protocol.rs`](../crates/open-memory-mcp/src/protocol.rs):
+- [`src/protocol.rs`](../crates/openmemory-mcp/src/protocol.rs):
   JSON-RPC 2.0 framing: `JsonRpcRequest`, `JsonRpcResponse`,
   `JsonRpcError`, `Content`, `ServerCapabilities`, `ServerInfo`,
   `ToolDescriptor`, `ToolAnnotations`.
-- [`src/params.rs`](../crates/open-memory-mcp/src/params.rs):
+- [`src/params.rs`](../crates/openmemory-mcp/src/params.rs):
   wire-shape param enums (`EntityTypeParam`, `MemoryTierParam`,
   `SearchModeParam`).
-- [`src/stdio.rs`](../crates/open-memory-mcp/src/stdio.rs): the
+- [`src/stdio.rs`](../crates/openmemory-mcp/src/stdio.rs): the
   `run_stdio_server` event loop.
-- [`src/http.rs`](../crates/open-memory-mcp/src/http.rs): the
+- [`src/http.rs`](../crates/openmemory-mcp/src/http.rs): the
   Streamable HTTP transport, `BearerToken`, `BEARER_TOKEN_ENV =
-  "OPEN_MEMORY_HTTP_TOKEN"`.
-- [`src/tools/mod.rs`](../crates/open-memory-mcp/src/tools/mod.rs): `Tool` trait, `ToolGroup`, `ToolRouter`, `build_router`,
+  "OPENMEMORY_HTTP_TOKEN"`.
+- [`src/tools/mod.rs`](../crates/openmemory-mcp/src/tools/mod.rs): `Tool` trait, `ToolGroup`, `ToolRouter`, `build_router`,
   `server_instructions`, plus shared annotation helpers.
-- [`src/tools/memory.rs`](../crates/open-memory-mcp/src/tools/memory.rs): the seven memory tools.
-- [`src/tools/index.rs`](../crates/open-memory-mcp/src/tools/index.rs): the three index tools.
-- [`src/tools/maintenance.rs`](../crates/open-memory-mcp/src/tools/maintenance.rs): `open_memory_consolidate`.
+- [`src/tools/memory.rs`](../crates/openmemory-mcp/src/tools/memory.rs): the seven memory tools.
+- [`src/tools/index.rs`](../crates/openmemory-mcp/src/tools/index.rs): the three index tools.
+- [`src/tools/maintenance.rs`](../crates/openmemory-mcp/src/tools/maintenance.rs): `openmemory_consolidate`.
 
 **Key types.**
 
@@ -351,21 +351,21 @@ drift from what the router actually answers.
 - `pub const PROTOCOL_VERSION: &str = "2024-11-05"`.
 - `pub async fn run_stdio_server(server)`.
 - `pub struct BearerToken` (constant-time comparison; redacting `Debug` impl).
-- `pub const BEARER_TOKEN_ENV: &str = "OPEN_MEMORY_HTTP_TOKEN"`.
+- `pub const BEARER_TOKEN_ENV: &str = "OPENMEMORY_HTTP_TOKEN"`.
 
 The full MCP tool reference (names, schemas, error codes,
 transports) lives in [mcp.md](mcp.md):
 
-## `open-memory-cli`
+## `openmemory-cli`
 
-**Purpose.** The `open-memory` binary. Tiny `clap` surface; no
+**Purpose.** The `openmemory` binary. Tiny `clap` surface; no
 business logic. Each subcommand is a small adapter to a function in
 `commands/*` that does the real work.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: command-line interface"
-- Binary name: `open-memory`.
+- Description: "openmemory: command-line interface"
+- Binary name: `openmemory`.
 - Default features: `fts5`, `embeddings`, `completions`, `watch`.
 - Features: `sqlite`, `fts5`, `hnsw`, `embeddings`, `mcp-http`,
   `completions`, `watch`.
@@ -376,24 +376,24 @@ business logic. Each subcommand is a small adapter to a function in
 
 **Source files.**
 
-- [`src/main.rs`](../crates/open-memory-cli/src/main.rs):
+- [`src/main.rs`](../crates/openmemory-cli/src/main.rs):
   `fn main()` plus tracing init.
-- [`src/cli.rs`](../crates/open-memory-cli/src/cli.rs): the clap
+- [`src/cli.rs`](../crates/openmemory-cli/src/cli.rs): the clap
   command tree.
-- [`src/commands/mod.rs`](../crates/open-memory-cli/src/commands/mod.rs): module wiring.
-- [`src/commands/init.rs`](../crates/open-memory-cli/src/commands/init.rs): creates the data directory and config skeleton.
-- [`src/commands/status.rs`](../crates/open-memory-cli/src/commands/status.rs): `MemoryStore::status` printer.
-- [`src/commands/mcp.rs`](../crates/open-memory-cli/src/commands/mcp.rs): stdio or HTTP transport launcher.
-- [`src/commands/consolidate.rs`](../crates/open-memory-cli/src/commands/consolidate.rs): one-shot consolidation.
-- [`src/commands/integrate.rs`](../crates/open-memory-cli/src/commands/integrate.rs): JSON5 OpenClaw config writer.
-- [`src/commands/scriptable.rs`](../crates/open-memory-cli/src/commands/scriptable.rs): `remember`, `recall`, `list-entities`, `forget-entity` (with
+- [`src/commands/mod.rs`](../crates/openmemory-cli/src/commands/mod.rs): module wiring.
+- [`src/commands/init.rs`](../crates/openmemory-cli/src/commands/init.rs): creates the data directory and config skeleton.
+- [`src/commands/status.rs`](../crates/openmemory-cli/src/commands/status.rs): `MemoryStore::status` printer.
+- [`src/commands/mcp.rs`](../crates/openmemory-cli/src/commands/mcp.rs): stdio or HTTP transport launcher.
+- [`src/commands/consolidate.rs`](../crates/openmemory-cli/src/commands/consolidate.rs): one-shot consolidation.
+- [`src/commands/integrate.rs`](../crates/openmemory-cli/src/commands/integrate.rs): JSON5 OpenClaw config writer.
+- [`src/commands/scriptable.rs`](../crates/openmemory-cli/src/commands/scriptable.rs): `remember`, `recall`, `list-entities`, `forget-entity` (with
   `--json` for scripting).
-- [`src/commands/completions.rs`](../crates/open-memory-cli/src/commands/completions.rs): shell completion generator (gated on `completions`).
-- [`src/commands/watch.rs`](../crates/open-memory-cli/src/commands/watch.rs): watcher launcher (gated on `watch`).
+- [`src/commands/completions.rs`](../crates/openmemory-cli/src/commands/completions.rs): shell completion generator (gated on `completions`).
+- [`src/commands/watch.rs`](../crates/openmemory-cli/src/commands/watch.rs): watcher launcher (gated on `watch`).
 
 The full per-subcommand flag reference lives in [cli.md](cli.md):
 
-## `open-memory-watch`
+## `openmemory-watch`
 
 **Purpose.** Filesystem watcher with incremental re-indexing. Walks
 the tree once on startup (BLAKE3-deduped against the existing
@@ -402,13 +402,13 @@ re-index only what changed.
 
 **Cargo.toml summary.**
 
-- Description: "open-memory: filesystem watcher with incremental
+- Description: "openmemory: filesystem watcher with incremental
   re-indexing"
 - No optional features at the crate level. The watcher requires
   FTS5 and SQLite directly via the index/graph crates; higher-level
   crates gate inclusion behind their own `watch` feature.
-- Dependencies: `open-memory-core`, `open-memory-index` (with
-  `fts5`), `open-memory-graph` (with `fts5`), `notify`,
+- Dependencies: `openmemory-core`, `openmemory-index` (with
+  `fts5`), `openmemory-graph` (with `fts5`), `notify`,
   `notify-debouncer-full`, `ignore`, `walkdir`, `blake3`,
   `thiserror`, `tracing`.
 - Tests: `tests/integration.rs` (create/modify/delete, ignore
@@ -416,17 +416,17 @@ re-index only what changed.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/open-memory-watch/src/lib.rs). `Watcher`,
+- [`src/lib.rs`](../crates/openmemory-watch/src/lib.rs). `Watcher`,
   `WatchOptions`, public constants.
-- [`src/scan.rs`](../crates/open-memory-watch/src/scan.rs): initial
+- [`src/scan.rs`](../crates/openmemory-watch/src/scan.rs): initial
   tree walk.
-- [`src/events.rs`](../crates/open-memory-watch/src/events.rs):
+- [`src/events.rs`](../crates/openmemory-watch/src/events.rs):
   event mapping.
-- [`src/index.rs`](../crates/open-memory-watch/src/index.rs):
+- [`src/index.rs`](../crates/openmemory-watch/src/index.rs):
   per-file processing: read, hash, dedup, index.
-- [`src/runtime.rs`](../crates/open-memory-watch/src/runtime.rs):
+- [`src/runtime.rs`](../crates/openmemory-watch/src/runtime.rs):
   the debounced event loop.
-- [`src/error.rs`](../crates/open-memory-watch/src/error.rs):
+- [`src/error.rs`](../crates/openmemory-watch/src/error.rs):
   `WatchError`, `WatchResult`.
 
 **Key types.**
@@ -444,7 +444,7 @@ re-index only what changed.
     `node_modules`, `.venv`, `__pycache__`.
   - `pub const ALWAYS_IGNORE_GLOBS: &[&str]`. `*.lock`,
     `*.lockb`.
-  - `pub const IGNORE_FILE_NAME: &str = ".open-memory-ignore"`.
+  - `pub const IGNORE_FILE_NAME: &str = ".openmemory-ignore"`.
   - `pub const SOURCE_TYPE_FILE_WATCHER: &str = "file_watcher"`
     (the source tag stamped on indexed entries).
 - `pub fn path_to_uri(root: &Path, path: &Path) -> String`.
@@ -457,6 +457,6 @@ re-index only what changed.
 - `pub struct BatchSummary { duration, events_processed, files_indexed, files_removed }`.
 
 The watcher reuses the parent process's `Arc<MemoryStore>`, so a
-future `open-memory mcp --watch DIR` mode can share the MCP
+future `openmemory mcp --watch DIR` mode can share the MCP
 server's handle without opening a second SQLite connection. See
 [watcher.md](watcher.md).

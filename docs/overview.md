@@ -1,9 +1,9 @@
 # Overview
 
-`open-memory` is persistent agent memory plus hybrid (vector and
+`openmemory` is persistent agent memory plus hybrid (vector and
 keyword) text search, packaged as a single Rust binary and an MCP
 server. The first-class consumer is OpenClaw: a clean install of
-`open-memory` should drop into `~/.openclaw/openclaw.json` and "just
+`openmemory` should drop into `~/.openclaw/openclaw.json` and "just
 work" for any agent running under OpenClaw, with no shell scripts,
 no environment plumbing, and no vendor-specific assumptions.
 
@@ -26,7 +26,7 @@ A useful memory layer needs three properties at once:
    SQLite under the hood. No external services, no daemons beyond
    the MCP server, no network calls in the default install.
 
-`open-memory` covers all three. The graph-side API (`remember`,
+`openmemory` covers all three. The graph-side API (`remember`,
 `recall`, `forget`, etc.) handles entities and observations; the
 index-side API (`index_text`, `search`, `delete`) handles arbitrary
 text under caller-supplied URIs; both ride the same hybrid search
@@ -42,13 +42,13 @@ engine internally.
 - **Free-text URI index.** `index_text("note://...", body)` then
   search with the same hybrid engine. Mix structured graph memories
   with ad-hoc notes under one search surface.
-- **MCP server.** Eleven `open_memory_*` tools served over stdio
+- **MCP server.** Eleven `openmemory_*` tools served over stdio
   (always) and Streamable HTTP (behind the `mcp-http` feature). See
   [mcp.md](mcp.md).
-- **OpenClaw integration.** `open-memory integrate openclaw` writes
+- **OpenClaw integration.** `openmemory integrate openclaw` writes
   the config entry idempotently, JSON5-aware, and gets out of your
   way. See [openclaw.md](openclaw.md).
-- **Filesystem watcher.** `open-memory watch DIR` walks a tree once
+- **Filesystem watcher.** `openmemory watch DIR` walks a tree once
   on startup (BLAKE3-deduped against the metadata store), then tails
   `notify-debouncer-full` events to re-index only what changed.
   Behind a default-on `watch` feature. See [watcher.md](watcher.md).
@@ -67,7 +67,7 @@ engine internally.
 2. **Drop-in indexing backend.** Any agent can `index_text(uri,
    content)` then `search(query)` over its own corpus. No file
    scanning required at the API level.
-3. **Out-of-the-box OpenClaw integration.** `open-memory integrate
+3. **Out-of-the-box OpenClaw integration.** `openmemory integrate
    openclaw` writes a working entry into OpenClaw's JSON5 config.
    The first run self-bootstraps SQLite plus, optionally, the
    embedding model.
@@ -75,7 +75,7 @@ engine internally.
    pinned at 1.85.0, `clippy::pedantic`, deterministic schema
    migrations, snapshot tests, criterion benches, cargo-deny, and
    dependabot.
-5. **Single static binary.** `cargo install open-memory` or download
+5. **Single static binary.** `cargo install openmemory` or download
    a tarball. Default profile under 8 MB; full profile under 18 MB.
 6. **Boring storage.** SQLite (with WAL and FTS5) for everything.
    No external services.
@@ -93,7 +93,7 @@ behind feature flags later; none blocked v0.2.
   chunk upstream if they need semantic boundaries.
 - **HTTP REST API server.** MCP is the agent surface. Streamable
   HTTP exists only as an MCP transport.
-- **Vendor-specific hook integrations.** `open-memory` does not
+- **Vendor-specific hook integrations.** `openmemory` does not
   parse Claude Code, Codex, or any other agent-runner hook
   payloads. Agents call the MCP tools directly.
 - **Vendor-specific virtual-filesystem memory adapters** (e.g.
@@ -116,7 +116,7 @@ behind feature flags later; none blocked v0.2.
 | Version | Date | Headline |
 |---------|------|----------|
 | `[Unreleased]` | post-v0.2.0 | Production hardening: bearer-token auth on the HTTP transport, SHA-256 model integrity verification, and three new CI gates (`--no-default-features` test/clippy, default-features doc). |
-| `v0.2.0` | 2026-05-05 | Multi-agent memory (read-only WAL connection pool) plus the `open-memory-watch` crate and `open-memory watch DIR` CLI subcommand. MCP tool surface unchanged at v0.1. |
+| `v0.2.0` | 2026-05-05 | Multi-agent memory (read-only WAL connection pool) plus the `openmemory-watch` crate and `openmemory watch DIR` CLI subcommand. MCP tool surface unchanged at v0.1. |
 | `v0.1.0` | 2026-05-05 | Initial release. Seven crates (core, index, embed, graph, mcp, cli) plus eleven MCP tools, one-command OpenClaw integration, Streamable HTTP behind `mcp-http`. |
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-release
@@ -126,13 +126,13 @@ detail.
 
 | Crate | Purpose |
 |-------|---------|
-| `open-memory-core` | Clock trait, config loader, error types, SQLite migration helper, retry helper. |
-| `open-memory-index` | Hybrid (vector + FTS5) search engine with RRF fusion, LRU cache, and a metadata store. |
-| `open-memory-embed` | ONNX Runtime text embeddings with model registry, BLAKE3 cache, and SHA-256 integrity verification. Optional. |
-| `open-memory-graph` | The knowledge-graph store: entities, observations, relations, and recall with decay scoring plus spreading activation. |
-| `open-memory-mcp` | MCP server with the eleven `open_memory_*` tools, stdio transport always, optional Streamable HTTP behind `mcp-http`. |
-| `open-memory-cli` | The `open-memory` binary. Tiny `clap` surface; dispatches to the other crates. |
-| `open-memory-watch` | Filesystem watcher: initial-tree walk plus `notify-debouncer-full` event loop, BLAKE3-deduped against the metadata store. |
+| `openmemory-core` | Clock trait, config loader, error types, SQLite migration helper, retry helper. |
+| `openmemory-index` | Hybrid (vector + FTS5) search engine with RRF fusion, LRU cache, and a metadata store. |
+| `openmemory-embed` | ONNX Runtime text embeddings with model registry, BLAKE3 cache, and SHA-256 integrity verification. Optional. |
+| `openmemory-graph` | The knowledge-graph store: entities, observations, relations, and recall with decay scoring plus spreading activation. |
+| `openmemory-mcp` | MCP server with the eleven `openmemory_*` tools, stdio transport always, optional Streamable HTTP behind `mcp-http`. |
+| `openmemory-cli` | The `openmemory` binary. Tiny `clap` surface; dispatches to the other crates. |
+| `openmemory-watch` | Filesystem watcher: initial-tree walk plus `notify-debouncer-full` event loop, BLAKE3-deduped against the metadata store. |
 
 Per-crate detail lives in [crates.md](crates.md). The workspace
 layout, crate dependency graph, and threading model live in

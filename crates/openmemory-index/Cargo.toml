@@ -1,0 +1,43 @@
+[package]
+name = "openmemory-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: hybrid (vector + FTS5) search backend"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5", "sqlite"]
+sqlite = []
+fts5 = ["sqlite"]
+hnsw = ["dep:usearch"]
+simd = []
+testing = ["openmemory-core/testing"]
+
+[dependencies]
+openmemory-core = { workspace = true }
+thiserror.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+rusqlite = { workspace = true, features = ["bundled"] }
+lru.workspace = true
+usearch = { workspace = true, optional = true }
+tracing.workspace = true
+
+[dev-dependencies]
+openmemory-core = { workspace = true, features = ["testing"] }
+tempfile.workspace = true
+proptest.workspace = true
+paste.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "vector_search"
+harness = false
+
+[[bench]]
+name = "hybrid_search"
+harness = false

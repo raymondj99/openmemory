@@ -1,7 +1,7 @@
 # Development
 
 This document is the authoritative source for how to build, test,
-lint, and verify changes to `open-memory`. The repo is small enough
+lint, and verify changes to `openmemory`. The repo is small enough
 that the development loop fits on one screen.
 
 For a contribution-focused walkthrough (commit hygiene, hosted-test
@@ -59,7 +59,7 @@ CI runs against the same version. Bumping MSRV requires a
 CHANGELOG note and a minor-version bump.
 
 The MSRV pin is what forces the workspace to ship a hand-rolled
-JSON-RPC server in `open-memory-mcp::protocol` instead of using
+JSON-RPC server in `openmemory-mcp::protocol` instead of using
 the upstream `rmcp` SDK. Every published `rmcp` release uses
 `if-let` chain syntax that requires Rust 1.88+. We also pin
 `ort` / `ort-sys` to `2.0.0-rc.9` so the embedding stack stays
@@ -120,13 +120,13 @@ CI runs clippy with `-D warnings`, so warnings fail the build.
 
 | Crate | Unit tests | Integration tests |
 |-------|-----------|-------------------|
-| `open-memory-core` | inline (`#[cfg(test)] mod tests` in each source file) | none |
-| `open-memory-index` | inline | criterion benches in `benches/` |
-| `open-memory-embed` | inline | `tests/onnx_smoke.rs` |
-| `open-memory-graph` | inline | `tests/integration.rs` |
-| `open-memory-mcp` | inline | (covered by the CLI's `tests/mcp_e2e.rs`) |
-| `open-memory-cli` | inline | `tests/mcp_e2e.rs` |
-| `open-memory-watch` | inline | `tests/integration.rs` |
+| `openmemory-core` | inline (`#[cfg(test)] mod tests` in each source file) | none |
+| `openmemory-index` | inline | criterion benches in `benches/` |
+| `openmemory-embed` | inline | `tests/onnx_smoke.rs` |
+| `openmemory-graph` | inline | `tests/integration.rs` |
+| `openmemory-mcp` | inline | (covered by the CLI's `tests/mcp_e2e.rs`) |
+| `openmemory-cli` | inline | `tests/mcp_e2e.rs` |
+| `openmemory-watch` | inline | `tests/integration.rs` |
 
 Tests must:
 
@@ -137,7 +137,7 @@ Tests must:
   on the `BatchSummary` notifier channel rather than sleeping.
 - Not assume environment state. Use `tempfile::TempDir` for any
   I/O. The CLI tests own a `HOME_LOCK` mutex that serialises
-  per-test `OPEN_MEMORY_HOME` mutations because env vars are
+  per-test `OPENMEMORY_HOME` mutations because env vars are
   process-global.
 
 The full integration suite runs in well under 60 seconds. If it
@@ -145,7 +145,7 @@ ever exceeds 90 seconds, investigate before adding new tests.
 
 ### Property tests
 
-`open-memory-index` has proptest cases for vector and FTS5
+`openmemory-index` has proptest cases for vector and FTS5
 round-trips. The proptest seeds are committed; failures reproduce
 deterministically.
 
@@ -156,7 +156,7 @@ decoder are the natural targets when a fuzz harness lands.
 
 ## Performance gates
 
-`cargo bench -p open-memory-index` runs the criterion benches in
+`cargo bench -p openmemory-index` runs the criterion benches in
 `benches/vector_search.rs` and `benches/hybrid_search.rs`. The
 canonical reference hardware is Apple M-series with 8 GB RAM. We
 do **not** gate CI on absolute numbers; we do compare regressions
@@ -210,7 +210,7 @@ the standing definition-of-done:
   `ort` (loads ONNX Runtime as a dynamic library, not built from
   source) is gated behind `--features embeddings`.
 - **Secrets handling.** The only env var read is
-  `OPEN_MEMORY_HTTP_TOKEN`. The bearer-token comparison is
+  `OPENMEMORY_HTTP_TOKEN`. The bearer-token comparison is
   constant-time over the byte payload; the `BearerToken` type's
   `Debug` impl never logs the secret.
 - **Model integrity verification.** `OnnxEmbedder::load_for_model`
@@ -228,17 +228,17 @@ step-by-step is in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Quick
 recap:
 
 1. Open a Codespace from the GitHub repo page.
-2. `cargo build --release --features mcp-http -p open-memory-cli`.
-3. `export OPEN_MEMORY_HTTP_TOKEN=$(openssl rand -hex 32)` and
-   `./target/release/open-memory mcp --http 0.0.0.0:7800`.
+2. `cargo build --release --features mcp-http -p openmemory-cli`.
+3. `export OPENMEMORY_HTTP_TOKEN=$(openssl rand -hex 32)` and
+   `./target/release/openmemory mcp --http 0.0.0.0:7800`.
 4. Make port 7800 public in the VS Code Ports panel.
 5. Register `https://<codespace>-7800.app.github.dev/mcp` as a
    custom MCP server in claude.ai with the bearer header.
-6. From a claude.ai conversation, call `open_memory_remember` and
-   `open_memory_recall` end-to-end.
+6. From a claude.ai conversation, call `openmemory_remember` and
+   `openmemory_recall` end-to-end.
 
 Codespaces public ports are reachable from anywhere with the URL,
-so do **not** skip the `OPEN_MEMORY_HTTP_TOKEN` step.
+so do **not** skip the `OPENMEMORY_HTTP_TOKEN` step.
 
 ## Versioning
 
@@ -271,7 +271,7 @@ The release flow is:
 
 For correctness or feature reports, open a GitHub issue with the
 exact command and feature flags, expected vs. actual behaviour,
-and the output of `open-memory status --json`. For
+and the output of `openmemory status --json`. For
 security-sensitive reports (auth bypass, integrity-check escape,
 anything that smells like a vulnerability), email the maintainer
 directly rather than filing a public issue. See

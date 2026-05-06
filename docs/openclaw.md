@@ -1,6 +1,6 @@
 # OpenClaw integration
 
-This is the contract between `open-memory` and OpenClaw. Everything
+This is the contract between `openmemory` and OpenClaw. Everything
 in this file is observable from outside the binary: file paths,
 config snippets, MCP tool names, error shapes. Anything we change
 here is a breaking change.
@@ -34,23 +34,23 @@ and [`docs.openclaw.ai/cli/mcp`](https://docs.openclaw.ai/cli/mcp)):
 
 Anything outside that surface (a separate `~/.openclaw/mcp.json`,
 top-level `mcpServers`, `openclaw mcp ls`) is **not** part of the
-contract and `open-memory` does not produce it.
+contract and `openmemory` does not produce it.
 
 ## "Out of the box" definition
 
-A user installs `open-memory` and runs **one command**:
+A user installs `openmemory` and runs **one command**:
 
 ```bash
-open-memory integrate openclaw
+openmemory integrate openclaw
 ```
 
 After that command:
 
-1. `~/.open-memory/data/default/` exists with empty SQLite
+1. `~/.openmemory/data/default/` exists with empty SQLite
    databases.
 2. `~/.openclaw/openclaw.json` exists (created if absent) and its
-   `mcp.servers["open-memory"]` entry points at the local binary.
-3. The next OpenClaw session has all `open_memory_*` tools
+   `mcp.servers["openmemory"]` entry points at the local binary.
+3. The next OpenClaw session has all `openmemory_*` tools
    available with no further setup.
 4. If the binary was compiled with `--features embeddings` and no
    model is present yet, the first MCP call triggers a one-time
@@ -64,7 +64,7 @@ shell scripts.
 
 ## Config resolution
 
-`open-memory integrate openclaw` resolves and writes the OpenClaw
+`openmemory integrate openclaw` resolves and writes the OpenClaw
 config in this order:
 
 1. **Path resolution.** Use `$OPENCLAW_CONFIG_PATH` if set;
@@ -72,14 +72,14 @@ config in this order:
    `~/.openclaw/mcp.json` filename is **not** probed; it is not
    part of OpenClaw's documented config surface.
 2. **Write strategy.** When the `openclaw` binary is on `PATH`,
-   delegate to `openclaw mcp set open-memory '<json>'`. This lets
+   delegate to `openclaw mcp set openmemory '<json>'`. This lets
    OpenClaw normalize legacy aliases (e.g. `type: "http"` →
    `transport: "streamable-http"`), validate the entry, and
    hot-apply without restart. The CLI returns non-zero on
    rejection; we surface that error verbatim.
 3. **Fallback strategy.** When `openclaw` is not on `PATH`, edit
    `openclaw.json` in place: parse as JSON5, ensure the top-level
-   `mcp` object and its `servers` map exist, set the `open-memory`
+   `mcp` object and its `servers` map exist, set the `openmemory`
    key, write back atomically (temp file + rename), preserving
    comments and trailing commas where the JSON5 round-trip allows.
 4. **Idempotence.** Running the command twice is a no-op when the
@@ -87,17 +87,17 @@ config in this order:
    command prints a diff and applies the update.
 
 `--profile <name>` is honored: the data directory becomes
-`~/.open-memory/data/<name>/` and the entry name in `mcp.servers`
-becomes `open-memory-<name>` so multiple profiles can coexist.
+`~/.openmemory/data/<name>/` and the entry name in `mcp.servers`
+becomes `openmemory-<name>` so multiple profiles can coexist.
 Without `--profile`, both default to `default` and the entry name
-is just `open-memory`.
+is just `openmemory`.
 
 ## CLI flags
 
 The integrator subcommand:
 
 ```text
-open-memory integrate openclaw [--config PATH] [--http ADDR] [--binary PATH]
+openmemory integrate openclaw [--config PATH] [--http ADDR] [--binary PATH]
 ```
 
 - `--config PATH` overrides the default config path (defaults to
@@ -106,13 +106,13 @@ open-memory integrate openclaw [--config PATH] [--http ADDR] [--binary PATH]
   pointing at the given address (e.g. `127.0.0.1:7821`) instead of
   the default stdio entry.
 - `--binary PATH` overrides the binary path written into the
-  entry. Defaults to the bare `open-memory`, which OpenClaw
+  entry. Defaults to the bare `openmemory`, which OpenClaw
   resolves via `$PATH`.
 
 ## MCP entry written into OpenClaw config
 
 The default invocation produces (shown in context; only the
-`open-memory` key is added or updated by the integrator, sibling
+`openmemory` key is added or updated by the integrator, sibling
 entries are preserved):
 
 ```json5
@@ -120,12 +120,12 @@ entries are preserved):
   // ... other openclaw.json content unchanged ...
   "mcp": {
     "servers": {
-      "open-memory": {
-        "command": "open-memory",
+      "openmemory": {
+        "command": "openmemory",
         "args": ["mcp"],
         "env": {
-          "OPEN_MEMORY_HOME": "/Users/<user>/.open-memory",
-          "OPEN_MEMORY_PROFILE": "default"
+          "OPENMEMORY_HOME": "/Users/<user>/.openmemory",
+          "OPENMEMORY_PROFILE": "default"
         }
       }
     }
@@ -133,9 +133,9 @@ entries are preserved):
 }
 ```
 
-`OPEN_MEMORY_HOME` is set explicitly so that re-locating the config
+`OPENMEMORY_HOME` is set explicitly so that re-locating the config
 elsewhere does not silently break the integration.
-`OPEN_MEMORY_PROFILE` is set so a multi-profile OpenClaw user can
+`OPENMEMORY_PROFILE` is set so a multi-profile OpenClaw user can
 pin which memory store is attached to which OpenClaw profile.
 
 For HTTP transport (only emitted when the user passes `--http`):
@@ -144,7 +144,7 @@ For HTTP transport (only emitted when the user passes `--http`):
 {
   "mcp": {
     "servers": {
-      "open-memory": {
+      "openmemory": {
         "url": "http://127.0.0.1:7821/mcp",
         "transport": "streamable-http"
       }
@@ -154,7 +154,7 @@ For HTTP transport (only emitted when the user passes `--http`):
 ```
 
 The default port the integrator suggests is 7821. The CLI does not
-start a server itself; the user runs `open-memory mcp --http <addr>`
+start a server itself; the user runs `openmemory mcp --http <addr>`
 separately. The bearer-token auth setup for that HTTP server is
 documented in [mcp.md](mcp.md#bearer-token-authentication):
 
@@ -162,42 +162,42 @@ documented in [mcp.md](mcp.md#bearer-token-authentication):
 
 On first MCP `initialize`:
 
-1. Create `~/.open-memory/` if absent (config and data directories).
+1. Create `~/.openmemory/` if absent (config and data directories).
 2. Run schema migrations on `memory.sqlite`, the index database
    files, and `embeddings/cache.sqlite`. If a database is at a
    higher schema version than the binary, refuse to start with a
    clear error pointing at the migration mismatch.
 3. If the `embeddings` feature is enabled and no model is present
-   in `~/.open-memory/data/<profile>/embeddings/models/`, kick off
+   in `~/.openmemory/data/<profile>/embeddings/models/`, kick off
    a download of the default model in the background. Tool calls
    are answered keyword-only until the model is ready.
 4. Log to stderr in human-friendly form by default;
-   `OPEN_MEMORY_LOG=json` switches to JSON lines for OpenClaw's
+   `OPENMEMORY_LOG=json` switches to JSON lines for OpenClaw's
    log capture.
 
 ## Verification
 
-After running `open-memory integrate openclaw`, the user can
+After running `openmemory integrate openclaw`, the user can
 verify end-to-end:
 
 ```bash
-open-memory status
+openmemory status
 # -> memory: 0 entities, 0 observations
 # -> index: 0 documents, 0 chunks
 # -> schema: memory v2, index v1, embeddings v1
-# -> openclaw: entry present at mcp.servers.open-memory in
+# -> openclaw: entry present at mcp.servers.openmemory in
 #              ~/.openclaw/openclaw.json
 
 openclaw mcp list
-# -> open-memory
+# -> openmemory
 
-openclaw mcp show open-memory
+openclaw mcp show openmemory
 # -> {
-# ->   "command": "open-memory",
+# ->   "command": "openmemory",
 # ->   "args": ["mcp"],
 # ->   "env": {
-# ->     "OPEN_MEMORY_HOME": "/Users/<user>/.open-memory",
-# ->     "OPEN_MEMORY_PROFILE": "default"
+# ->     "OPENMEMORY_HOME": "/Users/<user>/.openmemory",
+# ->     "OPENMEMORY_PROFILE": "default"
 # ->   }
 # -> }
 ```
@@ -206,10 +206,10 @@ Then a user-level smoke test from an OpenClaw agent:
 
 ```text
 > remember that I prefer Rust over Python
-< (open_memory_remember called; 1 observation written for entity "User")
+< (openmemory_remember called; 1 observation written for entity "User")
 
 > what do you remember about my language preferences?
-< (open_memory_recall called; 1 result, score 0.91)
+< (openmemory_recall called; 1 result, score 0.91)
 < I have on record that you prefer Rust over Python.
 ```
 
@@ -217,7 +217,7 @@ Then a user-level smoke test from an OpenClaw agent:
 
 The following are part of the public contract from v0.1.0:
 
-- Tool **names** under `open_memory_*` will not be renamed without
+- Tool **names** under `openmemory_*` will not be renamed without
   a major version bump. Adding new tools is a minor version bump.
 - Tool input **field names** are stable; renaming a field is
   breaking.
@@ -229,5 +229,5 @@ The following are part of the public contract from v0.1.0:
 The following are **not**:
 
 - The internal Rust API.
-- The on-disk directory layout under `~/.open-memory/data/<profile>/`.
+- The on-disk directory layout under `~/.openmemory/data/<profile>/`.
 - Log line wording.
