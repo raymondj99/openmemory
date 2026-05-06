@@ -44,7 +44,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 # Storage / search
 rusqlite = { version = "0.32" }
 usearch = "2"
-lru = "0.17"
+lru = "0.18"
 
 # Embeddings
 ort = { version = "2.0.0-rc.9", default-features = false, features = ["load-dynamic", "ndarray"] }
