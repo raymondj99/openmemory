@@ -471,11 +471,26 @@ fn integration_concurrent_recall_runs_in_parallel() {
     // 2) Parallel time is strictly less than the fully-serial estimate.
     // No numeric speedup floor — shared-runner load makes the ratio
     // jittery — but we do require *some* real overlap. A small
-    // absolute slack (`SCHED_NOISE_GUARD`) keeps timer noise on tiny
-    // serial estimates from flipping the assertion.
+    // absolute slack (`SCHED_NOISE_GUARD`) keeps timer noise from
+    // flipping the assertion when work and noise are within a few
+    // milliseconds of each other.
+    //
+    // Precondition: the serial estimate must exceed the guard with
+    // enough headroom to leave a non-trivial assertion. With iters=25
+    // and recall doing real SQLite work this is comfortably true on
+    // every runner we ship to; if it ever isn't, the test would
+    // become inconclusive (parallel_elapsed < ~zero) so we panic with
+    // a clear message instead of silently passing or failing.
     const SCHED_NOISE_GUARD: Duration = Duration::from_millis(20);
+    const MIN_SERIAL_FOR_SIGNAL: Duration = Duration::from_millis(50);
     let serial_estimate = single_median * u32::try_from(n).unwrap_or(u32::MAX);
-    let upper_bound = serial_estimate.saturating_sub(SCHED_NOISE_GUARD);
+    assert!(
+        serial_estimate >= MIN_SERIAL_FOR_SIGNAL,
+        "serial estimate {serial_estimate:?} is too small to validate parallelism \
+         (single-thread median {single_median:?}, n={n}, iters={iters}); \
+         the test would be inconclusive — bump iters or the seed size",
+    );
+    let upper_bound = serial_estimate - SCHED_NOISE_GUARD;
     let speedup = serial_estimate.as_secs_f64() / parallel_elapsed.as_secs_f64();
     println!(
         "concurrent_recall: n={n} iters={iters} \
