@@ -5,7 +5,8 @@
 //! rustc 1.88+; open-memory is pinned to MSRV 1.85. The wire format is
 //! small enough to encode directly — JSON-RPC 2.0 + the four MCP methods
 //! we serve. This module owns the wire types only; dispatch lives in
-//! [`crate::tools`] and transport in [`crate::stdio`] / [`crate::http`].
+//! [`crate::tools`] and transport in [`crate::stdio`] (plus a streamable-HTTP
+//! transport behind the `mcp-http` feature).
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
