@@ -9,19 +9,18 @@ repository.workspace = true
 [lints]
 workspace = true
 
-[features]
-# `sqlite` and `fts5` are forwarded to open-memory-index because the
-# watcher writes to MetadataStore + the FTS5 index unconditionally.
-# Off by default at the CLI level (the CLI crate enables them); on by
-# default here so cargo test against the bare crate works.
-default = ["fts5"]
-sqlite = ["open-memory-index/sqlite", "open-memory-graph/sqlite"]
-fts5 = ["sqlite", "open-memory-index/fts5", "open-memory-graph/fts5"]
+# The watcher writes to `MetadataStore` and the FTS5 index unconditionally,
+# so its `open-memory-index` and `open-memory-graph` dependencies pull in
+# `sqlite` + `fts5` directly. This means the crate has no opt-in features
+# of its own — `cargo build -p open-memory-watch` with no flags is the
+# single supported configuration. Higher-level crates (notably the CLI)
+# gate the watcher behind their own `watch` feature so a slim build can
+# omit it entirely; once present, however, it is fully wired.
 
 [dependencies]
 open-memory-core = { workspace = true }
-open-memory-index = { workspace = true, default-features = false }
-open-memory-graph = { workspace = true, default-features = false }
+open-memory-index = { workspace = true, default-features = false, features = ["fts5"] }
+open-memory-graph = { workspace = true, default-features = false, features = ["fts5"] }
 
 # File watching + walking
 notify = { workspace = true }

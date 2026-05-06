@@ -21,7 +21,6 @@ fts5 = [
     "open-memory-mcp/fts5",
     "open-memory-graph/fts5",
     "open-memory-index/fts5",
-    "open-memory-watch?/fts5",
 ]
 hnsw = ["open-memory-mcp/hnsw", "open-memory-graph/hnsw", "open-memory-index/hnsw"]
 embeddings = ["open-memory-graph/embeddings", "open-memory-mcp/embeddings"]
