@@ -15,13 +15,11 @@
 //! [`OnnxEmbedder::load_for_model`] hashes the on-disk `model.onnx`
 //! and `tokenizer.json` files with SHA-256 and compares against the
 //! `_sha256` fields here before handing any bytes to the ONNX runtime.
-//! v0.2.0 ships with empty placeholders, which the verifier treats as
-//! [`VerificationOutcome::Skipped`] (warns, loads anyway) — populating
-//! real hashes is tracked for v0.3 and tightens the path to "always
-//! verified" with no further code changes.
+//! Both shipped models have recorded hashes; a mismatch surfaces as
+//! [`EmbedError::ChecksumMismatch`] and the load is refused.
 //!
 //! [`OnnxEmbedder::load_for_model`]: crate::onnx::OnnxEmbedder::load_for_model
-//! [`VerificationOutcome::Skipped`]: crate::integrity::VerificationOutcome::Skipped
+//! [`EmbedError::ChecksumMismatch`]: crate::error::EmbedError::ChecksumMismatch
 
 use crate::onnx::{OnnxOptions, PoolingStrategy};
 
@@ -56,6 +54,12 @@ pub struct Model {
     pub onnx_sha256: &'static str,
     /// SHA-256 checksum of the tokenizer.json file in lowercase hex.
     pub tokenizer_sha256: &'static str,
+    /// HTTPS URL for an optional ONNX external data file
+    /// (`model.onnx_data`). Empty when the model packs all weights
+    /// inside `model.onnx`.
+    pub onnx_data_url: &'static str,
+    /// SHA-256 checksum of the ONNX data file. Empty means skip verify.
+    pub onnx_data_sha256: &'static str,
 }
 
 impl Model {
@@ -92,6 +96,13 @@ impl Model {
     pub fn format_document(&self, text: &str) -> String {
         format!("{}{}", self.document_prefix, text)
     }
+
+    /// Whether this model stores weights in a separate `model.onnx_data`
+    /// file (ONNX external data format).
+    #[must_use]
+    pub fn has_external_data(&self) -> bool {
+        !self.onnx_data_url.is_empty()
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -112,11 +123,16 @@ pub const NOMIC_EMBED_TEXT_V1_5: Model = Model {
     onnx_url: "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/onnx/model.onnx",
     tokenizer_url:
         "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/tokenizer.json",
-    onnx_sha256: "",
-    tokenizer_sha256: "",
+    onnx_sha256: "147d5aa88c2101237358e17796cf3a227cead1ec304ec34b465bb08e9d952965",
+    tokenizer_sha256: "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+    onnx_data_url: "",
+    onnx_data_sha256: "",
 };
 
-/// `snowflake-arctic-embed-l-v2.0` — 1024-dim, CLS-pooled.
+/// `snowflake-arctic-embed-l-v2.0` — 1024-dim. The ONNX export
+/// provides a pre-pooled `sentence_embedding` output (shape
+/// `[batch, 1024]`), so `pooling` is never consulted at inference
+/// time — the 2D output path normalizes directly.
 pub const SNOWFLAKE_ARCTIC_EMBED_L_V2: Model = Model {
     name: "snowflake-arctic-embed-l-v2.0",
     aliases: &["arctic", "arctic-embed-l-v2.0"],
@@ -124,14 +140,16 @@ pub const SNOWFLAKE_ARCTIC_EMBED_L_V2: Model = Model {
     dimensions: 1024,
     max_tokens: 8192,
     pooling: PoolingStrategy::ClsToken,
-    output_tensor: "last_hidden_state",
+    output_tensor: "sentence_embedding",
     search_prefix: "query: ",
     document_prefix: "",
     onnx_url: "https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0/resolve/main/onnx/model.onnx",
     tokenizer_url:
         "https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0/resolve/main/tokenizer.json",
-    onnx_sha256: "",
-    tokenizer_sha256: "",
+    onnx_sha256: "f74aa79745ccfb1e75daa7e8e6552a78402d4de193eb8ca67a931358d3e0a25e",
+    tokenizer_sha256: "39feb9863a378165ab9c5c689047203d789422966c0c58721c5309fd039a8edc",
+    onnx_data_url: "https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0/resolve/main/onnx/model.onnx_data",
+    onnx_data_sha256: "fe7d75ff258fbda10a6bea63c5422df5579d625355b1aca69ba6923c0ba604a9",
 };
 
 const ALL_MODELS: &[&Model] = &[&NOMIC_EMBED_TEXT_V1_5, &SNOWFLAKE_ARCTIC_EMBED_L_V2];
@@ -295,6 +313,14 @@ mod tests {
                 m.name,
                 m.tokenizer_url,
             );
+            if m.has_external_data() {
+                assert!(
+                    m.onnx_data_url.starts_with("https://huggingface.co/"),
+                    "{} onnx_data_url not on huggingface: {}",
+                    m.name,
+                    m.onnx_data_url,
+                );
+            }
             assert!(
                 m.onnx_url.contains(m.repo_id),
                 "{} onnx_url does not embed repo_id",
@@ -309,6 +335,7 @@ mod tests {
             for (label, hash) in [
                 ("onnx_sha256", m.onnx_sha256),
                 ("tokenizer_sha256", m.tokenizer_sha256),
+                ("onnx_data_sha256", m.onnx_data_sha256),
             ] {
                 assert!(
                     hash.is_empty()

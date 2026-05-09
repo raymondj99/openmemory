@@ -14,6 +14,7 @@ pub fn run(command: ModelCommand) -> Result<()> {
     match command {
         ModelCommand::Download(args) => download(args.model.as_deref()),
         ModelCommand::List => list(),
+        ModelCommand::Use(args) => use_model(&args.model),
     }
 }
 
@@ -75,6 +76,35 @@ fn list() -> Result<()> {
         }
         println!();
     }
+    Ok(())
+}
+
+fn use_model(name: &str) -> Result<()> {
+    let registry = ModelRegistry::default();
+    let model = registry
+        .get(name)
+        .with_context(|| format!("unknown model {name:?}"))?;
+
+    let config_path = Config::config_path().context("resolving config path")?;
+    let mut config = Config::load().unwrap_or_default();
+    config.default.model = Some(model.name.to_string());
+    config.save(&config_path).context("saving config")?;
+
+    let models_dir = Config::models_dir().ok();
+    let downloaded = models_dir.is_some_and(|d| {
+        openmemory_embed::ModelManager::new(d)
+            .downloaded_model_dir(model)
+            .is_some()
+    });
+
+    println!("Active model set to '{}'.", model.name);
+    if !downloaded {
+        println!(
+            "Note: model not yet downloaded. Run `openmemory model download {}` first.",
+            name
+        );
+    }
+    println!("Takes effect on the next `openmemory mcp`, `remember`, or `recall` invocation.");
     Ok(())
 }
 

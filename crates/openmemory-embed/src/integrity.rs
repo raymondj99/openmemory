@@ -6,16 +6,12 @@
 //! hash; a mismatch surfaces as [`EmbedError::ChecksumMismatch`] so the
 //! load path stops before parsing untrusted bytes.
 //!
-//! # Empty hashes
+//! # Hash coverage
 //!
-//! v0.2.0 ships with empty `_sha256` placeholders for both registry
-//! models. [`verify_sha256`] treats an empty expected hash as
-//! [`VerificationOutcome::Skipped`] — the file is *not* verified, the
-//! caller is expected to log a warning and proceed. Populating real
-//! hashes (recorded against a known-good HuggingFace download) is
-//! tracked as a v0.3 follow-up; once those land, every load through
-//! [`crate::OnnxEmbedder::load_for_model`] will reject tampered files
-//! automatically with no further code changes.
+//! Both shipped models have recorded SHA-256 hashes. [`verify_sha256`]
+//! treats an empty expected hash as [`VerificationOutcome::Skipped`]
+//! (logs a warning and proceeds), so future models added to the
+//! registry without hashes degrade gracefully.
 //!
 //! [`Model`]: crate::models::Model
 

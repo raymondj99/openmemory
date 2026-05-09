@@ -61,6 +61,7 @@ pub struct OnnxEmbedder {
     output_tensor: &'static str,
     search_prefix: &'static str,
     document_prefix: &'static str,
+    has_token_type_ids: bool,
 }
 
 impl OnnxEmbedder {
@@ -79,10 +80,8 @@ impl OnnxEmbedder {
     /// * A non-empty hash that does *not* match → returns
     ///   [`EmbedError::ChecksumMismatch`]; the caller never sees a
     ///   tampered file.
-    /// * An empty hash (the v0.2.0 placeholder state for both shipped
-    ///   models) → `Skipped` with a warning. v0.3 will populate real
-    ///   hashes; once it does, this code path automatically tightens
-    ///   into "always verified" with no further changes here.
+    /// * An empty hash (future models added to the registry without
+    ///   recorded hashes) → `Skipped` with a warning.
     pub fn load_for_model(model_dir: &Path, model: &Model) -> EmbedResult<Self> {
         let model_path = model_dir.join("model.onnx");
         let tokenizer_path = model_dir.join("tokenizer.json");
@@ -160,6 +159,8 @@ impl OnnxEmbedder {
                 ))
             })?;
 
+        let has_token_type_ids = session.inputs.iter().any(|i| i.name == "token_type_ids");
+
         let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path).map_err(|e| {
             EmbedError::Tokenization(format!(
                 "failed to load tokenizer from {}: {}",
@@ -178,6 +179,7 @@ impl OnnxEmbedder {
             output_tensor: opts.output_tensor,
             search_prefix: opts.search_prefix,
             document_prefix: opts.document_prefix,
+            has_token_type_ids,
         })
     }
 
@@ -205,20 +207,27 @@ impl OnnxEmbedder {
         let attention_mask_array =
             ndarray::Array2::from_shape_vec((batch_size, seq_len), attention_mask_flat.clone())
                 .map_err(|e| EmbedError::Onnx(format!("attention_mask shape error: {e}")))?;
-        let token_type_ids_array =
-            ndarray::Array2::from_shape_vec((batch_size, seq_len), token_type_ids_flat)
-                .map_err(|e| EmbedError::Onnx(format!("token_type_ids shape error: {e}")))?;
+
+        let inputs = if self.has_token_type_ids {
+            let token_type_ids_array =
+                ndarray::Array2::from_shape_vec((batch_size, seq_len), token_type_ids_flat)
+                    .map_err(|e| EmbedError::Onnx(format!("token_type_ids shape error: {e}")))?;
+            ort::inputs! {
+                "input_ids" => input_ids_array,
+                "attention_mask" => attention_mask_array,
+                "token_type_ids" => token_type_ids_array,
+            }
+        } else {
+            ort::inputs! {
+                "input_ids" => input_ids_array,
+                "attention_mask" => attention_mask_array,
+            }
+        }
+        .map_err(|e| EmbedError::Onnx(format!("input binding error: {e}")))?;
 
         let outputs = self
             .session
-            .run(
-                ort::inputs! {
-                    "input_ids" => input_ids_array,
-                    "attention_mask" => attention_mask_array,
-                    "token_type_ids" => token_type_ids_array,
-                }
-                .map_err(|e| EmbedError::Onnx(format!("input binding error: {e}")))?,
-            )
+            .run(inputs)
             .map_err(|e| EmbedError::Onnx(format!("inference failed: {e}")))?;
 
         let output_array = outputs
@@ -513,6 +522,8 @@ mod tests {
             tokenizer_url: "https://example.invalid/tokenizer.json",
             onnx_sha256,
             tokenizer_sha256,
+            onnx_data_url: "",
+            onnx_data_sha256: "",
         }
     }
 

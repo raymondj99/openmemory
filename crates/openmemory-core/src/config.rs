@@ -21,6 +21,8 @@ pub struct Config {
 pub struct DefaultSection {
     #[serde(default)]
     pub jobs: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

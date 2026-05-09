@@ -232,11 +232,6 @@ impl MemoryStore {
             relation_ids.push(id);
         }
 
-        // Bump the entity's updated_at so list_entities orders by recency.
-        tx.execute(
-            "UPDATE entities SET updated_at = ?1 WHERE id = ?2",
-            params![now, entity_id],
-        )?;
         tx.commit()?;
         drop(conn);
 

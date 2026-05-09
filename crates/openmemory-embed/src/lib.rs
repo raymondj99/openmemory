@@ -6,7 +6,7 @@
 //! the rest of the system runs keyword-only — every API still works,
 //! recall just has no vector contribution to RRF.
 
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 pub mod bootstrap;
 pub mod download;

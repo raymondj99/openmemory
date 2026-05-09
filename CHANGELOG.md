@@ -31,9 +31,8 @@ Production-hardening pass on top of v0.2.0.
   The new `integrity` module + `verify_sha256` function stream
   files in 64 KiB heap-allocated blocks, normalise expected hex
   case-insensitively, and treat empty hashes as
-  `VerificationOutcome::Skipped` (the v0.2.0 placeholder state for
-  both registry models — populating real hashes is tracked for v0.3
-  and tightens to "always verified" with no further code changes).
+  `VerificationOutcome::Skipped` (warns, loads anyway).
+  Both shipped models have recorded hashes.
 - **CI gates.** `cargo test --workspace --no-default-features`,
   `cargo clippy --workspace --no-default-features --all-targets --
   -D warnings`, and `cargo doc --workspace --no-deps --all-features`
@@ -43,16 +42,33 @@ Production-hardening pass on top of v0.2.0.
   compiles.
 - **Explicit embedding-model management.** `openmemory model list`
   reports every registry model and cache status; `openmemory model download [MODEL]`
-  downloads `model.onnx` and `tokenizer.json` into
-  the shared `~/.openmemory/models/<model>/` cache. The MCP server
-  and scriptable `remember` / `recall` commands load the cached
-  default model when present, and otherwise run keyword-only without
-  touching the network. Downloads use bounded connect/read/write
-  timeouts, retry transient failures, and write through a sibling
+  downloads `model.onnx`, `tokenizer.json`, and (when the model uses
+  ONNX external data format) `model.onnx_data` into the shared
+  `~/.openmemory/models/<model>/` cache. The MCP server and
+  scriptable `remember` / `recall` commands load the cached default
+  model when present, and otherwise run keyword-only without touching
+  the network. Downloads stream to disk in 64 KiB chunks (no
+  full-model heap allocation), enforce per-file size caps (500 MB for
+  graph/tokenizer, 3 GB for external data), verify `Content-Length`
+  before streaming, check SHA-256 against the registry hash after
+  writing, retry transient failures, and write through a sibling
   `.part` file before the final rename.
+- **`openmemory model use <name>`.** Switch the active embedding
+  model. Writes `default.model` to `config.toml`; takes effect on
+  the next process. Priority chain: `OPENMEMORY_MODEL` env var >
+  `default.model` in config > registry default (nomic-embed-text).
+- **Adaptive ONNX input tensors.** The embedder queries the model's
+  declared inputs at load time and only passes `token_type_ids` when
+  the model expects it. This lets the snowflake model (which omits
+  that input) run without a hard-coded exception.
 
 ### Changed
 
+- `mcp-http` is now a default feature in `openmemory-cli`, matching
+  the sift binary's feature set. Builds that do not need HTTP
+  transport can disable it with `--no-default-features`.
+- `HybridSearchEngine::search` no longer takes a `chunk_index`
+  parameter (breaking API change to the search engine trait).
 - `openmemory-watch` Cargo.toml drops its own `default = ["fts5"]`
   feature and pulls `sqlite + fts5` directly from
   `openmemory-index` / `openmemory-graph`. The crate now compiles

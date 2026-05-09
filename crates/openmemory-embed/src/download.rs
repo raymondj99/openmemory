@@ -16,6 +16,9 @@ use tracing::info;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_MODEL_BYTES: u64 = 500 * 1024 * 1024;
+const MAX_DATA_BYTES: u64 = 3 * 1024 * 1024 * 1024;
+const DOWNLOAD_BUF_BYTES: usize = 64 * 1024;
 
 /// Manages the on-disk model directory at `~/.openmemory/models/`.
 pub struct ModelManager {
@@ -42,20 +45,22 @@ impl ModelManager {
         self.models_dir.join(model_name)
     }
 
-    fn has_model_files(dir: &Path) -> bool {
-        has_required_file(&dir.join("model.onnx")) && has_required_file(&dir.join("tokenizer.json"))
+    fn has_model_files(dir: &Path, model: &Model) -> bool {
+        has_required_file(&dir.join("model.onnx"))
+            && has_required_file(&dir.join("tokenizer.json"))
+            && (!model.has_external_data() || has_required_file(&dir.join("model.onnx_data")))
     }
 
-    /// Return the on-disk directory for `model` if both required files
+    /// Return the on-disk directory for `model` if all required files
     /// exist. Checks the canonical name first, then aliases.
     pub fn downloaded_model_dir(&self, model: &Model) -> Option<PathBuf> {
         let dir = self.model_dir(model.name);
-        if Self::has_model_files(&dir) {
+        if Self::has_model_files(&dir, model) {
             return Some(dir);
         }
         for alias in model.aliases {
             let dir = self.model_dir(alias);
-            if Self::has_model_files(&dir) {
+            if Self::has_model_files(&dir, model) {
                 return Some(dir);
             }
         }
@@ -64,15 +69,35 @@ impl ModelManager {
 
     /// Download model files from Hugging Face.
     /// Skips files that already exist on disk. Retries transient
-    /// network failures with exponential backoff.
+    /// network failures with exponential backoff. After writing each
+    /// file, verifies its SHA-256 against the registry hash (when the
+    /// hash is non-empty).
     pub fn download(&self, model: &Model) -> EmbedResult<()> {
         let dir = self.model_dir(model.name);
         std::fs::create_dir_all(&dir)?;
 
-        let files = [
-            ("model.onnx", model.onnx_url),
-            ("tokenizer.json", model.tokenizer_url),
+        let mut files: Vec<(&str, &str, &str, u64)> = vec![
+            (
+                "model.onnx",
+                model.onnx_url,
+                model.onnx_sha256,
+                MAX_MODEL_BYTES,
+            ),
+            (
+                "tokenizer.json",
+                model.tokenizer_url,
+                model.tokenizer_sha256,
+                MAX_MODEL_BYTES,
+            ),
         ];
+        if model.has_external_data() {
+            files.push((
+                "model.onnx_data",
+                model.onnx_data_url,
+                model.onnx_data_sha256,
+                MAX_DATA_BYTES,
+            ));
+        }
 
         let retry_config = openmemory_core::retry::RetryConfig::network();
         let is_retryable = |e: &DownloadAttemptError| e.retryable;
@@ -82,7 +107,7 @@ impl ModelManager {
             .timeout_write(WRITE_TIMEOUT)
             .build();
 
-        for (filename, url) in files {
+        for (filename, url, expected_sha256, max_bytes) in files {
             let dest = dir.join(filename);
             if has_required_file(&dest) {
                 info!("{filename} already exists, skipping");
@@ -92,16 +117,20 @@ impl ModelManager {
                 info!("{filename} exists but is incomplete, replacing");
                 std::fs::remove_file(&dest)?;
             }
+            clean_part_file(&dest);
 
             info!("Downloading {filename} from {url}");
 
-            let bytes = openmemory_core::retry::with_retry(&retry_config, is_retryable, || {
-                fetch_bytes(&agent, filename, url)
+            let written = openmemory_core::retry::with_retry(&retry_config, is_retryable, || {
+                fetch_to_file(&agent, filename, url, &dest, max_bytes)
             })
             .map_err(DownloadAttemptError::into_error)?;
 
-            write_atomic(&dest, &bytes)?;
-            info!("Saved {filename} ({} bytes)", bytes.len());
+            if !expected_sha256.is_empty() {
+                crate::integrity::verify_sha256(&dest, expected_sha256)?;
+            }
+
+            info!("Saved {filename} ({written} bytes)");
         }
 
         Ok(())
@@ -144,11 +173,29 @@ fn has_required_file(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
 }
 
-fn fetch_bytes(
+fn part_path(dest: &Path) -> PathBuf {
+    let parent = dest.parent().unwrap_or_else(|| Path::new("."));
+    let name = dest
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    parent.join(format!(".{name}.part"))
+}
+
+fn clean_part_file(dest: &Path) {
+    let tmp = part_path(dest);
+    if tmp.exists() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+}
+
+fn fetch_to_file(
     agent: &ureq::Agent,
     filename: &str,
     url: &str,
-) -> Result<Vec<u8>, DownloadAttemptError> {
+    dest: &Path,
+    max_bytes: u64,
+) -> Result<u64, DownloadAttemptError> {
     let response = match agent.get(url).call() {
         Ok(response) => response,
         Err(ureq::Error::Status(status, response)) => {
@@ -168,56 +215,84 @@ fn fetch_bytes(
         }
     };
 
-    let mut buf = Vec::new();
-    response.into_reader().read_to_end(&mut buf).map_err(|e| {
-        let retryable = matches!(
-            e.kind(),
-            ErrorKind::Interrupted
-                | ErrorKind::TimedOut
-                | ErrorKind::WouldBlock
-                | ErrorKind::ConnectionAborted
-                | ErrorKind::ConnectionReset
-        );
-        let message = format!("{filename} read failed: {e}");
-        if retryable {
-            DownloadAttemptError::retryable(message)
-        } else {
-            DownloadAttemptError::permanent(message)
+    if let Some(len_str) = response.header("Content-Length") {
+        if let Ok(len) = len_str.parse::<u64>() {
+            if len > max_bytes {
+                return Err(DownloadAttemptError::permanent(format!(
+                    "{filename} Content-Length {len} exceeds {max_bytes} byte limit"
+                )));
+            }
         }
-    })?;
+    }
 
-    if buf.is_empty() {
+    let tmp = part_path(dest);
+    let mut file = std::fs::File::create(&tmp)
+        .map_err(|e| DownloadAttemptError::permanent(format!("{filename} create failed: {e}")))?;
+
+    let mut reader = response.into_reader();
+    let mut buf = vec![0u8; DOWNLOAD_BUF_BYTES];
+    let mut total: u64 = 0;
+    loop {
+        let n = reader.read(&mut buf).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            classify_io_error(filename, &e)
+        })?;
+        if n == 0 {
+            break;
+        }
+        total += n as u64;
+        if total > max_bytes {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(DownloadAttemptError::permanent(format!(
+                "{filename} exceeds {max_bytes} byte limit"
+            )));
+        }
+        file.write_all(&buf[..n]).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            DownloadAttemptError::permanent(format!("{filename} write failed: {e}"))
+        })?;
+    }
+
+    if total == 0 {
+        let _ = std::fs::remove_file(&tmp);
         return Err(DownloadAttemptError::retryable(format!(
             "{filename} response was empty"
         )));
     }
 
-    Ok(buf)
+    file.sync_all().map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        DownloadAttemptError::permanent(format!("{filename} sync failed: {e}"))
+    })?;
+    drop(file);
+
+    std::fs::rename(&tmp, dest).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        DownloadAttemptError::permanent(format!("{filename} rename failed: {e}"))
+    })?;
+
+    Ok(total)
+}
+
+fn classify_io_error(filename: &str, e: &std::io::Error) -> DownloadAttemptError {
+    let retryable = matches!(
+        e.kind(),
+        ErrorKind::Interrupted
+            | ErrorKind::TimedOut
+            | ErrorKind::WouldBlock
+            | ErrorKind::ConnectionAborted
+            | ErrorKind::ConnectionReset
+    );
+    let message = format!("{filename} read failed: {e}");
+    if retryable {
+        DownloadAttemptError::retryable(message)
+    } else {
+        DownloadAttemptError::permanent(message)
+    }
 }
 
 fn is_retryable_status(status: u16) -> bool {
     status == 408 || status == 429 || (500..600).contains(&status)
-}
-
-fn write_atomic(dest: &Path, bytes: &[u8]) -> EmbedResult<()> {
-    let parent = dest.parent().unwrap_or_else(|| Path::new("."));
-    if !parent.as_os_str().is_empty() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let file_name = dest
-        .file_name()
-        .ok_or_else(|| EmbedError::Download(format!("path has no file name: {dest:?}")))?;
-    let tmp = parent.join(format!(".{}.part", file_name.to_string_lossy()));
-    {
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-    }
-    if let Err(e) = std::fs::rename(&tmp, dest) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(EmbedError::Io(e));
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -285,12 +360,20 @@ mod tests {
     }
 
     #[test]
-    fn write_atomic_replaces_part_file_with_destination() {
+    fn clean_part_file_removes_stale_temp() {
         let tmp = tempfile::tempdir().unwrap();
         let dest = tmp.path().join("model.onnx");
-        write_atomic(&dest, b"complete").unwrap();
+        let part = tmp.path().join(".model.onnx.part");
+        std::fs::write(&part, b"stale").unwrap();
+        assert!(part.exists());
+        clean_part_file(&dest);
+        assert!(!part.exists());
+    }
 
-        assert_eq!(std::fs::read(&dest).unwrap(), b"complete");
-        assert!(!tmp.path().join(".model.onnx.part").exists());
+    #[test]
+    fn clean_part_file_noop_when_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("model.onnx");
+        clean_part_file(&dest);
     }
 }

@@ -232,6 +232,8 @@ pub enum ModelCommand {
     Download(ModelDownloadArgs),
     /// List available embedding models and their download status.
     List,
+    /// Set the active embedding model for all future commands.
+    Use(ModelUseArgs),
 }
 
 /// `model download` arguments.
@@ -241,6 +243,14 @@ pub struct ModelDownloadArgs {
     /// Model name or alias. Defaults to the built-in default
     /// (nomic-embed-text-v1.5).
     pub model: Option<String>,
+}
+
+/// `model use` arguments.
+#[cfg(feature = "embeddings")]
+#[derive(Debug, Args)]
+pub struct ModelUseArgs {
+    /// Model name or alias (e.g. `nomic`, `arctic`).
+    pub model: String,
 }
 
 /// `init` arguments.
