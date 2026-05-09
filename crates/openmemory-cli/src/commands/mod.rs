@@ -9,6 +9,8 @@ pub mod consolidate;
 pub mod init;
 pub mod integrate;
 pub mod mcp;
+#[cfg(feature = "embeddings")]
+pub mod model;
 pub mod scriptable;
 pub mod status;
 #[cfg(feature = "watch")]

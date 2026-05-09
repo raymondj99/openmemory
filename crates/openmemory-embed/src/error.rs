@@ -31,6 +31,9 @@ pub enum EmbedError {
 
     #[error("cache error: {0}")]
     Cache(String),
+
+    #[error("download failed: {0}")]
+    Download(String),
 }
 
 #[cfg(test)]

@@ -16,6 +16,11 @@ name is `default`, mirroring OpenClaw's `--profile <name>` concept).
 ```
 ~/.openmemory/
 ├── config.toml                    # user-level config (TOML; see configuration.md)
+├── models/                        # shared ONNX model cache
+│   ├── nomic-embed-text-v1.5/
+│   │   ├── model.onnx
+│   │   └── tokenizer.json
+│   └── ...
 └── data/                          # one directory per profile
     └── default/                   # profile name (default = "default")
         ├── memory.sqlite          # entities, observations, relations + WAL
@@ -27,11 +32,6 @@ name is `default`, mirroring OpenClaw's `--profile <name>` concept).
         ├── vectors.bin            # FlatVectorIndex dump
         │                          # (or HNSW state when --features hnsw)
         └── embeddings/            # only when --features embeddings
-            ├── models/            # downloaded ONNX + tokenizer files
-            │   ├── nomic-embed-text-v1.5/
-            │   │   ├── model.onnx
-            │   │   └── tokenizer.json
-            │   └── ...
             └── cache.sqlite       # BLAKE3-keyed embedding cache
 ```
 
@@ -200,10 +200,11 @@ under 10⁶ vectors). `cargo install --features hnsw` swaps in the
 `HnswIndex` backend, which uses usearch's native serialisation
 format instead.
 
-## `embeddings/` directory
+## `models/` directory
 
-Only present when the binary was built with `--features embeddings`
-(graph crate) and at least one model has been requested.
+`~/.openmemory/models/` is shared across profiles. It is populated
+only by `openmemory model download [MODEL]`; MCP startup and tool
+calls do not perform outbound HTTP.
 
 ### `models/<model-name>/`
 
@@ -211,6 +212,11 @@ Downloaded ONNX file plus tokenizer config. Resolved once at
 startup; not re-resolved per request. The path is computed from
 `Model::name`. SHA-256 verification runs on every load; a mismatch
 surfaces as `EmbedError::ChecksumMismatch` and refuses to start.
+
+## `embeddings/` directory
+
+Only present when the binary was built with `--features embeddings`
+(graph crate) and the embedder cache is opened for a profile.
 
 ### `cache.sqlite`
 

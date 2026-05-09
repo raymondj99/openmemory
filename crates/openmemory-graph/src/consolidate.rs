@@ -164,6 +164,7 @@ impl MemoryStore {
                     let uri = format!("memory://observation/{id}");
                     let _ = self.engine().engine.delete_by_uri(&uri);
                 }
+                self.flush_engine();
             }
         } // <-- rebuild_lock released here so prune() can acquire it
 

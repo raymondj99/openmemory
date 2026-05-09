@@ -64,6 +64,10 @@ pub enum Command {
     ListEntities(ListEntitiesArgs),
     /// Hard-delete an entity. Requires `--yes` to confirm.
     ForgetEntity(ForgetEntityArgs),
+    /// Manage embedding models (download, list).
+    #[cfg(feature = "embeddings")]
+    #[command(subcommand)]
+    Model(ModelCommand),
     /// Emit shell completions for the named shell.
     #[cfg(feature = "completions")]
     Completions(CompletionsArgs),
@@ -220,6 +224,25 @@ pub struct IntegrateClaudeDesktopArgs {
     pub binary: Option<String>,
 }
 
+/// Subcommands for `openmemory model <action>`.
+#[cfg(feature = "embeddings")]
+#[derive(Debug, Subcommand)]
+pub enum ModelCommand {
+    /// Download the default (or named) embedding model from Hugging Face.
+    Download(ModelDownloadArgs),
+    /// List available embedding models and their download status.
+    List,
+}
+
+/// `model download` arguments.
+#[cfg(feature = "embeddings")]
+#[derive(Debug, Args)]
+pub struct ModelDownloadArgs {
+    /// Model name or alias. Defaults to the built-in default
+    /// (nomic-embed-text-v1.5).
+    pub model: Option<String>,
+}
+
 /// `init` arguments.
 #[derive(Debug, Args)]
 pub struct InitArgs {
@@ -310,6 +333,8 @@ where
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
         Command::ListEntities(args) => commands::scriptable::list_entities(&cli.profile, args),
         Command::ForgetEntity(args) => commands::scriptable::forget_entity(&cli.profile, args),
+        #[cfg(feature = "embeddings")]
+        Command::Model(cmd) => commands::model::run(cmd),
         #[cfg(feature = "completions")]
         Command::Completions(args) => commands::completions::run(args.shell),
         #[cfg(feature = "watch")]

@@ -66,7 +66,14 @@ impl<V: VectorStore, F: FullTextStore> HybridSearchEngine<V, F> {
     /// Insert an entry into both stores. Vector store gets the full record;
     /// the full-text store ignores the `vector` field.
     pub fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
-        self.vector_store.insert(entries)?;
+        let vector_entries: Vec<IndexEntry> = entries
+            .iter()
+            .filter(|entry| !entry.vector.is_empty())
+            .cloned()
+            .collect();
+        if !vector_entries.is_empty() {
+            self.vector_store.insert(&vector_entries)?;
+        }
         self.fulltext_store.insert(entries)?;
         Ok(())
     }
@@ -80,8 +87,12 @@ impl<V: VectorStore, F: FullTextStore> HybridSearchEngine<V, F> {
         mode: SearchMode,
     ) -> IndexResult<Vec<SearchResult>> {
         match mode {
+            SearchMode::VectorOnly if query_vector.is_empty() => Ok(Vec::new()),
             SearchMode::VectorOnly => self.vector_store.search(query_vector, top_k),
             SearchMode::KeywordOnly => self.fulltext_store.search(query_text, top_k),
+            SearchMode::Hybrid if query_vector.is_empty() => {
+                self.fulltext_store.search(query_text, top_k)
+            }
             SearchMode::Hybrid => {
                 let fetch = top_k.saturating_mul(3).max(top_k);
                 let v = self.vector_store.search(query_vector, fetch)?;
@@ -91,13 +102,13 @@ impl<V: VectorStore, F: FullTextStore> HybridSearchEngine<V, F> {
         }
     }
 
-    /// Delete from both stores. Returns the count from the vector store
-    /// (the keyword store may report a different number for the same URI
-    /// because chunks are tracked once each).
+    /// Delete from both stores. Returns the larger backend count so
+    /// keyword-only entries (which never touch the vector store) still
+    /// report as deleted.
     pub fn delete_by_uri(&self, uri: &str) -> IndexResult<u64> {
-        let n = self.vector_store.delete_by_uri(uri)?;
-        self.fulltext_store.delete_by_uri(uri)?;
-        Ok(n)
+        let vector_count = self.vector_store.delete_by_uri(uri)?;
+        let keyword_count = self.fulltext_store.delete_by_uri(uri)?;
+        Ok(vector_count.max(keyword_count))
     }
 
     /// Total entries in the vector store.
@@ -368,6 +379,59 @@ mod tests {
             .unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].uri, "u://a");
+    }
+
+    #[test]
+    fn insert_without_vector_still_indexes_keyword_text() {
+        let v = crate::FlatVectorIndex::new();
+        let f = make_fts();
+        let engine = HybridSearchEngine::new(v, f, 0.5);
+        engine
+            .insert(&[IndexEntry::new("u://a", "needle haystack")])
+            .unwrap();
+
+        assert_eq!(engine.count().unwrap(), 0);
+        let r = engine
+            .search(&[], "needle", 10, SearchMode::Hybrid)
+            .unwrap();
+        assert_eq!(r.len(), 1);
+        assert_eq!(r[0].uri, "u://a");
+    }
+
+    #[test]
+    fn vector_only_with_empty_query_vector_returns_empty() {
+        let v = crate::FlatVectorIndex::new();
+        let f = make_fts();
+        let engine = HybridSearchEngine::new(v, f, 0.5);
+        engine
+            .insert(&[IndexEntry {
+                uri: "u://a".into(),
+                text: "needle haystack".into(),
+                chunk_index: 0,
+                vector: vec![1.0, 0.0],
+            }])
+            .unwrap();
+
+        let r = engine
+            .search(&[], "needle", 10, SearchMode::VectorOnly)
+            .unwrap();
+        assert!(r.is_empty());
+    }
+
+    #[test]
+    fn delete_reports_keyword_only_entries() {
+        let v = crate::FlatVectorIndex::new();
+        let f = make_fts();
+        let engine = HybridSearchEngine::new(v, f, 0.5);
+        engine
+            .insert(&[IndexEntry::new("u://a", "needle haystack")])
+            .unwrap();
+
+        assert_eq!(engine.delete_by_uri("u://a").unwrap(), 1);
+        let r = engine
+            .search(&[], "needle", 10, SearchMode::KeywordOnly)
+            .unwrap();
+        assert!(r.is_empty());
     }
 
     #[test]

@@ -13,8 +13,6 @@
 //! lock; concurrent recall therefore never observes a half-rebuilt vector
 //! index.
 
-use std::sync::Arc;
-
 use openmemory_index::IndexEntry;
 use rusqlite::{params, OptionalExtension, Transaction};
 
@@ -273,7 +271,7 @@ impl MemoryStore {
             .map(|(id, content)| {
                 let uri = format!("memory://observation/{id}");
                 let text = format!("{entity_name}: {content}");
-                let vector = self.embed_text(&text);
+                let vector = self.embed_document_text(&text);
                 let mut entry = IndexEntry::new(uri, text);
                 if !vector.is_empty() {
                     entry = entry.with_vector(vector);
@@ -290,32 +288,35 @@ impl MemoryStore {
                 "search-index insert failed; SQLite row remains authoritative"
             );
         }
+        self.flush_engine();
         Ok(())
     }
 
-    /// Embed a search text via the attached embedder, if any. Returns an
-    /// empty vector when no embedder is attached — the FTS5/BM25 path still
-    /// indexes the text either way, so recall keeps working keyword-only.
-    //
-    // `&self` is unused under default features but required so the
-    // `testing`-feature variant can read `self.embedder()`. Suppressing
-    // the lint keeps a single signature across both builds.
+    /// Embed a search query via the attached embedder, if any. Returns an
+    /// empty vector when no embedder is attached; the FTS5/BM25 path still
+    /// indexes text either way, so recall keeps working keyword-only.
     #[allow(clippy::unused_self)]
-    pub(crate) fn embed_text(&self, text: &str) -> Vec<f32> {
-        #[cfg(feature = "testing")]
-        if let Some(emb) = self.embedder() {
-            let v = emb.embed(&[text]);
+    pub(crate) fn embed_query_text(&self, text: &str) -> Vec<f32> {
+        #[cfg(any(feature = "testing", feature = "embeddings"))]
+        if let Some(emb) = self.embedder_ref() {
+            let v = emb.embed_query(&[text]);
             return v.into_iter().next().unwrap_or_default();
         }
         let _ = text;
         Vec::new()
     }
 
-    /// Borrow the optional testing embedder. Used internally by the
-    /// search-sync path; not part of the public API.
-    #[cfg(feature = "testing")]
-    pub(crate) fn embedder(&self) -> Option<Arc<dyn openmemory_core::testing::Embedder>> {
-        self.testing_embedder()
+    /// Embed an indexed observation via the attached embedder, if any.
+    /// Real embedders can apply their document-side task prefix here.
+    #[allow(clippy::unused_self)]
+    pub(crate) fn embed_document_text(&self, text: &str) -> Vec<f32> {
+        #[cfg(any(feature = "testing", feature = "embeddings"))]
+        if let Some(emb) = self.embedder_ref() {
+            let v = emb.embed_documents(&[text]);
+            return v.into_iter().next().unwrap_or_default();
+        }
+        let _ = text;
+        Vec::new()
     }
 }
 
@@ -367,13 +368,10 @@ fn ensure_entity(
     Ok((entity.id, false))
 }
 
-// Unused `Arc` import on builds without the testing feature; the embedder
-// hook needs it.
-#[cfg(not(feature = "testing"))]
-const _UNUSED_ARC: Option<Arc<()>> = None;
-
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::types::EntityType;
     use openmemory_core::clock::{Clock, FixedClock};
@@ -565,10 +563,21 @@ mod tests {
             )
             .unwrap();
 
-        // Engine should see the keyword-search row; the fts5 backend default
-        // splits on whitespace.
-        let count = store.engine().engine.count().unwrap();
-        assert!(count >= 1, "search engine should have at least 1 entry");
+        // The keyword backend should see the row even without an attached
+        // embedder. In that mode the vector backend intentionally stays empty.
+        let results = store
+            .engine()
+            .engine
+            .search(
+                &[],
+                "Rust",
+                10,
+                openmemory_index::SearchMode::KeywordOnly,
+                0,
+            )
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].text.contains("prefers Rust"));
     }
 
     #[test]

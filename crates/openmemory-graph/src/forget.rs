@@ -64,6 +64,7 @@ impl MemoryStore {
                     "search-index delete failed; SQLite tombstone remains authoritative"
                 );
             }
+            self.flush_engine();
         }
         Ok(updated > 0)
     }
@@ -114,6 +115,7 @@ impl MemoryStore {
             let uri = format!("memory://observation/{obs_id}");
             let _ = self.engine().engine.delete_by_uri(&uri);
         }
+        self.flush_engine();
 
         Ok(observation_ids.len())
     }
@@ -196,6 +198,9 @@ impl MemoryStore {
         for id in &stale_ids {
             let uri = format!("memory://observation/{id}");
             let _ = self.engine().engine.delete_by_uri(&uri);
+        }
+        if !stale_ids.is_empty() {
+            self.flush_engine();
         }
 
         Ok(PruneReport {

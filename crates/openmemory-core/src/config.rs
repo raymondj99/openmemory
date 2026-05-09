@@ -93,6 +93,12 @@ impl Config {
         Ok(Self::home_dir()?.join("data").join(profile))
     }
 
+    /// Shared model cache directory (`<home>/models/`). ONNX model
+    /// files live here, shared across profiles.
+    pub fn models_dir() -> OmResult<PathBuf> {
+        Ok(Self::home_dir()?.join("models"))
+    }
+
     pub fn load() -> OmResult<Self> {
         Self::load_from(Self::config_path()?)
     }

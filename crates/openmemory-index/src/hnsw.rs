@@ -216,6 +216,10 @@ impl Default for HnswIndex {
 
 impl VectorStore for HnswIndex {
     fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
+        let entries: Vec<&IndexEntry> = entries
+            .iter()
+            .filter(|entry| !entry.vector.is_empty())
+            .collect();
         if entries.is_empty() {
             return Ok(());
         }
@@ -264,7 +268,7 @@ impl VectorStore for HnswIndex {
 
     fn search(&self, query_vector: &[f32], top_k: usize) -> IndexResult<Vec<SearchResult>> {
         let inner = self.lock()?;
-        if inner.meta.is_empty() || inner.dimensions == 0 {
+        if query_vector.is_empty() || inner.meta.is_empty() || inner.dimensions == 0 {
             return Ok(Vec::new());
         }
         let matches = inner

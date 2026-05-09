@@ -8,6 +8,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod bootstrap;
+pub mod download;
 pub mod error;
 pub mod integrity;
 pub mod models;
@@ -21,6 +23,8 @@ pub mod json_cache;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
+pub use bootstrap::{ensure_model, load_default_embedder, load_embedder};
+pub use download::ModelManager;
 pub use error::{EmbedError, EmbedResult};
 pub use integrity::{verify_sha256, VerificationOutcome};
 pub use models::{Model, ModelRegistry, NOMIC_EMBED_TEXT_V1_5, SNOWFLAKE_ARCTIC_EMBED_L_V2};

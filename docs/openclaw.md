@@ -53,11 +53,12 @@ After that command:
 3. The next OpenClaw session has all `openmemory_*` tools
    available with no further setup.
 4. If the binary was compiled with `--features embeddings` and no
-   model is present yet, the first MCP call triggers a one-time
-   download of the default model (`nomic-embed-text-v1.5`). If the
-   user is offline, the server logs a warning and runs in
-   keyword-only mode; recall still works. The default install (no
-   `embeddings` feature) skips this step entirely.
+   model is present yet, the server logs a warning and runs in
+   keyword-only mode; recall still works. Run
+   `openmemory model download` to cache the default model
+   (`nomic-embed-text-v1.5`) before starting OpenClaw when semantic
+   recall is desired. Builds without `embeddings` skip model loading
+   entirely.
 
 No environment variables are required. No "edit JSON" steps. No
 shell scripts.
@@ -167,10 +168,10 @@ On first MCP `initialize`:
    files, and `embeddings/cache.sqlite`. If a database is at a
    higher schema version than the binary, refuse to start with a
    clear error pointing at the migration mismatch.
-3. If the `embeddings` feature is enabled and no model is present
-   in `~/.openmemory/data/<profile>/embeddings/models/`, kick off
-   a download of the default model in the background. Tool calls
-   are answered keyword-only until the model is ready.
+3. If the `embeddings` feature is enabled, check for the default
+   model in `~/.openmemory/models/`. Startup never downloads model
+   files; tool calls are answered keyword-only until the user runs
+   `openmemory model download`.
 4. Log to stderr in human-friendly form by default;
    `OPENMEMORY_LOG=json` switches to JSON lines for OpenClaw's
    log capture.

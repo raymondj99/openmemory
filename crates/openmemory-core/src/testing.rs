@@ -1,7 +1,21 @@
 pub use crate::clock::FixedClock;
 
 pub trait Embedder: Send + Sync + 'static {
+    /// Embed text without applying any model-specific task prefix.
     fn embed(&self, texts: &[&str]) -> Vec<Vec<f32>>;
+
+    /// Embed search queries. Real model implementations can apply the
+    /// registry's query prefix; simple test doubles fall back to raw text.
+    fn embed_query(&self, texts: &[&str]) -> Vec<Vec<f32>> {
+        self.embed(texts)
+    }
+
+    /// Embed indexed documents. Real model implementations can apply the
+    /// registry's document prefix; simple test doubles fall back to raw text.
+    fn embed_documents(&self, texts: &[&str]) -> Vec<Vec<f32>> {
+        self.embed(texts)
+    }
+
     fn dimensions(&self) -> usize;
 }
 
@@ -74,6 +88,13 @@ mod tests {
         let v1 = e.embed(&["hello"]);
         let v2 = e.embed(&["hello"]);
         assert_eq!(v1[0], v2[0]);
+    }
+
+    #[test]
+    fn fake_embedder_query_and_document_defaults_match_raw() {
+        let e = FakeEmbedder::new(32);
+        assert_eq!(e.embed_query(&["hello"]), e.embed(&["hello"]));
+        assert_eq!(e.embed_documents(&["hello"]), e.embed(&["hello"]));
     }
 
     #[test]

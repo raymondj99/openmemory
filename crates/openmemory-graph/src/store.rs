@@ -39,7 +39,7 @@ use crate::pool::ReadPool;
 use crate::schema::{configure, migrate, MEMORY_SCHEMA_VERSION};
 use crate::types::{Entity, EntityType, MemoryTier, Observation, Relation};
 
-#[cfg(feature = "testing")]
+#[cfg(any(feature = "testing", feature = "embeddings"))]
 use openmemory_core::testing::Embedder;
 
 /// SQLite filename for the knowledge-graph database, under `data_dir`.
@@ -88,7 +88,7 @@ pub struct MemoryStore {
     data_dir: PathBuf,
     decay_rate: f64,
     clock: Arc<dyn Clock>,
-    #[cfg(feature = "testing")]
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
     embedder: Option<Arc<dyn Embedder>>,
     /// Holds an owning tempdir handle when [`Self::open_in_memory`] was
     /// used, so the engine's on-disk files are cleaned up when the store
@@ -123,7 +123,7 @@ impl MemoryStore {
             data_dir: data_dir.to_path_buf(),
             decay_rate: config.memory.decay_rate,
             clock: Arc::new(SystemClock),
-            #[cfg(feature = "testing")]
+            #[cfg(any(feature = "testing", feature = "embeddings"))]
             embedder: None,
             _temp_dir: None,
         })
@@ -163,7 +163,7 @@ impl MemoryStore {
             data_dir: temp_dir.path().to_path_buf(),
             decay_rate: config.memory.decay_rate,
             clock: Arc::new(SystemClock),
-            #[cfg(feature = "testing")]
+            #[cfg(any(feature = "testing", feature = "embeddings"))]
             embedder: None,
             _temp_dir: Some(temp_dir),
         })
@@ -185,11 +185,9 @@ impl MemoryStore {
         self
     }
 
-    /// Attach an embedder. Behind the `testing` feature so tests can wire up
-    /// a [`openmemory_core::testing::FakeEmbedder`] without taking a
-    /// dependency on the heavyweight ONNX runtime. v0.2 widens this to the
-    /// real ONNX path behind an `embeddings` feature.
-    #[cfg(feature = "testing")]
+    /// Attach an embedder for vector search. Production callers pass an
+    /// `OnnxEmbedder`; tests use `FakeEmbedder` via the `testing` feature.
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
     #[must_use]
     pub fn with_embedder(mut self, embedder: Arc<dyn Embedder>) -> Self {
         self.embedder = Some(embedder);
@@ -217,10 +215,24 @@ impl MemoryStore {
         &self.engine
     }
 
-    /// Borrow the optional testing embedder, if any. Used by the search-sync
+    /// Persist the in-memory vector index to disk. Called after writes
+    /// so that short-lived CLI processes don't lose vectors on exit.
+    /// Failures are logged but not propagated; the SQLite row is still
+    /// authoritative and a future rebuild catches up.
+    pub(crate) fn flush_engine(&self) {
+        if let Err(e) = openmemory_index::engine::flush(&self.engine) {
+            tracing::warn!(
+                target: "openmemory_graph::store",
+                error = %e,
+                "vector index flush failed; vectors will be rebuilt on next full sync"
+            );
+        }
+    }
+
+    /// Borrow the optional embedder, if any. Used by the search-sync
     /// path to obtain a vector for newly-indexed observations.
-    #[cfg(feature = "testing")]
-    pub(crate) fn testing_embedder(&self) -> Option<Arc<dyn Embedder>> {
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
+    pub(crate) fn embedder_ref(&self) -> Option<Arc<dyn Embedder>> {
         self.embedder.clone()
     }
 

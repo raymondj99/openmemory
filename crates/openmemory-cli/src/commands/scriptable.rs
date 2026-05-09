@@ -6,10 +6,12 @@
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
 use openmemory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput};
+#[cfg(feature = "embeddings")]
+use std::sync::Arc;
 
 use crate::cli::{ForgetEntityArgs, ListEntitiesArgs, RecallArgs, RememberArgs};
 
-fn open(profile: &str) -> Result<MemoryStore> {
+fn open(profile: &str, attach_embedder: bool) -> Result<MemoryStore> {
     let config = Config::load().unwrap_or_default();
     let data_dir = Config::data_dir(profile).context("resolving data directory")?;
     if !data_dir.exists() {
@@ -19,8 +21,25 @@ fn open(profile: &str) -> Result<MemoryStore> {
             data_dir.display()
         );
     }
-    MemoryStore::open(&config, &data_dir)
-        .with_context(|| format!("opening memory store at {}", data_dir.display()))
+    let memory = MemoryStore::open(&config, &data_dir)
+        .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
+    let _ = attach_embedder;
+
+    #[cfg(feature = "embeddings")]
+    let memory = {
+        if attach_embedder {
+            let models_dir = Config::models_dir().context("resolving models directory")?;
+            if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
+                memory.with_embedder(Arc::new(embedder))
+            } else {
+                memory
+            }
+        } else {
+            memory
+        }
+    };
+
+    Ok(memory)
 }
 
 fn parse_entity_type(s: &str) -> Result<EntityType> {
@@ -34,7 +53,7 @@ pub fn remember(profile: &str, args: RememberArgs) -> Result<()> {
     if args.observations.is_empty() {
         anyhow::bail!("at least one --observation is required");
     }
-    let store = open(profile)?;
+    let store = open(profile, true)?;
     let entity_type = parse_entity_type(&args.entity_type)?;
     let observations: Vec<ObservationInput> = args
         .observations
@@ -100,7 +119,7 @@ fn parse_relation(spec: &str) -> Result<RelationInput> {
 // ------------------------- recall -------------------------
 
 pub fn recall(profile: &str, args: RecallArgs) -> Result<()> {
-    let store = open(profile)?;
+    let store = open(profile, true)?;
     let limit = args.limit.unwrap_or(10).max(1) as usize;
     let mut filters = RecallFilters::new();
     if let Some(et) = args.entity_type {
@@ -146,7 +165,7 @@ pub fn recall(profile: &str, args: RecallArgs) -> Result<()> {
 // ------------------------- list-entities -------------------------
 
 pub fn list_entities(profile: &str, args: ListEntitiesArgs) -> Result<()> {
-    let store = open(profile)?;
+    let store = open(profile, false)?;
     let limit = args.limit.unwrap_or(50).max(1) as usize;
     let offset = args.offset.unwrap_or(0) as usize;
     let entity_type = args
@@ -196,7 +215,7 @@ pub fn forget_entity(profile: &str, args: ForgetEntityArgs) -> Result<()> {
             args.entity
         );
     }
-    let store = open(profile)?;
+    let store = open(profile, false)?;
     let removed = store
         .forget_entity(&args.entity)
         .context("forget_entity failed")?;

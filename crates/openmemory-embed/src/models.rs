@@ -67,6 +67,8 @@ impl Model {
             max_tokens: self.max_tokens,
             pooling: self.pooling,
             output_tensor: self.output_tensor,
+            search_prefix: self.search_prefix,
+            document_prefix: self.document_prefix,
         }
     }
 
@@ -269,9 +271,13 @@ mod tests {
         assert_eq!(opts.max_tokens, 8192);
         assert_eq!(opts.pooling, PoolingStrategy::MeanPooling);
         assert_eq!(opts.output_tensor, "last_hidden_state");
+        assert_eq!(opts.search_prefix, "search_query: ");
+        assert_eq!(opts.document_prefix, "search_document: ");
 
         let opts = SNOWFLAKE_ARCTIC_EMBED_L_V2.onnx_options();
         assert_eq!(opts.pooling, PoolingStrategy::ClsToken);
+        assert_eq!(opts.search_prefix, "query: ");
+        assert_eq!(opts.document_prefix, "");
     }
 
     #[test]

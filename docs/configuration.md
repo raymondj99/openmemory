@@ -132,7 +132,7 @@ in one OpenClaw config without collision. See
 
 Feature flags are opt-in compilation switches. The default install
 (`cargo install openmemory`) enables `fts5`, `embeddings`,
-`completions`, and `watch`.
+`completions`, `watch`, and `mcp-http`.
 
 ### Workspace-level features (relevant to `cargo install openmemory`)
 
@@ -141,7 +141,7 @@ Feature flags are opt-in compilation switches. The default install
 | `fts5` | on | SQLite FTS5 keyword backend (BM25 ranking). When off, falls back to the pure-Rust `Bm25Store`. |
 | `embeddings` | on | Compiles `openmemory-embed` and links ONNX Runtime via `ort` (load-dynamic). When off, recall is keyword-only. |
 | `hnsw` | off | Compiles `HnswIndex` (usearch). Adds a C++ build-time dep. Useful at >10⁵ vectors. |
-| `mcp-http` | off | Streamable HTTP transport for the MCP server. Adds `axum`, `tower-http`. |
+| `mcp-http` | on | Streamable HTTP transport for the MCP server. Adds `axum`, `tower-http`. |
 | `completions` | on | The `openmemory completions <SHELL>` subcommand. Adds `clap_complete`. |
 | `watch` | on | The `openmemory watch <PATH>` subcommand. Compiles `openmemory-watch`. |
 

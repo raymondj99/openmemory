@@ -7,7 +7,7 @@
 //! To run it locally:
 //!
 //! ```text
-//! OPENMEMORY_TEST_MODEL_DIR=$HOME/.openmemory/data/default/embeddings/models/nomic-embed-text-v1.5 \
+//! OPENMEMORY_TEST_MODEL_DIR=$HOME/.openmemory/models/nomic-embed-text-v1.5 \
 //! ORT_DYLIB_PATH=/path/to/libonnxruntime.dylib \
 //! cargo test -p openmemory-embed --test onnx_smoke -- --nocapture
 //! ```

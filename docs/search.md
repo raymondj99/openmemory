@@ -90,6 +90,13 @@ limit, pooling strategy, output tensor name, query and document
 prefix templates, ONNX file URL, tokenizer URL, and SHA-256 hashes
 for both files.
 
+Model files live in the shared cache at
+`~/.openmemory/models/<model-name>/`. They are downloaded only when
+the user explicitly runs `openmemory model download [MODEL]`; server
+startup never performs outbound HTTP. At runtime, graph writes use
+the model's document prefix and recall queries use its query prefix
+before embedding.
+
 ### Integrity verification
 
 `OnnxEmbedder::load_for_model` calls
@@ -114,11 +121,12 @@ inference.
 
 ### Recall fallback
 
-When the `embeddings` feature is off (or the model has not finished
-downloading on first run), `MemoryStore::recall` skips the vector
-backend and runs keyword-only. The hybrid engine's `alpha` parameter
-is overridden to 0.0 in that mode. Recall still works; it just
-loses the semantic-similarity contribution.
+When the `embeddings` feature is off, or no cached model is present,
+`MemoryStore::recall` skips the vector backend and runs keyword-only.
+The hybrid engine treats an empty query vector as a keyword-only
+search in that mode. Recall still works; it just loses the
+semantic-similarity contribution until `openmemory model download`
+has populated the cache.
 
 ## Recall scoring (graph only)
 

@@ -69,7 +69,8 @@ engine internally.
    scanning required at the API level.
 3. **Out-of-the-box OpenClaw integration.** `openmemory integrate
    openclaw` writes a working entry into OpenClaw's JSON5 config.
-   The first run self-bootstraps SQLite plus, optionally, the
+   The first run self-bootstraps SQLite. Semantic recall becomes
+   available after `openmemory model download` caches the local
    embedding model.
 4. **Production-ready Rust.** Workspace, feature flags, MSRV
    pinned at 1.85.0, `clippy::pedantic`, deterministic schema

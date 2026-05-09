@@ -14,7 +14,7 @@ name = "openmemory"
 path = "src/main.rs"
 
 [features]
-default = ["fts5", "embeddings", "completions", "watch"]
+default = ["fts5", "embeddings", "completions", "watch", "mcp-http"]
 sqlite = ["openmemory-mcp/sqlite", "openmemory-graph/sqlite", "openmemory-index/sqlite"]
 fts5 = [
     "sqlite",
@@ -23,7 +23,7 @@ fts5 = [
     "openmemory-index/fts5",
 ]
 hnsw = ["openmemory-mcp/hnsw", "openmemory-graph/hnsw", "openmemory-index/hnsw"]
-embeddings = ["openmemory-graph/embeddings", "openmemory-mcp/embeddings"]
+embeddings = ["dep:openmemory-embed", "openmemory-graph/embeddings", "openmemory-mcp/embeddings"]
 mcp-http = ["openmemory-mcp/mcp-http"]
 completions = ["dep:clap_complete"]
 watch = ["dep:openmemory-watch"]
@@ -33,6 +33,7 @@ openmemory-core = { workspace = true }
 openmemory-index = { workspace = true, default-features = false }
 openmemory-graph = { workspace = true, default-features = false }
 openmemory-mcp = { workspace = true, default-features = false }
+openmemory-embed = { workspace = true, default-features = false, optional = true }
 openmemory-watch = { workspace = true, default-features = false, optional = true }
 
 clap = { workspace = true }

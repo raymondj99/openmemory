@@ -34,6 +34,8 @@ pub struct OnnxOptions {
     pub max_tokens: usize,
     pub pooling: PoolingStrategy,
     pub output_tensor: &'static str,
+    pub search_prefix: &'static str,
+    pub document_prefix: &'static str,
 }
 
 impl Default for OnnxOptions {
@@ -42,6 +44,8 @@ impl Default for OnnxOptions {
             max_tokens: DEFAULT_MAX_TOKENS,
             pooling: PoolingStrategy::MeanPooling,
             output_tensor: DEFAULT_OUTPUT_TENSOR,
+            search_prefix: "",
+            document_prefix: "",
         }
     }
 }
@@ -55,6 +59,8 @@ pub struct OnnxEmbedder {
     max_tokens: usize,
     pooling: PoolingStrategy,
     output_tensor: &'static str,
+    search_prefix: &'static str,
+    document_prefix: &'static str,
 }
 
 impl OnnxEmbedder {
@@ -170,6 +176,8 @@ impl OnnxEmbedder {
             max_tokens: opts.max_tokens,
             pooling: opts.pooling,
             output_tensor: opts.output_tensor,
+            search_prefix: opts.search_prefix,
+            document_prefix: opts.document_prefix,
         })
     }
 
@@ -264,6 +272,19 @@ impl OnnxEmbedder {
         }
 
         Ok(results)
+    }
+
+    fn try_embed_batch_with_prefix(
+        &self,
+        texts: &[&str],
+        prefix: &str,
+    ) -> EmbedResult<Vec<Vec<f32>>> {
+        if prefix.is_empty() {
+            return self.try_embed_batch(texts);
+        }
+        let prefixed: Vec<String> = texts.iter().map(|text| format!("{prefix}{text}")).collect();
+        let refs: Vec<&str> = prefixed.iter().map(String::as_str).collect();
+        self.try_embed_batch(&refs)
     }
 
     #[allow(clippy::type_complexity)]
@@ -394,15 +415,27 @@ fn log_verification(label: &str, model_name: &str, outcome: VerificationOutcome)
     }
 }
 
+fn embed_or_log(result: EmbedResult<Vec<Vec<f32>>>) -> Vec<Vec<f32>> {
+    match result {
+        Ok(v) => v,
+        Err(e) => {
+            error!("OnnxEmbedder::embed failed: {e}");
+            Vec::new()
+        }
+    }
+}
+
 impl Embedder for OnnxEmbedder {
     fn embed(&self, texts: &[&str]) -> Vec<Vec<f32>> {
-        match self.try_embed_batch(texts) {
-            Ok(v) => v,
-            Err(e) => {
-                error!("OnnxEmbedder::embed failed: {e}");
-                Vec::new()
-            }
-        }
+        embed_or_log(self.try_embed_batch(texts))
+    }
+
+    fn embed_query(&self, texts: &[&str]) -> Vec<Vec<f32>> {
+        embed_or_log(self.try_embed_batch_with_prefix(texts, self.search_prefix))
+    }
+
+    fn embed_documents(&self, texts: &[&str]) -> Vec<Vec<f32>> {
+        embed_or_log(self.try_embed_batch_with_prefix(texts, self.document_prefix))
     }
 
     fn dimensions(&self) -> usize {
@@ -426,6 +459,8 @@ mod tests {
         assert_eq!(opts.max_tokens, 8192);
         assert_eq!(opts.pooling, PoolingStrategy::MeanPooling);
         assert_eq!(opts.output_tensor, "last_hidden_state");
+        assert_eq!(opts.search_prefix, "");
+        assert_eq!(opts.document_prefix, "");
     }
 
     #[test]

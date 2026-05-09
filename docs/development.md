@@ -193,8 +193,9 @@ the standing definition-of-done:
   is never logged at INFO; only at DEBUG. Logging defaults hide
   values, show counts.
 - **No surprise outbound network calls.** The only outbound HTTP
-  in the default build is the on-demand model download, gated by
-  `embeddings` and only triggered by an explicit first-run state.
+  in the default build is the explicit `openmemory model download`
+  command, gated by `embeddings`. MCP startup and tool calls never
+  download models.
 
 ## Security review checklist
 

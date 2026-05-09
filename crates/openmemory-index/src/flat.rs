@@ -68,6 +68,12 @@ impl FlatVectorIndex {
 
         let count = read_u64(&mut cursor, path, "count")? as usize;
         let dim = read_u32(&mut cursor, path, "dim")? as usize;
+        if dim == 0 {
+            // Older keyword-only runs persisted empty vectors. Treat that
+            // legacy vector file as an empty vector index; the keyword store
+            // remains authoritative for those rows.
+            return Ok(Self::new());
+        }
 
         let mut entries = Vec::with_capacity(count);
         for i in 0..count {
@@ -120,6 +126,13 @@ impl Default for FlatVectorIndex {
 impl VectorStore for FlatVectorIndex {
     fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
         let mut guard = self.lock()?;
+        let entries: Vec<&IndexEntry> = entries
+            .iter()
+            .filter(|entry| !entry.vector.is_empty())
+            .collect();
+        if entries.is_empty() {
+            return Ok(());
+        }
 
         if let Some(first) = entries.first() {
             let new_dim = first.vector.len();
@@ -409,6 +422,13 @@ mod tests {
         let store = FlatVectorIndex::new();
         let r = store.search(&[1.0, 0.0], 5).unwrap();
         assert!(r.is_empty());
+    }
+
+    #[test]
+    fn empty_vectors_are_not_indexed() {
+        let store = FlatVectorIndex::new();
+        store.insert(&[entry("u://a", "x", 0, vec![])]).unwrap();
+        assert_eq!(store.count().unwrap(), 0);
     }
 
     #[test]

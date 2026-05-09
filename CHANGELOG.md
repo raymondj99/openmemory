@@ -41,6 +41,15 @@ Production-hardening pass on top of v0.2.0.
   `openmemory-watch`'s feature-gated import bug; the third catches
   intra-doc links that resolve only when an optional module
   compiles.
+- **Explicit embedding-model management.** `openmemory model list`
+  reports every registry model and cache status; `openmemory model download [MODEL]`
+  downloads `model.onnx` and `tokenizer.json` into
+  the shared `~/.openmemory/models/<model>/` cache. The MCP server
+  and scriptable `remember` / `recall` commands load the cached
+  default model when present, and otherwise run keyword-only without
+  touching the network. Downloads use bounded connect/read/write
+  timeouts, retry transient failures, and write through a sibling
+  `.part` file before the final rename.
 
 ### Changed
 
@@ -57,6 +66,11 @@ Production-hardening pass on top of v0.2.0.
   catches the only regression we actually want to defend against
   (readers regressing to fully-serialised execution) without
   flaking on contended runners.
+- Hybrid search now treats missing embeddings as true keyword-only
+  operation instead of inserting or searching empty vectors. This
+  keeps keyword-only stores from assigning arbitrary vector ranks,
+  and lets a profile created before model download accept real
+  vectors later without a dimension mismatch.
 
 ### Fixed
 

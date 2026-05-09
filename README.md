@@ -39,6 +39,10 @@ openmemory integrate openclaw         # OpenClaw
 That's it. The next session in your client has all `openmemory_*` tools
 available. Try it:
 
+For semantic vector recall, run `openmemory model download` once to
+cache the default local ONNX model. Without that cache, recall still
+works in keyword-only mode.
+
 ```
 > remember that I prefer Rust over Python
 > what do you remember about my language preferences?
@@ -166,7 +170,7 @@ MSRV is **1.85.0** (pinned via `rust-toolchain.toml`).
 | `completions` | on | Shell completion generation |
 | `watch` | on | Filesystem watcher |
 | `hnsw` | off | usearch HNSW vector index |
-| `mcp-http` | off | Streamable HTTP transport |
+| `mcp-http` | on | Streamable HTTP transport |
 
 ## Documentation
 

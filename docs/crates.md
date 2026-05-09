@@ -366,7 +366,8 @@ business logic. Each subcommand is a small adapter to a function in
 
 - Description: "openmemory: command-line interface"
 - Binary name: `openmemory`.
-- Default features: `fts5`, `embeddings`, `completions`, `watch`.
+- Default features: `fts5`, `embeddings`, `completions`, `watch`,
+  `mcp-http`.
 - Features: `sqlite`, `fts5`, `hnsw`, `embeddings`, `mcp-http`,
   `completions`, `watch`.
 - Dependencies: every other workspace crate plus `clap`,

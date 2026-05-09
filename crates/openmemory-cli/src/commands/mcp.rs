@@ -21,6 +21,22 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
     }
     let memory = MemoryStore::open(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
+
+    #[cfg(feature = "embeddings")]
+    let memory = {
+        let models_dir = Config::models_dir().context("resolving models directory")?;
+        if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
+            eprintln!(
+                "openmemory mcp: embeddings active ({})",
+                embedder.model_name()
+            );
+            memory.with_embedder(Arc::new(embedder))
+        } else {
+            eprintln!("openmemory mcp: running in keyword-only mode (no embedder)");
+            memory
+        }
+    };
+
     let server = OpenMemoryMcpServer::from_memory(config, Arc::new(memory));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()

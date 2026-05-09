@@ -187,7 +187,7 @@ panic = "abort"
 Default features (what `cargo install openmemory` gives you):
 
 ```toml
-default = ["fts5", "embeddings", "completions", "watch"]
+default = ["fts5", "embeddings", "completions", "watch", "mcp-http"]
 ```
 
 Toggleable features (per crate detail in
@@ -200,7 +200,7 @@ Toggleable features (per crate detail in
 | `completions` | on | clap shell completion generation. |
 | `watch` | on (CLI) | The `openmemory watch` subcommand and the watcher crate. |
 | `hnsw` | off | usearch-backed approximate vector index. Adds a C++ build dep. |
-| `mcp-http` | off | Streamable HTTP transport for the MCP server. |
+| `mcp-http` | on | Streamable HTTP transport for the MCP server. |
 | `simd` | off | Reserved. |
 
 ## Design philosophy
@@ -241,9 +241,10 @@ never logged at INFO; only at DEBUG. Logging defaults hide values
 and show counts.
 
 **No surprise outbound network calls.** The only outbound HTTP in
-the default build is the on-demand model download, which is gated
-by the `embeddings` feature and only fires on a first-run state.
-The bearer-token comparison is constant-time over the byte
+the default build is the explicit `openmemory model download`
+command, which is gated by the `embeddings` feature and never runs
+during MCP startup or tool handling. The bearer-token comparison is
+constant-time over the byte
 payload, and the `BearerToken` type's `Debug` impl never logs the
 secret.
 

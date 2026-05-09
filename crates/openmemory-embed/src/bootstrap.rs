@@ -1,0 +1,128 @@
+//! Embedder bootstrap shared by `openmemory-cli` and `openmemory-mcp`.
+//!
+//! [`load_embedder`] resolves the default ONNX model from a local
+//! cache directory and returns an [`OnnxEmbedder`] ready for use.
+//! It never touches the network; returns `None` on any miss so
+//! callers fall back to keyword-only search at the boundary.
+//!
+//! [`ensure_model`] is the download counterpart: it fetches from
+//! Hugging Face when the model is absent and the ONNX Runtime is
+//! available. Intended for `openmemory model download`, not server
+//! startup.
+
+use crate::download::ModelManager;
+use crate::models::ModelRegistry;
+use crate::OnnxEmbedder;
+use std::path::Path;
+use tracing::{info, warn};
+
+/// Attempt to find the ONNX Runtime shared library in common
+/// locations and set `ORT_DYLIB_PATH` if not already set.
+fn init_ort_env() {
+    if std::env::var("ORT_DYLIB_PATH").is_ok() {
+        return;
+    }
+
+    let candidates: &[&str] = if cfg!(target_os = "macos") {
+        &[
+            "/opt/homebrew/opt/onnxruntime/lib/libonnxruntime.dylib",
+            "/usr/local/opt/onnxruntime/lib/libonnxruntime.dylib",
+            "/usr/local/lib/libonnxruntime.dylib",
+        ]
+    } else {
+        &[
+            "/usr/lib/libonnxruntime.so",
+            "/usr/local/lib/libonnxruntime.so",
+            "/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
+            "/usr/lib/aarch64-linux-gnu/libonnxruntime.so",
+        ]
+    };
+
+    for path in candidates {
+        if Path::new(path).exists() {
+            std::env::set_var("ORT_DYLIB_PATH", path);
+            info!("Auto-detected ONNX Runtime at {path}");
+            return;
+        }
+    }
+}
+
+/// Load the default text embedder from a locally cached model.
+///
+/// Returns `None` when the ONNX Runtime is unavailable, the model
+/// has not been downloaded yet, or the model cannot be loaded. The
+/// caller should continue in keyword-only mode.
+///
+/// To download the model first, use [`ensure_model`].
+pub fn load_embedder(models_dir: &Path) -> Option<OnnxEmbedder> {
+    init_ort_env();
+
+    let manager = ModelManager::new(models_dir.to_path_buf());
+    let registry = ModelRegistry::default();
+    let model = registry.default_model();
+
+    let model_dir = if let Some(dir) = manager.downloaded_model_dir(model) {
+        dir
+    } else {
+        info!(
+            "Embedding model not downloaded. Running in keyword-only mode. \
+             Run `openmemory model download` for semantic search."
+        );
+        return None;
+    };
+
+    match OnnxEmbedder::load_for_model(&model_dir, model) {
+        Ok(embedder) => {
+            info!("Loaded embedding model: {}", model.name);
+            Some(embedder)
+        }
+        Err(e) => {
+            warn!(
+                "Failed to load embedding model: {e}. \
+                 Running in keyword-only mode."
+            );
+            None
+        }
+    }
+}
+
+/// Download the default embedding model if not already present.
+///
+/// Skips the download when the ONNX Runtime is not available on
+/// this system (no point caching a model that can't be loaded).
+///
+/// Returns `true` when the model is available (was already cached or
+/// was freshly downloaded). Returns `false` when ORT is missing or
+/// the download fails.
+pub fn ensure_model(models_dir: &Path) -> bool {
+    init_ort_env();
+    if std::env::var("ORT_DYLIB_PATH").is_err() {
+        info!("ONNX Runtime not found. Skipping model download.");
+        return false;
+    }
+
+    let manager = ModelManager::new(models_dir.to_path_buf());
+    let registry = ModelRegistry::default();
+    let model = registry.default_model();
+
+    if manager.downloaded_model_dir(model).is_some() {
+        return true;
+    }
+
+    info!(
+        "Embedding model '{}' not found locally, downloading...",
+        model.name
+    );
+    if let Err(e) = manager.download(model) {
+        warn!("Failed to download embedding model: {e}");
+        return false;
+    }
+    true
+}
+
+/// Convenience wrapper: resolve `~/.openmemory/models/` from the
+/// config and call [`load_embedder`].
+pub fn load_default_embedder() -> Option<OnnxEmbedder> {
+    let models_dir = openmemory_core::config::Config::models_dir().ok()?;
+    load_embedder(&models_dir)
+}

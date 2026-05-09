@@ -108,7 +108,7 @@ impl MemoryStore {
 
         let mode = filters.mode.unwrap_or_default();
 
-        let vector = self.embed_text(query);
+        let vector = self.embed_query_text(query);
         let fetch = top_k.saturating_mul(3).max(top_k);
 
         let raw_results = {
