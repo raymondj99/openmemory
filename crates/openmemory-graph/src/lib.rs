@@ -79,6 +79,7 @@
 pub mod consolidate;
 pub mod error;
 pub mod forget;
+pub mod normalize;
 pub mod pool;
 pub mod recall;
 pub mod remember;
@@ -89,6 +90,7 @@ pub mod types;
 pub use consolidate::{ConsolidateConfig, ConsolidateReport};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
+pub use normalize::NormalizeMatch;
 pub use openmemory_index::SearchMode;
 pub use pool::ReadPool;
 pub use recall::{

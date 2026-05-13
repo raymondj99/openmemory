@@ -15,6 +15,8 @@ pub struct Config {
     pub index: IndexSection,
     #[serde(default)]
     pub watch: WatchSection,
+    #[serde(default)]
+    pub normalization: NormalizationSection,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -74,6 +76,18 @@ pub struct WatchSection {
     /// indexing snappy on an editor save loop.
     #[serde(default = "WatchSection::default_max_size")]
     pub max_size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NormalizationSection {
+    #[serde(default = "NormalizationSection::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "NormalizationSection::default_auto_merge_threshold")]
+    pub auto_merge_threshold: f64,
+    #[serde(default = "NormalizationSection::default_flag_threshold")]
+    pub flag_threshold: f64,
+    #[serde(default = "NormalizationSection::default_max_candidates")]
+    pub max_candidates: usize,
 }
 
 impl Config {
@@ -147,6 +161,24 @@ impl Config {
             return Err(OmError::Config(
                 "index.chunk_size must be greater than 0".into(),
             ));
+        }
+        if !(0.0..=1.0).contains(&self.normalization.auto_merge_threshold) {
+            return Err(OmError::Config(format!(
+                "normalization.auto_merge_threshold ({}) must be between 0.0 and 1.0",
+                self.normalization.auto_merge_threshold
+            )));
+        }
+        if !(0.0..=1.0).contains(&self.normalization.flag_threshold) {
+            return Err(OmError::Config(format!(
+                "normalization.flag_threshold ({}) must be between 0.0 and 1.0",
+                self.normalization.flag_threshold
+            )));
+        }
+        if self.normalization.flag_threshold >= self.normalization.auto_merge_threshold {
+            return Err(OmError::Config(format!(
+                "normalization.flag_threshold ({}) must be less than auto_merge_threshold ({})",
+                self.normalization.flag_threshold, self.normalization.auto_merge_threshold
+            )));
         }
         Ok(())
     }
@@ -241,6 +273,32 @@ impl Default for WatchSection {
             debounce_ms: Self::default_debounce_ms(),
             extensions: Vec::new(),
             max_size: Self::default_max_size(),
+        }
+    }
+}
+
+impl NormalizationSection {
+    fn default_enabled() -> bool {
+        true
+    }
+    fn default_auto_merge_threshold() -> f64 {
+        0.95
+    }
+    fn default_flag_threshold() -> f64 {
+        0.85
+    }
+    fn default_max_candidates() -> usize {
+        100
+    }
+}
+
+impl Default for NormalizationSection {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            auto_merge_threshold: Self::default_auto_merge_threshold(),
+            flag_threshold: Self::default_flag_threshold(),
+            max_candidates: Self::default_max_candidates(),
         }
     }
 }
@@ -350,5 +408,36 @@ decay_rate = 0.02
     fn num_jobs_auto() {
         let config = Config::default();
         assert!(config.num_jobs() >= 1);
+    }
+
+    #[test]
+    fn validate_rejects_bad_normalization_thresholds() {
+        let mut config = Config::default();
+        config.normalization.flag_threshold = 0.96;
+        config.normalization.auto_merge_threshold = 0.95;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_normalization_threshold_out_of_range() {
+        let mut config = Config::default();
+        config.normalization.auto_merge_threshold = 1.5;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn normalization_toml_round_trip() {
+        let mut config = Config::default();
+        config.normalization.enabled = false;
+        config.normalization.auto_merge_threshold = 0.90;
+        config.normalization.flag_threshold = 0.80;
+        config.normalization.max_candidates = 50;
+
+        let serialized = toml::to_string_pretty(&config).unwrap();
+        let deserialized: Config = toml::from_str(&serialized).unwrap();
+        assert!(!deserialized.normalization.enabled);
+        assert!((deserialized.normalization.auto_merge_threshold - 0.90).abs() < f64::EPSILON);
+        assert!((deserialized.normalization.flag_threshold - 0.80).abs() < f64::EPSILON);
+        assert_eq!(deserialized.normalization.max_candidates, 50);
     }
 }

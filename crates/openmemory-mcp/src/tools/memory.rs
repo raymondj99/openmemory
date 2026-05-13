@@ -19,7 +19,9 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use openmemory_graph::{EntityType, MemoryError, ObservationInput, RecallFilters, RelationInput};
+use openmemory_graph::{
+    EntityType, MemoryError, NormalizeMatch, ObservationInput, RecallFilters, RelationInput,
+};
 
 use crate::params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
 use crate::protocol::{CallToolResult, JsonRpcError, ToolDescriptor};
@@ -161,12 +163,26 @@ impl Tool for OpenMemoryRememberTool {
             .memory()
             .remember(&req.entity, entity_type, &observations, &relations, &source)
             .map_err(map_memory_err)?;
-        let response = json!({
+        let mut response = json!({
             "entity_id": outcome.entity_id,
             "entity_existed": outcome.entity_existed,
             "observation_ids": outcome.observation_ids,
             "relation_ids": outcome.relation_ids,
         });
+        if let Some(ref norm) = outcome.normalized {
+            let (action, matched_id, score) = match norm {
+                NormalizeMatch::AutoMerge { entity_id, score } => ("auto_merged", entity_id, score),
+                NormalizeMatch::Flag { entity_id, score } => ("flagged", entity_id, score),
+            };
+            response.as_object_mut().unwrap().insert(
+                "normalized".into(),
+                json!({
+                    "action": action,
+                    "matched_entity_id": matched_id,
+                    "score": score,
+                }),
+            );
+        }
         json_text_result(&response)
     }
 }

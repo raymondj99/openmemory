@@ -86,6 +86,9 @@ notify-debouncer-full = "0.7"
 ignore = "0.4"
 walkdir = "2"
 
+# String similarity
+strsim = "0.11"
+
 # Random (retry jitter)
 rand = "0.8"
 

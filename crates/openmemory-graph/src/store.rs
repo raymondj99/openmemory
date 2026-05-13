@@ -87,6 +87,10 @@ pub struct MemoryStore {
     rebuild_lock: RwLock<()>,
     data_dir: PathBuf,
     decay_rate: f64,
+    pub(crate) normalization_enabled: bool,
+    pub(crate) auto_merge_threshold: f64,
+    pub(crate) flag_threshold: f64,
+    pub(crate) max_candidates: usize,
     clock: Arc<dyn Clock>,
     #[cfg(any(feature = "testing", feature = "embeddings"))]
     embedder: Option<Arc<dyn Embedder>>,
@@ -122,6 +126,10 @@ impl MemoryStore {
             rebuild_lock: RwLock::new(()),
             data_dir: data_dir.to_path_buf(),
             decay_rate: config.memory.decay_rate,
+            normalization_enabled: config.normalization.enabled,
+            auto_merge_threshold: config.normalization.auto_merge_threshold,
+            flag_threshold: config.normalization.flag_threshold,
+            max_candidates: config.normalization.max_candidates,
             clock: Arc::new(SystemClock),
             #[cfg(any(feature = "testing", feature = "embeddings"))]
             embedder: None,
@@ -162,6 +170,10 @@ impl MemoryStore {
             rebuild_lock: RwLock::new(()),
             data_dir: temp_dir.path().to_path_buf(),
             decay_rate: config.memory.decay_rate,
+            normalization_enabled: config.normalization.enabled,
+            auto_merge_threshold: config.normalization.auto_merge_threshold,
+            flag_threshold: config.normalization.flag_threshold,
+            max_candidates: config.normalization.max_candidates,
             clock: Arc::new(SystemClock),
             #[cfg(any(feature = "testing", feature = "embeddings"))]
             embedder: None,

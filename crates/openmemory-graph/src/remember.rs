@@ -17,6 +17,7 @@ use openmemory_index::IndexEntry;
 use rusqlite::{params, OptionalExtension, Transaction};
 
 use crate::error::{MemoryError, MemoryResult};
+use crate::normalize::{find_best_match, NormalizeMatch};
 use crate::store::MemoryStore;
 use crate::types::{new_id, Entity, EntityType, MemoryTier};
 
@@ -107,6 +108,7 @@ pub struct RememberOutcome {
     pub entity_existed: bool,
     pub observation_ids: Vec<String>,
     pub relation_ids: Vec<String>,
+    pub normalized: Option<NormalizeMatch>,
 }
 
 impl MemoryStore {
@@ -163,7 +165,20 @@ impl MemoryStore {
         let mut conn = self.lock_db();
         let tx = conn.transaction()?;
 
-        let (entity_id, entity_existed) = ensure_entity(&tx, name, entity_type, source, now)?;
+        let ent = ensure_entity(
+            &tx,
+            name,
+            entity_type,
+            source,
+            now,
+            self.normalization_enabled,
+            self.auto_merge_threshold,
+            self.flag_threshold,
+            self.max_candidates,
+        )?;
+        let entity_id = ent.entity_id;
+        let entity_existed = ent.existed;
+        let normalized = ent.normalized;
 
         let mut observation_ids = Vec::with_capacity(observations.len());
         let mut search_payload: Vec<(String, String)> = Vec::with_capacity(observations.len());
@@ -197,7 +212,7 @@ impl MemoryStore {
 
         let mut relation_ids = Vec::with_capacity(relations.len());
         for rel in relations {
-            let (target_id, _existed) = ensure_entity(
+            let target_result = ensure_entity(
                 &tx,
                 &rel.target_name,
                 rel.target_type,
@@ -207,7 +222,12 @@ impl MemoryStore {
                     &rel.source
                 },
                 now,
+                self.normalization_enabled,
+                self.auto_merge_threshold,
+                self.flag_threshold,
+                self.max_candidates,
             )?;
+            let target_id = target_result.entity_id;
             let id = new_id();
             tx.execute(
                 "INSERT INTO relations
@@ -245,6 +265,7 @@ impl MemoryStore {
             entity_existed,
             observation_ids,
             relation_ids,
+            normalized,
         })
     }
 
@@ -315,13 +336,25 @@ impl MemoryStore {
     }
 }
 
+struct EnsureResult {
+    entity_id: String,
+    existed: bool,
+    normalized: Option<NormalizeMatch>,
+}
+
+#[allow(clippy::too_many_arguments)]
 fn ensure_entity(
     tx: &Transaction<'_>,
     name: &str,
     entity_type: EntityType,
     source: &str,
     now: i64,
-) -> MemoryResult<(String, bool)> {
+    normalization_enabled: bool,
+    auto_merge_threshold: f64,
+    flag_threshold: f64,
+    max_candidates: usize,
+) -> MemoryResult<EnsureResult> {
+    // Exact match path (unchanged).
     if let Some(id) = tx
         .query_row(
             "SELECT id FROM entities WHERE name = ?1 AND entity_type = ?2",
@@ -330,14 +363,79 @@ fn ensure_entity(
         )
         .optional()?
     {
-        // Bump updated_at so the entity floats to the top of list_entities.
         tx.execute(
             "UPDATE entities SET updated_at = ?1 WHERE id = ?2",
             params![now, id],
         )?;
-        return Ok((id, true));
+        return Ok(EnsureResult {
+            entity_id: id,
+            existed: true,
+            normalized: None,
+        });
     }
 
+    // Fuzzy match path.
+    if normalization_enabled {
+        let mut stmt = tx.prepare(
+            "SELECT id, name FROM entities WHERE entity_type = ?1
+             ORDER BY updated_at DESC LIMIT ?2",
+        )?;
+        let candidates: Vec<(String, String)> = stmt
+            .query_map(
+                params![entity_type.as_str(), max_candidates as i64],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if let Some(m) = find_best_match(name, &candidates, auto_merge_threshold, flag_threshold) {
+            match &m {
+                NormalizeMatch::AutoMerge { entity_id, .. } => {
+                    tx.execute(
+                        "UPDATE entities SET updated_at = ?1 WHERE id = ?2",
+                        params![now, entity_id],
+                    )?;
+                    return Ok(EnsureResult {
+                        entity_id: entity_id.clone(),
+                        existed: true,
+                        normalized: Some(m),
+                    });
+                }
+                NormalizeMatch::Flag {
+                    entity_id: matched_id,
+                    score,
+                } => {
+                    let new_entity = create_entity(tx, name, entity_type, source, now)?;
+                    let rel_id = new_id();
+                    tx.execute(
+                        "INSERT INTO relations (id, from_entity, to_entity, relation_type, weight, created_at, source)
+                         VALUES (?1, ?2, ?3, 'SAME_AS', ?4, ?5, 'normalization')",
+                        params![rel_id, new_entity, matched_id, *score, now],
+                    )?;
+                    return Ok(EnsureResult {
+                        entity_id: new_entity,
+                        existed: false,
+                        normalized: Some(m),
+                    });
+                }
+            }
+        }
+    }
+
+    let id = create_entity(tx, name, entity_type, source, now)?;
+    Ok(EnsureResult {
+        entity_id: id,
+        existed: false,
+        normalized: None,
+    })
+}
+
+fn create_entity(
+    tx: &Transaction<'_>,
+    name: &str,
+    entity_type: EntityType,
+    source: &str,
+    now: i64,
+) -> MemoryResult<String> {
     let entity = Entity {
         id: new_id(),
         name: name.to_string(),
@@ -360,7 +458,7 @@ fn ensure_entity(
             entity.source,
         ],
     )?;
-    Ok((entity.id, false))
+    Ok(entity.id)
 }
 
 #[cfg(test)]
@@ -610,5 +708,194 @@ mod tests {
         assert!((i.confidence - 1.0).abs() < f32::EPSILON);
         let i = ObservationInput::new("x").with_confidence(-0.5);
         assert!(i.confidence.abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn normalize_auto_merge_on_casing() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "Project Alpha",
+                EntityType::Project,
+                &[ObservationInput::new("first fact")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "project alpha",
+                EntityType::Project,
+                &[ObservationInput::new("second fact")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_eq!(first.entity_id, second.entity_id);
+        assert!(second.entity_existed);
+        assert!(matches!(
+            second.normalized,
+            Some(NormalizeMatch::AutoMerge { .. })
+        ));
+        assert_eq!(store.status().unwrap().total_entities, 1);
+    }
+
+    #[test]
+    fn normalize_auto_merge_on_spacing() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "ProjectAlpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact one")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "Project Alpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact two")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_eq!(first.entity_id, second.entity_id);
+    }
+
+    #[test]
+    fn normalize_flag_on_near_miss() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "config",
+                EntityType::Concept,
+                &[ObservationInput::new("application configuration")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "configs",
+                EntityType::Concept,
+                &[ObservationInput::new("multiple configuration files")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_ne!(first.entity_id, second.entity_id);
+        assert!(matches!(
+            second.normalized,
+            Some(NormalizeMatch::Flag { .. })
+        ));
+        let rels = store.get_entity_relations(&second.entity_id).unwrap();
+        assert!(
+            rels.iter().any(|r| r.relation_type == "SAME_AS"),
+            "expected SAME_AS relation"
+        );
+    }
+
+    #[test]
+    fn normalize_no_match_on_unrelated() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "Raymond",
+                EntityType::Person,
+                &[ObservationInput::new("a person")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "Kubernetes",
+                EntityType::Person,
+                &[ObservationInput::new("a platform")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_ne!(first.entity_id, second.entity_id);
+        assert!(second.normalized.is_none());
+    }
+
+    #[test]
+    fn normalize_type_constraint() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "Raymond",
+                EntityType::Person,
+                &[ObservationInput::new("a person")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "Raymond",
+                EntityType::Project,
+                &[ObservationInput::new("a project")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_ne!(first.entity_id, second.entity_id);
+    }
+
+    #[test]
+    fn normalize_observations_land_after_auto_merge() {
+        let (store, _clock) = open_with_clock();
+        let first = store
+            .remember(
+                "Project Alpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact one")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        store
+            .remember(
+                "project alpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact two")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let obs = store.get_entity_observations(&first.entity_id).unwrap();
+        let contents: Vec<_> = obs.iter().map(|o| o.content.as_str()).collect();
+        assert!(contents.contains(&"fact one"));
+        assert!(contents.contains(&"fact two"));
+    }
+
+    #[test]
+    fn normalize_disabled_creates_separate_entities() {
+        let mut config = Config::default();
+        config.normalization.enabled = false;
+        let store = MemoryStore::open_in_memory(&config).unwrap();
+        let first = store
+            .remember(
+                "Project Alpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact one")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let second = store
+            .remember(
+                "project alpha",
+                EntityType::Project,
+                &[ObservationInput::new("fact two")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        assert_ne!(first.entity_id, second.entity_id);
     }
 }
