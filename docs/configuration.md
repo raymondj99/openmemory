@@ -38,6 +38,12 @@ max_chars  = 1_000_000
 debounce_ms = 200
 extensions  = ["md", "markdown", "txt", "rs", "py"]
 max_size    = 10_485_760   # 10 MiB
+
+[normalization]
+enabled              = true
+auto_merge_threshold = 0.95
+flag_threshold       = 0.85
+max_candidates       = 100
 ```
 
 ### `[default]` section
@@ -83,6 +89,23 @@ Used only by the `openmemory-watch` crate.
 CLI flags (`--debounce-ms`, `--exts`, `--max-size`,
 `--no-initial-scan`) override the config-file values for one
 process only.
+
+### `[normalization]` section
+
+Entity-name normalization on the `remember` write path. When an
+incoming name does not exactly match an existing entity, the
+normalizer scores it against recent entities of the same type
+using string similarity scoring. Scores above `auto_merge_threshold` silently
+redirect to the existing entity; scores in the flag zone create
+a new entity with a `SAME_AS` relation; scores below
+`flag_threshold` create a new entity with no relation.
+
+| Key | Type | Default | Effect |
+|-----|------|---------|--------|
+| `enabled` | bool | `true` | Toggle normalization on or off. When off, `remember` uses exact-match only (pre-normalization behavior). |
+| `auto_merge_threshold` | f64 | `0.95` | Minimum similarity to silently merge into an existing entity. |
+| `flag_threshold` | f64 | `0.85` | Minimum similarity to create a `SAME_AS` relation. Must be strictly less than `auto_merge_threshold`. |
+| `max_candidates` | usize | `100` | Maximum entities of the same type to compare against, ordered by `updated_at DESC`. |
 
 ## Environment variables
 

@@ -237,6 +237,7 @@ lockstep by `MemoryStore`. This is the heart of the project.
   `MemoryStore`, `MemoryStatus`, `EntityListRow`, `MEMORY_DB_FILE`.
 - [`src/pool.rs`](../crates/openmemory-graph/src/pool.rs):
   `ReadPool`, the read-only WAL connection pool.
+- [`src/normalize.rs`](../crates/openmemory-graph/src/normalize.rs): `NormalizeMatch`, `similarity()`, `find_best_match()`.
 - [`src/remember.rs`](../crates/openmemory-graph/src/remember.rs): `ObservationInput`, `RelationInput`, `RememberOutcome`.
 - [`src/recall.rs`](../crates/openmemory-graph/src/recall.rs):
   `RecallFilters`, `RecallResult`, decay constants.
@@ -258,7 +259,8 @@ lockstep by `MemoryStore`. This is the heart of the project.
 - `pub struct ObservationInput` with `new(content)`, `with_confidence`,
   `with_source`, plus optional `valid_from`, `valid_until`, `memory_tier`.
 - `pub struct RelationInput { relation_type, target_name, target_type }`.
-- `pub enum RememberOutcome { Created, Updated, Unchanged }`.
+- `pub struct RememberOutcome { entity_id, entity_existed, observation_ids, relation_ids, normalized }`.
+- `pub enum NormalizeMatch { AutoMerge { entity_id, score }, Flag { entity_id, score } }`.
 - `pub struct RecallFilters` with optional `entity_type`,
   `valid_at`, `source`, `min_confidence`, `entity_names`, `mode`,
   `spreading_activation`.

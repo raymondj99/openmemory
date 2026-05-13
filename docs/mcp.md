@@ -52,7 +52,7 @@ other memory MCPs.
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `openmemory_remember` | write | Create or update an entity, append observations and relations atomically. Returns `RememberOutcome` (`Created` / `Updated` / `Unchanged`). |
+| `openmemory_remember` | write | Create or update an entity, append observations and relations atomically. Fuzzy-matches incoming names against existing entities of the same type to prevent duplicates (configurable thresholds in `[normalization]`). |
 | `openmemory_recall` | read | Hybrid (vector + keyword) search over observations, scored with Ebbinghaus decay. Optional spreading-activation expansion to related entities. |
 | `openmemory_list_entities` | read | Browse entities. Optional filter by `entity_type`; pagination via `limit` / `offset`. |
 | `openmemory_get_entity` | read | All observations and relations for one entity, lookup by `entity_id` or `name`. Used after `recall` to drill in. |

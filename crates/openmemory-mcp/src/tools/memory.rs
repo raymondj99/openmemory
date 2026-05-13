@@ -92,8 +92,11 @@ pub struct RelationInputParam {
 const REMEMBER_DESC: &str =
     "Store facts about an entity in persistent memory. Creates or updates the entity and \
      appends observations (atomic facts). Optionally records directed relationships to other \
-     entities, creating those entities lazily if they do not yet exist. Use this to persist \
-     knowledge across sessions — user preferences, project decisions, learned patterns.";
+     entities, creating those entities lazily if they do not yet exist. Entity names are \
+     fuzzy-matched against existing entities of the same type: near-identical names \
+     (e.g. \"ProjectAlpha\" vs \"Project Alpha\") auto-merge; close matches create a SAME_AS \
+     relation. The response includes a 'normalized' field when normalization fires. Use this \
+     to persist knowledge across sessions: user preferences, project decisions, learned patterns.";
 
 /// Handler for the `openmemory_remember` MCP tool. Stores or updates
 /// an entity and appends observations + optional relations atomically.

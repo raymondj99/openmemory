@@ -33,6 +33,12 @@ Production-hardening pass on top of v0.2.0.
   case-insensitively, and treat empty hashes as
   `VerificationOutcome::Skipped` (warns, loads anyway).
   Both shipped models have recorded hashes.
+- **Entity normalization on the remember write path.** Fuzzy-matches
+  incoming entity names against existing entities of the same type
+  before creating duplicates. Three configurable thresholds
+  in `[normalization]`: auto-merge (>= 0.95), flag with `SAME_AS`
+  relation (0.85-0.95), or create new entity (< 0.85). Enabled by
+  default; disable with `normalization.enabled = false`.
 - **CI gates.** `cargo test --workspace --no-default-features`,
   `cargo clippy --workspace --no-default-features --all-targets --
   -D warnings`, and `cargo doc --workspace --no-deps --all-features`
