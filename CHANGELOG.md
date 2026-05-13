@@ -82,12 +82,10 @@ Production-hardening pass on top of v0.2.0.
   previously failed because `SourceKind`, `SourceRecord`, and the
   `metadata` field on `OpenEngine` are sqlite-gated). Higher-level
   crates still gate the watcher behind their own optional feature.
-- Concurrent-recall integration test asserts `parallel_elapsed <
-  serial_estimate` instead of a numeric speedup ratio. Numeric
-  ratios depend on shared-CI-runner neighbour load; the new shape
-  catches the only regression we actually want to defend against
-  (readers regressing to fully-serialised execution) without
-  flaking on contended runners.
+- Concurrent-recall integration test uses a proportional noise guard
+  (5% of serial estimate) instead of an absolute 20ms guard. The
+  absolute guard flaked on fast machines with few cores where the
+  serial estimate was small relative to scheduling noise.
 - Hybrid search now treats missing embeddings as true keyword-only
   operation instead of inserting or searching empty vectors. This
   keeps keyword-only stores from assigning arbitrary vector ranks,

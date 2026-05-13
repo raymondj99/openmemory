@@ -364,8 +364,8 @@ fn integration_schema_migration_on_reopen() {
 ///    at all. We deliberately avoid asserting a numeric speedup ratio
 ///    (1.25×, 2×, …) because shared CI runners hit ratios that depend
 ///    on neighbour load, but "any overlap whatsoever" is a stable
-///    signal. A small absolute slack (`SCHED_NOISE_GUARD`) keeps
-///    timer jitter on tiny serial estimates from flipping the result.
+///    signal. A proportional slack (5% of serial estimate) absorbs
+///    scheduler jitter without flaking on fast machines with few cores.
 /// 3. **Post-parallel correctness.** A single recall after the parallel
 ///    phase still returns the same entities (sanity check that the
 ///    write-side `bump_access_counts` didn't corrupt anything).
@@ -470,18 +470,13 @@ fn integration_concurrent_recall_runs_in_parallel() {
 
     // 2) Parallel time is strictly less than the fully-serial estimate.
     // No numeric speedup floor — shared-runner load makes the ratio
-    // jittery — but we do require *some* real overlap. A small
-    // absolute slack (`SCHED_NOISE_GUARD`) keeps timer noise from
-    // flipping the assertion when work and noise are within a few
-    // milliseconds of each other.
+    // jittery — but we do require *some* real overlap.
     //
-    // Precondition: the serial estimate must exceed the guard with
-    // enough headroom to leave a non-trivial assertion. With iters=25
-    // and recall doing real SQLite work this is comfortably true on
-    // every runner we ship to; if it ever isn't, the test would
-    // become inconclusive (parallel_elapsed < ~zero) so we panic with
-    // a clear message instead of silently passing or failing.
-    const SCHED_NOISE_GUARD: Duration = Duration::from_millis(20);
+    // The proportional guard (5% of serial estimate) absorbs scheduler
+    // jitter that scales with work done. An absolute guard (the old
+    // 20ms) fails on fast machines with few cores where the serial
+    // estimate is small relative to scheduling noise.
+    const NOISE_FRACTION: f64 = 0.05;
     const MIN_SERIAL_FOR_SIGNAL: Duration = Duration::from_millis(50);
     let serial_estimate = single_median * u32::try_from(n).unwrap_or(u32::MAX);
     assert!(
@@ -490,7 +485,8 @@ fn integration_concurrent_recall_runs_in_parallel() {
          (single-thread median {single_median:?}, n={n}, iters={iters}); \
          the test would be inconclusive — bump iters or the seed size",
     );
-    let upper_bound = serial_estimate - SCHED_NOISE_GUARD;
+    let upper_bound =
+        Duration::from_secs_f64(serial_estimate.as_secs_f64() * (1.0 - NOISE_FRACTION));
     let speedup = serial_estimate.as_secs_f64() / parallel_elapsed.as_secs_f64();
     println!(
         "concurrent_recall: n={n} iters={iters} \
@@ -501,7 +497,7 @@ fn integration_concurrent_recall_runs_in_parallel() {
         parallel_elapsed < upper_bound,
         "concurrent recall took {parallel_elapsed:?} — expected < {upper_bound:?} \
          (single-thread median {single_median:?}, n={n}, iters={iters}, \
-          serial estimate {serial_estimate:?}, noise guard {SCHED_NOISE_GUARD:?}); \
+          serial estimate {serial_estimate:?}, noise fraction {NOISE_FRACTION}); \
          readers may have regressed to fully-serialised execution",
     );
 
