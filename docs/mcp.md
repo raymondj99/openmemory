@@ -19,7 +19,7 @@ up is a mechanical change.
 |-------|-------|
 | Protocol version (advertised in `initialize`) | `"2024-11-05"` |
 | Server name | `"openmemory"` |
-| Server version | `0.2.0` (workspace version) |
+| Server version | `0.2.1` (workspace version) |
 | Wire format | JSON-RPC 2.0 |
 | Default transport | stdio (line-buffered, one JSON object per line) |
 | Optional transport | Streamable HTTP (POST `/mcp`) behind `mcp-http` feature |

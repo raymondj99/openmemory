@@ -21,10 +21,15 @@ The project is built around three opinionated choices:
    `openmemory integrate openclaw` writes a working entry into
    OpenClaw's config. Nothing else is required.
 
-Current release: **v0.2.0**. Multi-agent memory (a pool of
-read-only WAL connections so concurrent recalls run in parallel)
-and the `openmemory watch DIR` filesystem watcher landed in this
-release. The MCP tool surface is unchanged at v0.1.
+Current release: **v0.2.1**. A production-hardening patch on top
+of v0.2.0: entity normalization on the `remember` write path,
+explicit embedding-model management (`openmemory model list /
+download / use`), SHA-256 integrity verification for ONNX models,
+and optional bearer-token auth on the Streamable HTTP transport.
+v0.2.0 introduced multi-agent memory (a pool of read-only WAL
+connections so concurrent recalls run in parallel) and the
+`openmemory watch DIR` filesystem watcher. The MCP tool surface
+is unchanged at v0.1.
 
 ## Document map
 
@@ -44,7 +49,7 @@ its own; skip ahead if you only need one slice.
 | [cli.md](cli.md) | Reference for every `openmemory` subcommand and its flags: `init`, `status`, `mcp`, `consolidate`, `integrate openclaw`, `remember`, `recall`, `list-entities`, `forget-entity`, `completions`, `watch`. |
 | [watcher.md](watcher.md) | The `openmemory-watch` crate. What it indexes, the initial-tree walk, the debounced event loop, BLAKE3 dedup, the precedence of `.gitignore` / `.ignore` / `.openmemory-ignore`, and the `file://` URI shape. |
 | [development.md](development.md) | The local development loop, MSRV pin, lints and clippy config, the CI matrix, testing discipline, the hosted-Codespace walkthrough for HTTP-transport validation, and security-review checklist. |
-| [roadmap.md](roadmap.md) | What shipped in v0.1.0 and v0.2.0, what is in flight on `[Unreleased]`, and the post-v0.2 backlog (Homebrew, LLM features, Postgres backend, etc.). |
+| [roadmap.md](roadmap.md) | What shipped in v0.1.0, v0.2.0, and v0.2.1, what is in flight on `[Unreleased]`, and the post-v0.2 backlog (Homebrew, LLM features, Postgres backend, etc.). |
 
 ## Quick links
 

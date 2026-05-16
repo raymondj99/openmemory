@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85"
@@ -22,12 +22,12 @@ homepage = "https://github.com/raymondj99/openmemory"
 
 [workspace.dependencies]
 # Internal crates
-openmemory-core = { path = "crates/openmemory-core", version = "0.2.0" }
-openmemory-index = { path = "crates/openmemory-index", version = "0.2.0", default-features = false }
-openmemory-embed = { path = "crates/openmemory-embed", version = "0.2.0", default-features = false }
-openmemory-graph = { path = "crates/openmemory-graph", version = "0.2.0", default-features = false }
-openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.2.0", default-features = false }
-openmemory-watch = { path = "crates/openmemory-watch", version = "0.2.0", default-features = false }
+openmemory-core = { path = "crates/openmemory-core", version = "0.2.1" }
+openmemory-index = { path = "crates/openmemory-index", version = "0.2.1", default-features = false }
+openmemory-embed = { path = "crates/openmemory-embed", version = "0.2.1", default-features = false }
+openmemory-graph = { path = "crates/openmemory-graph", version = "0.2.1", default-features = false }
+openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.2.1", default-features = false }
+openmemory-watch = { path = "crates/openmemory-watch", version = "0.2.1", default-features = false }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }

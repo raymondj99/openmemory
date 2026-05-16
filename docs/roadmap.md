@@ -8,6 +8,77 @@ gives the bird's-eye view.
 
 ## Released
 
+### v0.2.1 (2026-05-16). Production-hardening patch
+
+A patch release on top of v0.2.0. The MCP tool surface is
+unchanged at v0.1; `openmemory_remember` responses gain an
+optional `normalized` field. Five themes:
+
+- **Entity normalization on the `remember` write path.** Fuzzy
+  matches incoming entity names against existing entities of the
+  same type to prevent near-duplicate fragmentation
+  (`"ProjectAlpha"` / `"Project Alpha"` / `"project alpha"`
+  collapse to one entity). Three configurable thresholds in the
+  new `[normalization]` config section: auto-merge (>= 0.95),
+  flag with `SAME_AS` relation (0.85-0.95), or create new entity
+  (< 0.85). Scoring is `JW.min(NLev)` over token-sorted and
+  alnum-stripped forms; the slow-path floor prevents prefix-
+  biased false positives like `"Topic1"` / `"Topic10"`. New
+  public Rust type `NormalizeMatch`; new optional `normalized`
+  field on `openmemory_remember` responses; enabled by default.
+- **Explicit embedding-model management.**
+  `openmemory model list` reports every registry model and its
+  cache status; `openmemory model download [MODEL]` fetches the
+  graph, tokenizer, and (when present) external-data files into
+  `~/.openmemory/models/<model>/`; `openmemory model use <name>`
+  writes `default.model` to `config.toml` so the next process
+  picks it up. Downloads stream in 64 KiB chunks, enforce
+  per-file size caps, verify `Content-Length`, retry transients,
+  use a `.part` sibling for the final rename, and check SHA-256
+  against the registry hash.
+- **SHA-256 model integrity verification.**
+  `OnnxEmbedder::load_for_model` hashes `model.onnx` and
+  `tokenizer.json` before handing them to ONNX Runtime;
+  mismatches surface as `EmbedError::ChecksumMismatch`. Both
+  shipped models have recorded hashes; empty hashes still
+  surface as `VerificationOutcome::Skipped` (warns, loads).
+- **Bearer-token auth on the HTTP transport.**
+  `OPENMEMORY_HTTP_TOKEN` reads on startup; when set, every
+  `POST /mcp` request must carry `Authorization: Bearer <token>`
+  or it gets a 401 with `WWW-Authenticate: Bearer` and a
+  JSON-RPC `-32600` envelope. Constant-time comparison;
+  redacting `Debug` impl. `/healthz` is never auth-gated. With
+  the env var unset the server logs a warning and serves
+  unauthenticated, preserving the local-dev workflow.
+- **CI gates.** `cargo test --workspace --no-default-features`,
+  `cargo clippy --workspace --no-default-features --all-targets
+  -- -D warnings`, and `cargo doc --workspace --no-deps
+  --all-features` now run on every push. The first two catch
+  feature-gated import bugs; the third catches intra-doc links
+  that resolve only when an optional module compiles.
+
+Notable Rust-side changes (the Rust API is documented as
+unstable; library consumers should pin patch versions):
+
+- `HybridSearchEngine::search` no longer takes a `chunk_index`
+  parameter.
+- `mcp-http` becomes a default feature in `openmemory-cli`
+  (opt out via `--no-default-features`).
+- `openmemory-watch` drops its own `default = ["fts5"]` feature
+  and pulls `sqlite + fts5` directly from
+  `openmemory-index` / `openmemory-graph`.
+- New public type `NormalizeMatch` and new `[normalization]`
+  config section.
+
+Test coverage added in this release: a normalization golden
+table plus property tests in `openmemory-graph::normalize` lock
+in the scoring contract; the `remember` test module pins the
+`SAME_AS` row shape, candidate recency tie-break,
+`max_candidates` truncation, cross-type isolation, and orphan-
+entity reachability; a new concurrent-near-duplicate integration
+test asserts that eight threads each writing a variant of the
+same name coalesce into one entity.
+
 ### v0.2.0 (2026-05-05). Multi-agent memory + filesystem watcher
 
 Two themes:
@@ -93,45 +164,8 @@ and exercises every tool over stdio JSON-RPC.
 
 ## Unreleased
 
-`[Unreleased]` in
-[`CHANGELOG.md`](../CHANGELOG.md#unreleased) is the production-
-hardening pass on top of v0.2.0. The themes:
-
-- **HTTP-transport bearer-token auth.** `OPENMEMORY_HTTP_TOKEN`
-  reads on startup; when set, every `POST /mcp` request must carry
-  `Authorization: Bearer <token>` or it gets a 401 with
-  `WWW-Authenticate: Bearer` and a JSON-RPC `-32600` envelope.
-  Constant-time comparison; redacting `Debug` impl. `/healthz` is
-  never auth-gated. Documented in
-  [mcp.md](mcp.md#bearer-token-authentication).
-- **SHA-256 model integrity verification.**
-  `OnnxEmbedder::load_for_model` hashes the on-disk `model.onnx`
-  and `tokenizer.json` files before handing them to ONNX Runtime;
-  mismatches surface as `EmbedError::ChecksumMismatch` with a
-  "refusing to load" message. The new `integrity` module streams
-  files in 64 KiB blocks and treats empty hashes as
-  `VerificationOutcome::Skipped` (the v0.2.0 placeholder for the
-  shipped registry models; populating real hashes tightens this
-  to "always verified" with no further code changes).
-- **CI gates.** `cargo test --workspace --no-default-features`,
-  `cargo clippy --workspace --no-default-features --all-targets
-  -- -D warnings`, and `cargo doc --workspace --no-deps
-  --all-features` now run on every push. The first two would have
-  caught a feature-gated import bug in `openmemory-watch`; the
-  third catches intra-doc links that resolve only when an
-  optional module compiles.
-- **Bug fix.** `openmemory_mcp::http::handle_mcp` no longer
-  constructs the 204 notification response via
-  `Response::builder().unwrap()`; it returns
-  `StatusCode::NO_CONTENT.into_response()` directly. The
-  `application/json` content-type header is set via the
-  infallible `HeaderValue::from_static`. No more panics on the
-  request path.
-
-The `openmemory-watch` Cargo.toml also dropped its own `default
-= ["fts5"]` feature and pulls `sqlite + fts5` directly from
-`openmemory-index` and `openmemory-graph`, so the crate now
-compiles under `cargo test --workspace --no-default-features`.
+Nothing queued yet. See
+[`CHANGELOG.md`](../CHANGELOG.md#unreleased) for the live list.
 
 ## Backlog (post-v0.2)
 
@@ -143,10 +177,6 @@ future minor versions:
   `anthropic` (`ANTHROPIC_API_KEY`), `openai` (`OPENAI_API_KEY`,
   `OPENAI_BASE_URL`), `ollama` (`OLLAMA_HOST`). Read-time only;
   storage stays unchanged. Earliest target: v0.3.
-- **Real SHA-256 hashes in the model registry.** The current
-  `Model` constants carry empty hashes (`VerificationOutcome::Skipped`
-  on load). Populating real hashes is a registry-level change
-  with no code change required to enforce.
 - **Multi-chunk file ingestion in the watcher.** v0.2 writes one
   chunk per file (`chunk_index = 0`). Multi-chunk per-file
   ingestion lets long files surface fragments individually in

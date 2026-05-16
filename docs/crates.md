@@ -12,7 +12,7 @@ orient quickly.
 Workspace conventions:
 
 - All crates use Rust edition 2021 with MSRV 1.85.0.
-- All crates share the workspace `version = "0.2.0"`.
+- All crates share the workspace `version = "0.2.1"`.
 - All crates inherit the workspace lints (clippy pedantic with a
   pragmatic allow-list, `unsafe_code = "warn"`).
 
@@ -192,10 +192,9 @@ falls back to keyword-only.
 - `pub struct OnnxEmbedder` with `load_for_model(model, cache_dir)`
   and `embed(&[&str])`. Loads the model file, verifies SHA-256 against
   the registered hash, refuses to load on a mismatch
-  (`EmbedError::ChecksumMismatch`). The empty-hash placeholder used
-  by v0.2.0 surfaces as `VerificationOutcome::Skipped` and gets
-  promoted to a real check when registry hashes are populated in a
-  future release.
+  (`EmbedError::ChecksumMismatch`). Both shipped models carry real
+  hashes as of v0.2.1; an empty hash on a future registry entry
+  still surfaces as `VerificationOutcome::Skipped` (warns, loads).
 - `pub struct EmbeddingCache` (sqlite or JSON) keyed by
   `BLAKE3(content)` (hex). Methods: `open(path)`, `get(hash)`,
   `insert(hash, embedding)`, `checkpoint()`.

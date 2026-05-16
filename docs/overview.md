@@ -116,7 +116,8 @@ behind feature flags later; none blocked v0.2.
 
 | Version | Date | Headline |
 |---------|------|----------|
-| `[Unreleased]` | post-v0.2.0 | Production hardening: bearer-token auth on the HTTP transport, SHA-256 model integrity verification, and three new CI gates (`--no-default-features` test/clippy, default-features doc). |
+| `[Unreleased]` | post-v0.2.1 | Nothing queued yet. |
+| `v0.2.1` | 2026-05-16 | Production-hardening patch on top of v0.2.0. Entity normalization on the `remember` write path, explicit embedding-model management (`openmemory model list / download / use`), SHA-256 integrity verification on model load, optional bearer-token auth on the HTTP transport, three new CI gates (`--no-default-features` test/clippy, default-features doc). MCP tool surface unchanged at v0.1; `openmemory_remember` responses gain an optional `normalized` field. |
 | `v0.2.0` | 2026-05-05 | Multi-agent memory (read-only WAL connection pool) plus the `openmemory-watch` crate and `openmemory watch DIR` CLI subcommand. MCP tool surface unchanged at v0.1. |
 | `v0.1.0` | 2026-05-05 | Initial release. Seven crates (core, index, embed, graph, mcp, cli) plus eleven MCP tools, one-command OpenClaw integration, Streamable HTTP behind `mcp-http`. |
 
