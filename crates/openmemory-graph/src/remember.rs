@@ -1,4 +1,4 @@
-//! `MemoryStore::remember` — the atomic write path.
+//! `MemoryStore::remember`, the atomic write path.
 //!
 //! `remember` ensures the entity exists, appends new observations and
 //! relations, and keeps the search index in sync. Everything happens inside a
@@ -71,8 +71,8 @@ impl ObservationInput {
     }
 }
 
-/// One relation to attach. The target is named by `(target_name, target_type)`
-/// — entities are looked up or created lazily, mirroring the way `remember`
+/// One relation to attach. The target is named by `(target_name, target_type)`;
+/// entities are looked up or created lazily, mirroring the way `remember`
 /// handles its primary entity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RelationInput {
@@ -255,7 +255,7 @@ impl MemoryStore {
         tx.commit()?;
         drop(conn);
 
-        // SQLite write succeeded — sync the search index.
+        // SQLite write succeeded; sync the search index.
         if !search_payload.is_empty() {
             self.apply_search_sync_ops_with_recovery(name, &search_payload)?;
         }
@@ -273,7 +273,7 @@ impl MemoryStore {
     /// search engine. Called by `remember` after the SQLite write commits.
     ///
     /// "With recovery" reflects the strategy: if the search insert fails,
-    /// log a warning and return Ok — the SQLite row is still authoritative,
+    /// log a warning and return Ok; the SQLite row is still authoritative,
     /// and a future `rebuild_if_stale` call will catch up. This matches
     /// what sift's MemoryStore does and avoids a partial-write panic from
     /// taking the whole MCP server down.
@@ -563,7 +563,7 @@ mod tests {
         let (store, _clock) = open_with_clock();
         // Pre-insert a relation row that will conflict if re-inserted with
         // a duplicated PK. Simulating mid-tx failure is awkward in v0.1
-        // because every op is a simple INSERT — the canonical failure mode
+        // because every op is a simple INSERT; the canonical failure mode
         // is rolling back when an FK lookup fails. Test the empty-content
         // guard instead: it returns BEFORE we open any tx.
         let err = store
@@ -764,36 +764,99 @@ mod tests {
         assert_eq!(first.entity_id, second.entity_id);
     }
 
+    /// Pins the full shape of the SAME_AS row emitted on a Flag match.
+    /// A reviewer should be able to read this test and know exactly which
+    /// columns the normalization write path is responsible for. If the
+    /// edge direction silently flipped, recall's graph traversal would
+    /// break in a hard-to-debug way; if `source` drifted, audit tooling
+    /// that filters on it would silently miss rows.
     #[test]
-    fn normalize_flag_on_near_miss() {
-        let (store, _clock) = open_with_clock();
-        let first = store
+    fn normalize_flag_writes_same_as_relation_with_correct_shape() {
+        let (store, clock) = open_with_clock();
+
+        let original = store
             .remember(
                 "config",
                 EntityType::Concept,
                 &[ObservationInput::new("application configuration")],
                 &[],
-                "test",
+                "agent-a",
             )
             .unwrap();
-        let second = store
+
+        clock.advance(60);
+        let flag_time = 1_060_i64;
+        let flagged = store
             .remember(
                 "configs",
                 EntityType::Concept,
                 &[ObservationInput::new("multiple configuration files")],
                 &[],
-                "test",
+                "agent-b",
             )
             .unwrap();
-        assert_ne!(first.entity_id, second.entity_id);
-        assert!(matches!(
-            second.normalized,
-            Some(NormalizeMatch::Flag { .. })
-        ));
-        let rels = store.get_entity_relations(&second.entity_id).unwrap();
+
+        // The match itself: Flag, pointing at the *original* entity.
+        let score = match flagged.normalized.as_ref() {
+            Some(NormalizeMatch::Flag { entity_id, score }) => {
+                assert_eq!(
+                    entity_id, &original.entity_id,
+                    "Flag.entity_id must reference the matched (older) entity, \
+                     not the freshly created one"
+                );
+                *score
+            }
+            other => panic!("expected Flag variant, got {other:?}"),
+        };
+
+        // Exactly one SAME_AS edge: no accidental duplicates from a
+        // retry, no opposite-direction shadow row.
+        let rels = store.get_entity_relations(&flagged.entity_id).unwrap();
+        let same_as: Vec<_> = rels
+            .iter()
+            .filter(|r| r.relation_type == "SAME_AS")
+            .collect();
+        assert_eq!(
+            same_as.len(),
+            1,
+            "expected exactly one SAME_AS relation, got {n}: {same_as:?}",
+            n = same_as.len(),
+        );
+        let rel = same_as[0];
+
+        // Direction matters: edge goes from the new entity to the existing
+        // one. Recall's spreading-activation pass walks both directions,
+        // but downstream consumers that filter on `from_entity` (audit
+        // tooling, merge surfaces) depend on this orientation.
+        assert_eq!(
+            rel.from_entity, flagged.entity_id,
+            "from_entity must be the freshly created entity"
+        );
+        assert_eq!(
+            rel.to_entity, original.entity_id,
+            "to_entity must be the existing match target"
+        );
+        assert_eq!(rel.relation_type, "SAME_AS");
+        assert_eq!(
+            rel.source, "normalization",
+            "audit tooling filters on this exact tag"
+        );
+        assert_eq!(
+            rel.created_at, flag_time,
+            "created_at must be the write-time clock value"
+        );
+
+        // The weight column is the similarity score. `Relation.weight` is
+        // f32 while the score we passed in is f64, so we compare in f64
+        // with an f32-precision epsilon. For values near 0.86 the f32 ULP
+        // is ~1e-7; 1e-6 leaves an order of magnitude of headroom.
+        let weight_diff = (f64::from(rel.weight) - score).abs();
         assert!(
-            rels.iter().any(|r| r.relation_type == "SAME_AS"),
-            "expected SAME_AS relation"
+            weight_diff < 1e-6,
+            "weight {w} differs from score {s} by {weight_diff} \
+             (expected within f32 precision, 1e-6)",
+            w = rel.weight,
+            s = score,
         );
     }
 
@@ -822,10 +885,16 @@ mod tests {
         assert!(second.normalized.is_none());
     }
 
+    /// Cross-type isolation. Two entities sharing the same name but
+    /// different `entity_type` must remain distinct under both the
+    /// exact-match path (identical names) and the fuzzy-match path (a
+    /// query that would Flag against either-typed candidate). The
+    /// candidate SQL filters by `entity_type`; this test fails loudly
+    /// if that filter is ever dropped.
     #[test]
-    fn normalize_type_constraint() {
+    fn normalize_respects_entity_type_under_exact_and_fuzzy_match() {
         let (store, _clock) = open_with_clock();
-        let first = store
+        let person_raymond = store
             .remember(
                 "Raymond",
                 EntityType::Person,
@@ -834,7 +903,7 @@ mod tests {
                 "test",
             )
             .unwrap();
-        let second = store
+        let project_raymond = store
             .remember(
                 "Raymond",
                 EntityType::Project,
@@ -843,7 +912,42 @@ mod tests {
                 "test",
             )
             .unwrap();
-        assert_ne!(first.entity_id, second.entity_id);
+
+        // Exact-match path: same name + different type = distinct entities.
+        assert_ne!(person_raymond.entity_id, project_raymond.entity_id);
+
+        // Fuzzy-match path: "raymon" is one edit from "Raymond" and would
+        // Flag against *either* Raymond if the type filter were missing.
+        // Asking for the Project type must pull only the Project Raymond.
+        let outcome = store
+            .remember(
+                "raymon",
+                EntityType::Project,
+                &[ObservationInput::new("a typo")],
+                &[],
+                "test",
+            )
+            .unwrap();
+
+        match outcome.normalized.as_ref() {
+            Some(
+                NormalizeMatch::Flag { entity_id, .. }
+                | NormalizeMatch::AutoMerge { entity_id, .. },
+            ) => {
+                assert_eq!(
+                    entity_id, &project_raymond.entity_id,
+                    "fuzzy match must target the Project-type Raymond"
+                );
+                assert_ne!(
+                    entity_id, &person_raymond.entity_id,
+                    "fuzzy match must not cross entity_type boundaries"
+                );
+            }
+            None => panic!(
+                "expected a fuzzy match against project_raymond, got None \
+                 (similarity contract may have shifted; see normalize.rs golden table)"
+            ),
+        }
     }
 
     #[test]
@@ -897,5 +1001,204 @@ mod tests {
             )
             .unwrap();
         assert_ne!(first.entity_id, second.entity_id);
+    }
+
+    // ---- Candidate-selection invariants ----
+    //
+    // These tests cover the SQL-side selection that drives fuzzy matching:
+    // the `ORDER BY updated_at DESC LIMIT N` candidate query in
+    // `ensure_entity`. They use direct INSERTs via `lock_db()` to control
+    // `updated_at` precisely; going through `remember()` would either
+    // collapse the seed entities via fuzzy match (the very behavior we're
+    // setting up) or require disabling normalization mid-test.
+
+    /// Seed an entity directly into the `entities` table. Bypasses the
+    /// fuzzy-match write path so the caller can control `updated_at`.
+    /// Panics on SQL errors. These are test-side bugs, not runtime
+    /// conditions.
+    fn seed_entity(
+        store: &MemoryStore,
+        id: &str,
+        name: &str,
+        entity_type: EntityType,
+        updated_at: i64,
+    ) {
+        let conn = store.lock_db();
+        conn.execute(
+            "INSERT INTO entities
+                (id, name, entity_type, created_at, updated_at, confidence, source)
+             VALUES (?1, ?2, ?3, ?4, ?4, 1.0, 'seed')",
+            rusqlite::params![id, name, entity_type.as_str(), updated_at],
+        )
+        .expect("seed insert failed");
+    }
+
+    /// Two existing entities of the same type whose stored names differ
+    /// but whose fuzzy-match forms both collapse to the same canonical
+    /// form as the query. `find_best_match` uses strict `>`, so on a
+    /// perfect-score tie the first row in the iteration wins, and the
+    /// SQL layer hands them out in `updated_at DESC` order, which means
+    /// "most recently updated wins" end-to-end. Regressing the SQL
+    /// `ORDER BY` (or `find_best_match`'s comparison operator) would
+    /// flip this assertion.
+    #[test]
+    fn normalize_recency_tie_break_picks_most_recently_updated() {
+        let (store, clock) = open_with_clock();
+
+        seed_entity(&store, "older", "Project Alpha", EntityType::Project, 500);
+        seed_entity(&store, "newer", "ProjectAlpha", EntityType::Project, 1_500);
+
+        clock.set(2_000);
+        let outcome = store
+            .remember(
+                "project alpha",
+                EntityType::Project,
+                &[ObservationInput::new("a fact")],
+                &[],
+                "test",
+            )
+            .unwrap();
+
+        assert_eq!(
+            outcome.entity_id, "newer",
+            "tie at score 1.0 must resolve to the more recently updated entity"
+        );
+        assert!(outcome.entity_existed);
+        assert!(
+            matches!(
+                outcome.normalized,
+                Some(NormalizeMatch::AutoMerge { ref entity_id, .. }) if entity_id == "newer"
+            ),
+            "expected AutoMerge against 'newer', got {n:?}",
+            n = outcome.normalized,
+        );
+    }
+
+    /// `max_candidates` truncates the candidate window after ordering by
+    /// `updated_at DESC`. An entity that would fuzzy-match the query is
+    /// invisible if it falls outside the window. The test runs the same
+    /// scenario twice with different `max_candidates` to demonstrate both
+    /// directions of the cap.
+    #[test]
+    fn normalize_max_candidates_caps_candidate_set() {
+        // Runs the scenario with the given `max_candidates`. The scenario:
+        // three Project-typed entities are seeded with strictly increasing
+        // `updated_at`. The OLDEST is the only one whose name fuzzy-matches
+        // the query "config" (it's named "configs"); the other two are
+        // arbitrary unrelated strings whose `updated_at` puts them at the
+        // top of the candidate list.
+        fn run(max_candidates: usize) -> RememberOutcome {
+            let mut config = Config::default();
+            config.normalization.max_candidates = max_candidates;
+            let clock = Arc::new(FixedClock::new(1_000));
+            let store = MemoryStore::open_in_memory(&config)
+                .unwrap()
+                .with_clock(clock.clone() as Arc<dyn Clock>);
+
+            seed_entity(&store, "matchable", "configs", EntityType::Project, 100);
+            seed_entity(
+                &store,
+                "filler-a",
+                "completely unrelated",
+                EntityType::Project,
+                200,
+            );
+            seed_entity(
+                &store,
+                "filler-b",
+                "something else entirely",
+                EntityType::Project,
+                300,
+            );
+
+            clock.set(2_000);
+            store
+                .remember(
+                    "config",
+                    EntityType::Project,
+                    &[ObservationInput::new("a fact")],
+                    &[],
+                    "test",
+                )
+                .unwrap()
+        }
+
+        // Cap of 3 admits every seeded entity; "matchable" is visible and
+        // the query Flags against it.
+        let permissive = run(3);
+        assert!(
+            matches!(
+                permissive.normalized,
+                Some(NormalizeMatch::Flag { ref entity_id, .. }) if entity_id == "matchable"
+            ),
+            "with max_candidates=3, 'matchable' must be reachable; got {n:?}",
+            n = permissive.normalized,
+        );
+
+        // Cap of 2 hides "matchable" behind the two more-recently-updated
+        // filler entities; neither filler fuzzy-matches "config", so the
+        // query falls through to creating a fresh entity.
+        let restrictive = run(2);
+        assert!(
+            !restrictive.entity_existed,
+            "with max_candidates=2, query must create a fresh entity; got {restrictive:?}",
+        );
+        assert!(
+            restrictive.normalized.is_none(),
+            "max_candidates leak: 'matchable' was reachable past the cap; got {n:?}",
+            n = restrictive.normalized,
+        );
+    }
+
+    /// An entity whose only observations have been tombstoned remains a
+    /// valid fuzzy-match candidate. The schema doesn't tombstone entities,
+    /// only observations, so the entity row sticks around until
+    /// `prune` collects it. Pinning current behavior: a `remember` call
+    /// that fuzzy-matches an orphan resurrects it. If we ever decide to
+    /// filter orphans out of the candidate query, this test should fail
+    /// loudly so the call site and the contract change together.
+    #[test]
+    fn normalize_orphaned_entity_is_a_valid_match_target() {
+        let (store, _clock) = open_with_clock();
+
+        let original = store
+            .remember(
+                "ProjectAlpha",
+                EntityType::Project,
+                &[ObservationInput::new("only one")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        store.forget(&original.observation_ids[0]).unwrap();
+
+        // Schema state: entity row remains, no active observations.
+        let s = store.status().unwrap();
+        assert_eq!(s.total_entities, 1, "entity row should survive forget");
+        assert_eq!(
+            s.total_observations, 0,
+            "tombstoned observation should not count as active"
+        );
+
+        let revival = store
+            .remember(
+                "Project Alpha",
+                EntityType::Project,
+                &[ObservationInput::new("reborn")],
+                &[],
+                "test",
+            )
+            .unwrap();
+
+        assert_eq!(
+            revival.entity_id, original.entity_id,
+            "orphan entity must be reachable via fuzzy match"
+        );
+        assert!(revival.entity_existed);
+        assert!(
+            matches!(revival.normalized, Some(NormalizeMatch::AutoMerge { .. })),
+            "expected AutoMerge against the orphaned entity, got {n:?}",
+            n = revival.normalized,
+        );
     }
 }
