@@ -1,0 +1,9 @@
+Olalde et al. 2026, "Genome-wide ancient DNA from the Lower Rhine-Meuse
+area shows late persistence of forager ancestry shaped Bell Beaker
+expansion", Nature, doi:10.1038/s41586-026-10111-8, Methods, Molecular
+sex determination:
+
+Genetic sex was determined by calculating the ratio of reads mapped to
+Y-chromosome SNP positions to the total reads mapped to sex-chromosome
+SNP positions. Individuals with a ratio of <0.03 were classified as
+female, while those with a ratio >0.32 were classified as male.

@@ -1,0 +1,7 @@
+Olalde et al. 2026, Methods, Bioinformatics:
+
+Reads were adapter-trimmed and merged with SeqPrep (15 bp overlap
+rule), aligned to the GRCh37/hg19 reference with bwa 0.7.15 (aln/
+samse mode), filtered to mapping quality >= 30, and deduplicated with
+samtools rmdup. Capture data targeted the 1240K SNP panel of
+Mathieson et al. 2015.

@@ -1,0 +1,5 @@
+Skoglund et al. 2013, "Accurate sex identification of ancient human
+remains using DNA shotgun sequencing", J. Archaeol. Sci. The original
+Ry method. Skoglund proposed a cutoff of Ry < 0.075 for female calls.
+Modern protocols (Olalde 2026 et seq.) tighten this to Ry < 0.03 to
+reduce false-female calls on contaminated low-coverage libraries.
