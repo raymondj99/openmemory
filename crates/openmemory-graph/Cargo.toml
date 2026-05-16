@@ -34,3 +34,4 @@ tempfile = { workspace = true }
 
 [dev-dependencies]
 openmemory-core = { workspace = true, features = ["testing"] }
+proptest = { workspace = true }

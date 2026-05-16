@@ -99,6 +99,11 @@ Production-hardening pass on top of v0.2.0.
   returns `StatusCode::NO_CONTENT.into_response()` directly. The
   `application/json` content-type header is set via the infallible
   `HeaderValue::from_static`. No more panics on the request path.
+- Entity normalization no longer auto-merges emoji-only,
+  punctuation-only, or whitespace-only names solely because their
+  alphanumeric-stripped forms are both empty. The normalization
+  contract now has golden-table and property-test coverage for
+  scoring ranges, threshold bucketing, symmetry, and Unicode safety.
 
 ## [0.2.0] - 2026-05-05
 
