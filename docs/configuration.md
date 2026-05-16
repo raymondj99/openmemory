@@ -65,7 +65,7 @@ max_candidates       = 100
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
 | `decay_rate` | f64 | `0.05` per day | Lambda in `exp(-lambda * days)`. Higher = faster forgetting. |
-| `consolidation_interval` | u64 (secs) | `86400` | Minimum spacing between automatic consolidate runs (no in-process scheduler ships in v0.2; this is for future use). |
+| `consolidation_interval` | u64 (secs) | `86400` | Minimum spacing between automatic consolidate runs (no in-process scheduler ships in v0.3; this is for future use). |
 | `dedup_threshold` | f32 | `0.95` | Jaccard text-similarity threshold for the consolidation dedup pass. |
 | `prune_floor` | f32 | `0.05` | Score floor for the consolidation decay-prune pass. |
 
