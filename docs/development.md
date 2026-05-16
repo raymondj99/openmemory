@@ -151,7 +151,7 @@ deterministically.
 
 ### Fuzz targets
 
-Not in v0.2. The schema migration runner and the MCP request
+Not in v0.3. The schema migration runner and the MCP request
 decoder are the natural targets when a fuzz harness lands.
 
 ## Performance gates
@@ -200,7 +200,7 @@ the standing definition-of-done:
 ## Security review checklist
 
 - **No `unsafe` in workspace code.** `unsafe_code = "warn"` makes
-  any new use surface in CI; expect zero in v0.2.
+  any new use surface in CI; expect zero in v0.3.
 - **`cargo deny check` clean.** License allowlist is MIT,
   Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0,
   CC0-1.0, BSL-1.0, OpenSSL.
@@ -247,7 +247,7 @@ so do **not** skip the `OPENMEMORY_HTTP_TOKEN` step.
   `workspace.package.version`.
 - Pre-1.0: minor-bump (`0.1 → 0.2`) for any breaking change to the
   MCP tool surface, the SQLite schema, or the public Rust API.
-- Patch-bump (`0.2.0 → 0.2.1`) for bug fixes and additive
+- Patch-bump (`0.3.0 → 0.3.1`) for bug fixes and additive
   non-breaking changes.
 
 ## Release process

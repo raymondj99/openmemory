@@ -41,7 +41,9 @@ available. Try it:
 
 For semantic vector recall, run `openmemory model download` once to
 cache the default local ONNX model. Without that cache, recall still
-works in keyword-only mode.
+works in keyword-only mode. Use `openmemory model list` to see
+available models and cache status, and `openmemory model use <name>`
+to switch the active model.
 
 ```
 > remember that I prefer Rust over Python

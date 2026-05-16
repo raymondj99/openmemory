@@ -43,8 +43,8 @@ deleting and re-creating the same file (with the same canonical
 path) replaces the previous index entry rather than creating a
 stale duplicate.
 
-The watcher writes one chunk per file (`chunk_index = 0`) for v0.2.
-Multi-chunk file ingestion is tracked for a future release.
+The watcher writes one chunk per file (`chunk_index = 0`) through
+v0.3. Multi-chunk file ingestion is tracked for a future release.
 
 ## Default extensions
 
@@ -86,7 +86,7 @@ Repository owners can add per-tree rules via a
 `.openmemory-ignore` file (`IGNORE_FILE_NAME`). It uses the same
 syntax as `.gitignore`. Note: `.openmemory-ignore` rules are
 honoured by the **initial scan** but not re-evaluated on every
-event in v0.2; that is tracked for v0.3.
+event through v0.3; that is tracked for a future release.
 
 ## Size cap
 

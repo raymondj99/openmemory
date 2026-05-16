@@ -84,7 +84,7 @@ engine internally.
 ## Non-goals
 
 The following are **explicitly out of scope**. Some may return
-behind feature flags later; none blocked v0.2.
+behind feature flags later; none blocked v0.3.
 
 - **File scanning and file-format parsers.** No PDF, no DOCX, no
   PPTX, no email, no archive extraction. Callers feed text in via
@@ -100,7 +100,7 @@ behind feature flags later; none blocked v0.2.
 - **Vendor-specific virtual-filesystem memory adapters** (e.g.
   Anthropic's `memory_20250818` shape). The MCP tool surface is the
   contract.
-- **LLM-powered observation extraction.** v0.2 does not call out to
+- **LLM-powered observation extraction.** v0.3 does not call out to
   any LLM provider. May return as an optional `llm` feature in a
   later release.
 - **Vision and audio embeddings.** Text only.
@@ -108,7 +108,7 @@ behind feature flags later; none blocked v0.2.
   micro-benchmarks for hot paths *do* ship; broader perf and
   accuracy scaffolding does not.
 - **Cross-architecture release pipelines beyond what is
-  shipped.** v0.2 builds tarballs for `aarch64-apple-darwin`,
+  shipped.** v0.3 builds tarballs for `aarch64-apple-darwin`,
   `x86_64-apple-darwin`, and `x86_64-unknown-linux-gnu`. Homebrew
   tap and `install.sh` are tracked for a future release.
 
@@ -116,7 +116,8 @@ behind feature flags later; none blocked v0.2.
 
 | Version | Date | Headline |
 |---------|------|----------|
-| `[Unreleased]` | post-v0.2.0 | Production hardening: bearer-token auth on the HTTP transport, SHA-256 model integrity verification, and three new CI gates (`--no-default-features` test/clippy, default-features doc). |
+| `[Unreleased]` | post-v0.3.0 | Nothing queued yet. |
+| `v0.3.0` | 2026-05-16 | Entity normalization on the `remember` write path, explicit embedding-model management (`openmemory model list / download / use`), SHA-256 integrity verification on model load, optional bearer-token auth on the HTTP transport, and three new CI gates (`--no-default-features` test/clippy, default-features doc). MCP tool surface unchanged at v0.1; `openmemory_remember` responses gain an optional `normalized` field. |
 | `v0.2.0` | 2026-05-05 | Multi-agent memory (read-only WAL connection pool) plus the `openmemory-watch` crate and `openmemory watch DIR` CLI subcommand. MCP tool surface unchanged at v0.1. |
 | `v0.1.0` | 2026-05-05 | Initial release. Seven crates (core, index, embed, graph, mcp, cli) plus eleven MCP tools, one-command OpenClaw integration, Streamable HTTP behind `mcp-http`. |
 
