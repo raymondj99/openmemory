@@ -1,10 +1,11 @@
 //! Integration tests for the public `MemoryStore` API. These tests stay at
-//! the highest layer of the crate — no `pub(crate)` access, no SQL pokes
-//! into private internals — to lock in the contract callers (the MCP layer
+//! the highest layer of the crate: no `pub(crate)` access, no SQL pokes
+//! into private internals. They lock in the contract callers (the MCP layer
 //! and the CLI) rely on.
 //!
-//! All tests run against a fully in-memory store (`MemoryStore::open_in_memory`)
-//! and complete well under 2 seconds.
+//! Most tests run against a fully in-memory store (`MemoryStore::open_in_memory`);
+//! concurrency and reopen tests use temporary on-disk stores when persistence
+//! or independent reader connections are part of the contract under test.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,8 +13,8 @@ use std::time::Instant;
 use openmemory_core::clock::{Clock, FixedClock};
 use openmemory_core::config::Config;
 use openmemory_graph::{
-    ConsolidateConfig, EntityType, MemoryError, MemoryStore, ObservationInput, RecallFilters,
-    RelationInput, SearchMode,
+    ConsolidateConfig, EntityType, MemoryError, MemoryStore, NormalizeMatch, ObservationInput,
+    RecallFilters, RelationInput, SearchMode,
 };
 
 const SECONDS_PER_DAY: i64 = 86_400;
@@ -339,7 +340,7 @@ fn integration_schema_migration_on_reopen() {
             )
             .unwrap();
     }
-    // Reopen — should preserve all rows.
+    // Reopen; should preserve all rows.
     let store = MemoryStore::open(&cfg, dir.path()).unwrap();
     let s = store.status().unwrap();
     assert_eq!(s.total_observations, 1);
@@ -352,17 +353,17 @@ fn integration_schema_migration_on_reopen() {
 /// thread-spawn overhead. Asserts:
 ///
 /// 1. **No torn reads.** Every thread returns a non-empty hit list whose
-///    observation IDs are a subset of the seeded set — no foreign rows,
+///    observation IDs are a subset of the seeded set: no foreign rows,
 ///    no panics. (Per-recall ranking can drift between threads because
 ///    `recall` bumps `access_count` as a side effect; that doesn't
 ///    matter for the no-torn-reads invariant.)
 /// 2. **Some real overlap, not full serialisation.** Wall-clock for N
 ///    threads is strictly less than the fully-serial estimate
 ///    (`N * single_thread_time`). A regression to single-mutex
-///    serialisation would push parallel time to ≈ that bound or
+///    serialisation would push parallel time to roughly that bound or
 ///    higher; the assertion only fails when readers no longer overlap
 ///    at all. We deliberately avoid asserting a numeric speedup ratio
-///    (1.25×, 2×, …) because shared CI runners hit ratios that depend
+///    (1.25x, 2x, and so on) because shared CI runners hit ratios that depend
 ///    on neighbour load, but "any overlap whatsoever" is a stable
 ///    signal. A proportional slack (5% of serial estimate) absorbs
 ///    scheduler jitter without flaking on fast machines with few cores.
@@ -402,7 +403,7 @@ fn integration_concurrent_recall_runs_in_parallel() {
     let pool_size = store.reader_pool_size();
     assert!(
         pool_size >= 2,
-        "test needs ≥2 reader slots; got {pool_size}. CI should have ≥2 CPUs."
+        "test needs at least 2 reader slots; got {pool_size}. CI should have at least 2 CPUs."
     );
 
     let mut filters = RecallFilters::new();
@@ -456,7 +457,7 @@ fn integration_concurrent_recall_runs_in_parallel() {
     let parallel_elapsed = start.elapsed();
 
     // 1) Every thread saw real, non-empty data. Observation IDs are
-    //    drawn from the seeded set — no torn reads surfacing garbage.
+    //    drawn from the seeded set: no torn reads surfacing garbage.
     for (i, hits) in results.iter().enumerate() {
         assert!(!hits.is_empty(), "thread {i} returned no hits");
         for hit in hits {
@@ -469,8 +470,8 @@ fn integration_concurrent_recall_runs_in_parallel() {
     }
 
     // 2) Parallel time is strictly less than the fully-serial estimate.
-    // No numeric speedup floor — shared-runner load makes the ratio
-    // jittery — but we do require *some* real overlap.
+    // No numeric speedup floor; shared-runner load makes the ratio
+    // jittery, but we do require *some* real overlap.
     //
     // The proportional guard (5% of serial estimate) absorbs scheduler
     // jitter that scales with work done. An absolute guard (the old
@@ -483,7 +484,7 @@ fn integration_concurrent_recall_runs_in_parallel() {
         serial_estimate >= MIN_SERIAL_FOR_SIGNAL,
         "serial estimate {serial_estimate:?} is too small to validate parallelism \
          (single-thread median {single_median:?}, n={n}, iters={iters}); \
-         the test would be inconclusive — bump iters or the seed size",
+         the test would be inconclusive; bump iters or the seed size",
     );
     let upper_bound =
         Duration::from_secs_f64(serial_estimate.as_secs_f64() * (1.0 - NOISE_FRACTION));
@@ -495,7 +496,7 @@ fn integration_concurrent_recall_runs_in_parallel() {
     );
     assert!(
         parallel_elapsed < upper_bound,
-        "concurrent recall took {parallel_elapsed:?} — expected < {upper_bound:?} \
+        "concurrent recall took {parallel_elapsed:?}; expected < {upper_bound:?} \
          (single-thread median {single_median:?}, n={n}, iters={iters}, \
           serial estimate {serial_estimate:?}, noise fraction {NOISE_FRACTION}); \
          readers may have regressed to fully-serialised execution",
@@ -536,4 +537,171 @@ fn integration_recall_spreading_activation_through_relations() {
         .unwrap();
     let r = store.recall("Raymond", 5, &RecallFilters::new()).unwrap();
     assert!(r.iter().any(|x| x.entity_name == "Sift"));
+}
+
+/// Concurrent near-duplicate writes must coalesce into a single entity.
+///
+/// Why this matters: `ensure_entity` does a candidate SELECT and then,
+/// if no match wins the threshold, INSERTs a new row. If those two
+/// steps weren't part of the same serialized critical section, two
+/// threads could each see an empty candidate set, each insert their
+/// own row, and the store would end up with duplicate entities for
+/// the same logical concept, defeating the whole point of fuzzy
+/// matching. In practice the write side is serialized two ways:
+///
+/// 1. `MemoryStore::remember` holds the rebuild-barrier write lock
+///    (`write_rebuild`) for the entire function.
+/// 2. Inside that, it holds the connection `Mutex` for the whole
+///    SQL transaction (candidate lookup, ensure_entity, observation
+///    inserts, commit).
+///
+/// This test makes the resulting invariant observable: N threads
+/// race with N distinct near-duplicate names that all share a
+/// canonical form ("projectalpha" after lowercase + alnum strip);
+/// after they all complete, exactly one entity survives with N
+/// observations attached, and exactly one thread reports that it
+/// created the entity. A regression in either lock surfaces as
+/// `total_entities > 1` or `created_count != 1`.
+#[test]
+fn integration_concurrent_remember_of_near_duplicates_coalesces() {
+    use std::collections::HashSet;
+    use std::sync::Barrier;
+    use std::thread;
+
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Config::default();
+    let store = Arc::new(MemoryStore::open(&cfg, dir.path()).unwrap());
+
+    // Every variant strips to "projectalpha" after lowercase + alnum
+    // filtering, so `similarity(any_pair)` == 1.0 via the stripped
+    // fast path. That guarantees the second-through-Nth writers all
+    // AutoMerge into whichever variant won the race; no spurious
+    // fresh entities from a candidate that scored just below the
+    // threshold. The variants are deliberately distinct *as stored
+    // strings* so no two threads can take the cheaper exact-match
+    // path; every follower exercises the fuzzy candidate lookup,
+    // which is the path we actually want to stress.
+    let variants: [&str; 8] = [
+        "Project Alpha",
+        "project alpha",
+        "PROJECT ALPHA",
+        "Project  Alpha",
+        "ProjectAlpha",
+        "project-alpha",
+        "project_alpha",
+        "project.alpha",
+    ];
+    let n = variants.len();
+    let barrier = Arc::new(Barrier::new(n));
+
+    let handles: Vec<_> = variants
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let store = Arc::clone(&store);
+            let barrier = Arc::clone(&barrier);
+            let name = (*name).to_string();
+            thread::spawn(move || {
+                // Barrier sync maximizes the chance of contention on
+                // the write locks. Whether threads actually interleave
+                // is irrelevant to correctness; the invariants we
+                // assert hold under any ordering.
+                barrier.wait();
+                store
+                    .remember(
+                        &name,
+                        EntityType::Project,
+                        &[ObservationInput::new(format!(
+                            "observation from thread {i}"
+                        ))],
+                        &[],
+                        "race",
+                    )
+                    .unwrap()
+            })
+        })
+        .collect();
+
+    let outcomes: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+    // 1) Exactly one entity row in the database. The headline
+    //    invariant: any number >1 here is a torn write.
+    let status = store.status().unwrap();
+    assert_eq!(
+        status.total_entities,
+        1,
+        "concurrent near-duplicate writes produced {} entities, expected 1 \
+         (winner + {} merged followers); the candidate lookup may not be \
+         serialized with the insert",
+        status.total_entities,
+        n - 1,
+    );
+
+    // 2) Every observation landed. No silent drops from a rolled-back
+    //    transaction or an unhandled lock contention error.
+    assert_eq!(
+        usize::try_from(status.total_observations).unwrap(),
+        n,
+        "expected {n} observations, got {}",
+        status.total_observations,
+    );
+
+    // 3) All outcomes converge on the same entity_id. A diverged id
+    //    here would be the same regression as (1) but caught at the
+    //    return-value layer, which is what the MCP / CLI actually see.
+    let canonical_id = outcomes[0].entity_id.clone();
+    for (i, o) in outcomes.iter().enumerate() {
+        assert_eq!(
+            o.entity_id, canonical_id,
+            "thread {i} wrote to a different entity_id ({} vs winner {canonical_id})",
+            o.entity_id,
+        );
+    }
+
+    // 4) Exactly one thread reports the entity as freshly created.
+    //    Two `false` values would mean two threads each saw an empty
+    //    candidate window and both inserted: the smoking-gun
+    //    signature of a torn write that (1) might miss if the rows
+    //    later collapsed via FK or unique-constraint behavior.
+    let created_count = outcomes.iter().filter(|o| !o.entity_existed).count();
+    assert_eq!(
+        created_count, 1,
+        "expected exactly one creator, got {created_count}: \
+         a creation count >1 means the candidate lookup raced the insert",
+    );
+
+    // 5) The N-1 followers all merged via the fuzzy path. The
+    //    exact-match SQL can't fire for any follower because every
+    //    variant is a distinct stored string, so the only valid
+    //    non-creator outcome is `AutoMerge` (with `entity_existed`
+    //    true). A `Flag` here would mean the similarity contract
+    //    silently dropped under 0.95; a `None` would mean the
+    //    follower bypassed normalization entirely.
+    let auto_merged_count = outcomes
+        .iter()
+        .filter(|o| matches!(o.normalized, Some(NormalizeMatch::AutoMerge { .. })))
+        .count();
+    assert_eq!(
+        auto_merged_count,
+        n - 1,
+        "expected {expected} AutoMerge outcomes (one per follower), got {auto_merged_count}: \
+         outcomes were {normalized:?}",
+        expected = n - 1,
+        normalized = outcomes.iter().map(|o| &o.normalized).collect::<Vec<_>>(),
+    );
+
+    // 6) All N observations live on the surviving entity, with each
+    //    thread's distinct content present. Belt-and-suspenders for
+    //    (2): catches a path where observation rows survive but get
+    //    re-parented to the wrong entity.
+    let observations = store.get_entity_observations(&canonical_id).unwrap();
+    assert_eq!(observations.len(), n);
+    let contents: HashSet<_> = observations.iter().map(|o| o.content.clone()).collect();
+    for i in 0..n {
+        let expected = format!("observation from thread {i}");
+        assert!(
+            contents.contains(&expected),
+            "missing observation from thread {i}; got {contents:?}",
+        );
+    }
 }
