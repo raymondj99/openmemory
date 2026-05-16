@@ -106,6 +106,9 @@ pub struct RememberArgs {
     /// Optional relation. Format: `TYPE=NAME[:ENTITY_TYPE]`. Repeatable.
     #[arg(long, value_name = "TYPE=NAME[:ENTITY_TYPE]")]
     pub relation: Vec<String>,
+    /// Per-observation confidence in [0.0, 1.0]. Defaults to 1.0.
+    #[arg(long, value_name = "F")]
+    pub confidence: Option<f32>,
     /// Origin tag for audit. Defaults to "cli".
     #[arg(long)]
     pub source: Option<String>,
@@ -442,5 +445,22 @@ mod tests {
     fn parse_home_override() {
         let cli = Cli::parse_from(["openmemory", "--home", "/tmp/x", "status"]);
         assert_eq!(cli.home.unwrap().to_str().unwrap(), "/tmp/x");
+    }
+
+    #[test]
+    fn parse_remember_confidence() {
+        let cli = Cli::parse_from([
+            "openmemory",
+            "remember",
+            "MolecularSexProtocol",
+            "--observation",
+            "Historical threshold note",
+            "--confidence",
+            "0.6",
+        ]);
+        match cli.command {
+            Command::Remember(args) => assert_eq!(args.confidence, Some(0.6)),
+            other => panic!("expected remember, got {other:?}"),
+        }
     }
 }

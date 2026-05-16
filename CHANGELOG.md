@@ -9,7 +9,18 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Reich molecular-sex demo harness.** Added reusable fixtures and
+  `scripts/demo-reich/` helpers that recreate the sandboxed
+  `/tmp/openmemory-reich-demo` labshare tree, generate synthetic BAMs,
+  seed graph and free-text memories through the CLI and MCP HTTP
+  transport, start the watcher, and grade an agent-emitted pipeline
+  against a rubric plus held-out TSV ground truth.
+- `openmemory remember --confidence <F>` for scriptable seeding of
+  lower-confidence observations. JSON output now includes the
+  `normalized` field when fuzzy entity normalization fires, matching
+  the MCP tool response.
 
 ## [0.2.1] - 2026-05-16
 

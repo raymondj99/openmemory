@@ -5,7 +5,9 @@
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput};
+use openmemory_graph::{
+    EntityType, MemoryStore, NormalizeMatch, ObservationInput, RecallFilters, RelationInput,
+};
 #[cfg(feature = "embeddings")]
 use std::sync::Arc;
 
@@ -55,10 +57,15 @@ pub fn remember(profile: &str, args: RememberArgs) -> Result<()> {
     }
     let store = open(profile, true)?;
     let entity_type = parse_entity_type(&args.entity_type)?;
+    let confidence = args.confidence.unwrap_or(1.0);
     let observations: Vec<ObservationInput> = args
         .observations
         .iter()
-        .map(|s| ObservationInput::new(s).with_source(args.source.as_deref().unwrap_or("cli")))
+        .map(|s| {
+            ObservationInput::new(s)
+                .with_confidence(confidence)
+                .with_source(args.source.as_deref().unwrap_or("cli"))
+        })
         .collect();
 
     let mut relations: Vec<RelationInput> = Vec::new();
@@ -77,12 +84,26 @@ pub fn remember(profile: &str, args: RememberArgs) -> Result<()> {
         .context("remember failed")?;
 
     if args.json {
-        let payload = serde_json::json!({
+        let mut payload = serde_json::json!({
             "entity_id": outcome.entity_id,
             "entity_existed": outcome.entity_existed,
             "observation_ids": outcome.observation_ids,
             "relation_ids": outcome.relation_ids,
         });
+        if let Some(norm) = outcome.normalized {
+            let (action, matched_id, score) = match norm {
+                NormalizeMatch::AutoMerge { entity_id, score } => ("auto_merged", entity_id, score),
+                NormalizeMatch::Flag { entity_id, score } => ("flagged", entity_id, score),
+            };
+            payload.as_object_mut().unwrap().insert(
+                "normalized".into(),
+                serde_json::json!({
+                    "action": action,
+                    "matched_entity_id": matched_id,
+                    "score": score,
+                }),
+            );
+        }
         println!("{}", serde_json::to_string(&payload)?);
     } else {
         println!(
@@ -247,6 +268,7 @@ mod tests {
                     entity_type: "person".into(),
                     observations: vec!["prefers Rust".into()],
                     relation: vec![],
+                    confidence: None,
                     source: None,
                     json: false,
                 },

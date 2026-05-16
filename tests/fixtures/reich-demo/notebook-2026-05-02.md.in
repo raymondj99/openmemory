@@ -1,0 +1,12 @@
+# 2026-05-02
+
+Running sex calls on the Rhine-Meuse batch. BAMs are in
+`__DEMO_ROOT__/labshare/bams/2026-05/`. Output TSV goes to
+`__DEMO_ROOT__/labshare/results/sex/`.
+
+Reuse `bin/count_reads_per_pos.sh` for the samtools wrapper so the
+flags stay consistent with last month's batch.
+
+Thresholds are the Olalde 2026 numbers (0.03 / 0.32), as recorded in
+the 2026-05-01 decision note. The Skoglund 0.075 cutoff is deprecated;
+see notebook 2024-11-18 for the deprecation rationale.

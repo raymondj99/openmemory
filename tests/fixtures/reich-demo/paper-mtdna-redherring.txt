@@ -1,0 +1,4 @@
+Mitochondrial DNA is inherited strictly maternally and is unaffected
+by sex chromosomes; nevertheless many ancient-DNA pipelines emit
+mtDNA QC reports alongside sex-chromosome coverage statistics. This
+note is about mtDNA contamination thresholds, not sex determination.
