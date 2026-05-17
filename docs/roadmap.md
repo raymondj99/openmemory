@@ -162,10 +162,52 @@ Crates landed:
 End-to-end MCP test in `tests/mcp_e2e.rs` spawns the real binary
 and exercises every tool over stdio JSON-RPC.
 
+## v0.3.0 (branch `feat/memory-retrieval-enhancements`)
+
+Memory retrieval enhancements, landed as one v0.3.0-bound branch
+(commit `3e721e4`). Four phases:
+
+- **Phase 1: hybrid search correctness.** `MemoryStore::embed_query`
+  / `embed_document` promoted to `pub` so MCP `openmemory_index_text`,
+  `openmemory_search`, and the file watcher embed text on the way
+  into the index. `openmemory_search` overfetches up to total count
+  when `uri_prefix` or `min_score` is active so a high-score outsider
+  cannot crowd valid filtered hits.
+- **Phase 2: retrieval evaluation harness.** New `openmemory-eval`
+  crate with a `Dataset` trait, pure metrics (R@K, MRR, NDCG@K),
+  and an `EvalRunner`. Adapters for `longmem-s` and `coding-mem`
+  over a JSONL fixture tree. `openmemory eval` CLI subcommand
+  behind the optional `eval` feature, with `--report` and
+  `--baseline`. Non-gating `.github/workflows/eval.yml` runs
+  longmem-s on every PR.
+- **Phase 3: `memory_tier` end-to-end.** `Observation` and
+  `ObservationInput` carry a `memory_tier` field; `RecallFilters`
+  gains an optional `memory_tier` filter (pushed into SQL on the
+  spreading-activation path); recall overfetches up to the index's
+  total count when the filter is set. `openmemory_remember`
+  accepts `memory_tier` on input; `openmemory_recall` and
+  `openmemory_get_entity` surface it on every result.
+- **Phase 4: fielded observation indexing (schema v2).** Forward-only
+  migration adds `title`, `summary`, `importance`, `source_kind`
+  columns on `observations` plus `observation_concepts` and
+  `observation_source_files` side tables. `IndexEntry` gains the
+  same fielded shape plus `entity_name` / `entity_type`. FTS5
+  weights matches across fields via a repetition encoder driven by
+  the new `[search.field_weights]` config (defaults bias `title`
+  and `entity_name`). The pure-Rust BM25 fallback mirrors the
+  scheme so `--no-default-features` builds keep parity.
+  `openmemory_remember` accepts a detailed observation shape; the
+  legacy bare-string shape still works via an untagged enum.
+
+The recall hot path was rebuilt around the v2 schema so the
+feature work lands without a wall-clock cost: keyword and hybrid
+recall benches run 2.6x–3.8x faster than pre-v0.3 `main`. See
+[`CHANGELOG.md`](../CHANGELOG.md#030) for the full surface change.
+
 ## Unreleased
 
-Nothing queued yet. See
-[`CHANGELOG.md`](../CHANGELOG.md#unreleased) for the live list.
+See [`CHANGELOG.md`](../CHANGELOG.md#unreleased) for the live
+list.
 
 ## Backlog (post-v0.2)
 

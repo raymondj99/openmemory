@@ -1,8 +1,9 @@
 # Crates reference
 
-This document is the per-crate reference for the seven workspace
-members. Each section describes the crate's purpose, feature flags,
-public API surface, and source-file map.
+This document is the per-crate reference for the nine workspace
+members (seven shipping crates plus `openmemory-bench` and the new
+v0.3 `openmemory-eval`). Each section describes the crate's
+purpose, feature flags, public API surface, and source-file map.
 
 The Rust crate API is **not** part of the public-stability contract;
 see [architecture.md](architecture.md#public-api-stability). The
@@ -254,17 +255,21 @@ lockstep by `MemoryStore`. This is the heart of the project.
 - `pub struct Entity { id, name, entity_type, created_at, updated_at, confidence, source }`.
 - `pub enum EntityType { Person, Project, Concept, Tool, Preference, Fact, Event, Location, Organization }`
   with `as_str()`, `parse(s)`, `all()`.
-- `pub struct Observation { id, entity_id, content, observed_at, valid_from, valid_until, tombstoned, access_count, confidence, source, memory_tier }`.
+- `pub struct Observation { id, entity_id, content, observed_at, valid_from, valid_until, tombstoned, access_count, confidence, source, memory_tier, title, summary, importance, source_kind, concepts, source_files }`.
+  Last six fields are v0.3 (schema v2).
 - `pub enum MemoryTier { Episodic, Semantic, Procedural }`.
-- `pub struct Relation { id, source_entity_id, target_entity_id, relation_type, created_at, confidence }`.
+- `pub struct Relation { id, from_entity, to_entity, relation_type, weight, created_at, valid_from, valid_until, source }`.
 - `pub struct ObservationInput` with `new(content)`, `with_confidence`,
-  `with_source`, plus optional `valid_from`, `valid_until`, `memory_tier`.
-- `pub struct RelationInput { relation_type, target_name, target_type }`.
+  `with_source`, plus optional `valid_from`, `valid_until`,
+  `memory_tier`. v0.3 added `with_title`, `with_summary`,
+  `with_importance` (clamps into `[0.0, 1.0]`), `with_source_kind`,
+  `with_concepts`, `with_source_files`.
+- `pub struct RelationInput { relation_type, target_name, target_type, weight, source }`.
 - `pub struct RememberOutcome { entity_id, entity_existed, observation_ids, relation_ids, normalized }`.
 - `pub enum NormalizeMatch { AutoMerge { entity_id, score }, Flag { entity_id, score } }`.
 - `pub struct RecallFilters` with optional `entity_type`,
   `valid_at`, `source`, `min_confidence`, `entity_names`, `mode`,
-  `spreading_activation`.
+  `memory_tier` (v0.3), `spreading_activation`.
 - `pub struct RecallResult { observation, entity_name, entity_type, raw_score, score }`.
 - `pub struct ConsolidateConfig { dedup_text_threshold, prune_floor, min_age_secs, decay_rate }`.
 - `pub struct ConsolidateReport { duplicates_merged, observations_pruned, entities_removed }`.
@@ -291,6 +296,14 @@ lockstep by `MemoryStore`. This is the heart of the project.
 - `get_entity(name|id)`, `list_entities(filter, limit, offset)`,
   `get_entity_observations`, `get_entity_relations`.
 - `status() -> MemoryStatus`.
+- `embed_query(&str) -> Vec<f32>` and
+  `embed_document(&str) -> Vec<f32>`: thin wrappers over the
+  attached `Embedder`. Promoted to `pub` in v0.3 so MCP
+  `openmemory_index_text` / `openmemory_search` and the watcher can
+  embed text on the way into and out of the index. Both return an
+  empty `Vec` when no embedder is attached, and every caller treats
+  an empty vector as "skip the vector arm" so recall keeps working
+  keyword-only.
 - `bump_access_counts(...)`: post-recall update used by the
   retrieval-boost calculation.
 
@@ -449,18 +462,92 @@ re-index only what changed.
   - `pub const ALWAYS_IGNORE_GLOBS: &[&str]`. `*.lock`,
     `*.lockb`.
   - `pub const IGNORE_FILE_NAME: &str = ".openmemory-ignore"`.
-  - `pub const SOURCE_TYPE_FILE_WATCHER: &str = "file_watcher"`
-    (the source tag stamped on indexed entries).
-- `pub fn path_to_uri(root: &Path, path: &Path) -> String`.
+  - `pub const SOURCE_TYPE_FILE_WATCHER: &str = "file:watcher"`
+    (the `source_type` tag stamped on `sources` rows the watcher
+    writes; note the colon, which distinguishes watcher entries
+    from any future hyphenated `file-...` source types).
+- `pub fn path_to_uri(path: &Path) -> String`.
   `file://<canonical-absolute-path>`.
-- `pub fn process_file(memory, root, path, options) -> ProcessOutcome`,
-  `pub fn remove_path(memory, root, path) -> ProcessOutcome`.
-- `pub enum ProcessOutcome { Indexed, Skipped(SkipReason), Error(WatchError) }`.
-- `pub enum SkipReason { TooLarge, WrongExtension, Ignored }`.
-- `pub struct ScanReport { files_indexed, files_skipped, files_errored }`.
-- `pub struct BatchSummary { duration, events_processed, files_indexed, files_removed }`.
+- `pub fn process_file(memory, path, options) -> WatchResult<ProcessOutcome>`,
+  `pub fn remove_path(memory, path) -> WatchResult<bool>`.
+- `pub enum ProcessOutcome { Inserted, Updated, Unchanged, Skipped(SkipReason) }`.
+- `pub enum SkipReason { TooLarge, UnreadableUtf8, EmptyContent }`.
+- `pub struct ScanReport { inserted, updated, unchanged, skipped, removed }`.
 
 The watcher reuses the parent process's `Arc<MemoryStore>`, so a
 future `openmemory mcp --watch DIR` mode can share the MCP
 server's handle without opening a second SQLite connection. See
 [watcher.md](watcher.md).
+
+## `openmemory-bench`
+
+**Purpose.** Dev-only crate carrying the criterion benchmarks for
+the hot paths. Not published.
+
+**Cargo.toml summary.**
+
+- Description: "openmemory: criterion benchmarks (recall, consolidate, vector)".
+- Benches: `benches/openmemory.rs`. CodSpeed-instrumented (the
+  CodSpeed badge in the top-level README reports the latest run).
+- Dependencies: `openmemory-core`, `openmemory-graph`,
+  `openmemory-index`, `criterion`, `tempfile`.
+
+**What it measures.** `recall::keyword`, `recall::hybrid`,
+`recall_spreading::disabled`, `consolidate_*`, `flat_vector_search`.
+The v0.3 recall hot-path reshape (single bulk `WHERE id IN (...)`,
+14-column projection, statement cache) shows up as a 2.6x–3.8x
+speedup on the recall benches versus pre-3e721e4 `main`.
+
+## `openmemory-eval` (v0.3)
+
+**Purpose.** Retrieval-quality harness. Builds a fresh
+`MemoryStore` from a corpus, runs the configured queries against
+it, and reports recall-at-K, mean reciprocal rank, and NDCG at K.
+Driven by `openmemory eval` from the CLI behind the optional
+`eval` feature.
+
+**Cargo.toml summary.**
+
+- Description: "openmemory: retrieval-quality evaluation harness".
+- Default features: none. The crate compiles standalone.
+- Features: `embeddings` (re-exports the parent flag so eval can
+  open a vector-armed store).
+- Dependencies: `openmemory-core`, `openmemory-graph` (with
+  `testing` for the deterministic embedder),
+  `openmemory-index`, `serde`, `serde_json`, `tracing`.
+
+**Source files.**
+
+- [`src/lib.rs`](../crates/openmemory-eval/src/lib.rs): module
+  declarations and re-exports.
+- [`src/dataset.rs`](../crates/openmemory-eval/src/dataset.rs):
+  `Dataset` trait, `Document`, `Query`, `Judgment`.
+- [`src/metrics.rs`](../crates/openmemory-eval/src/metrics.rs):
+  pure `recall_at_k`, `mrr`, `ndcg_at_k` over judgment lists.
+- [`src/runner.rs`](../crates/openmemory-eval/src/runner.rs):
+  `EvalRunner` that ingests a corpus, runs every query, and
+  aggregates per-metric scores.
+- [`src/io.rs`](../crates/openmemory-eval/src/io.rs): JSONL
+  read/write helpers.
+- [`src/longmem_s.rs`](../crates/openmemory-eval/src/longmem_s.rs)
+  and
+  [`src/coding_mem.rs`](../crates/openmemory-eval/src/coding_mem.rs):
+  adapters that turn the `longmem-s` and `coding-mem` JSONL fixture
+  trees (`corpus.jsonl`, `queries.jsonl`, `judgments.jsonl`) into
+  the `Dataset` trait.
+
+**Key types.**
+
+- `pub trait Dataset` with `documents()`, `queries()`,
+  `judgments_for(query_id)`.
+- `pub struct Document { uri, text, ... }`, `pub struct Query { id,
+  text, top_k }`, `pub struct Judgment { uri, relevance }`.
+- `pub struct EvalRunner` with `run(&dyn Dataset) -> EvalReport`.
+- `pub struct EvalReport { metrics: HashMap<String, f64>, per_query: Vec<QueryResult> }`.
+- `pub fn recall_at_k`, `pub fn mrr`, `pub fn ndcg_at_k`.
+
+The CLI subcommand (`openmemory eval --dataset … --report …
+--baseline …`) and the non-gating `.github/workflows/eval.yml` PR
+job consume this crate. The CHANGELOG pins a baseline score on
+every release; an ablation that regresses any metric past the
+documented noise floor is a hard stop.

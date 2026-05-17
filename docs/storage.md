@@ -91,7 +91,7 @@ The core tables, owned by
 | `created_at` | INTEGER | Unix seconds. |
 | `updated_at` | INTEGER | Unix seconds; bumped on observation insert and on metadata change. |
 | `confidence` | REAL | 0.0–1.0. Default 1.0. |
-| `source` | TEXT | Origin tag for audit (e.g. `"cli"`, `"file_watcher"`). |
+| `source` | TEXT | Origin tag for audit (e.g. `"cli"`, `"mcp"`, `"normalization"`). The watcher does not create entities; its provenance lives on `metadata.sqlite.sources` as `source_type = "file:watcher"`. |
 
 Indexes: `(name, entity_type)` (unique), `entity_type`.
 
@@ -140,47 +140,54 @@ Primary key: `(observation_id, file_path)`. Lookup index on `file_path`.
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | TEXT PRIMARY KEY | UUIDv7. |
-| `source_entity_id` | TEXT | FK to `entities.id`. ON DELETE CASCADE. |
-| `target_entity_id` | TEXT | FK to `entities.id`. ON DELETE CASCADE. |
-| `relation_type` | TEXT | Free-form (e.g. `"maintains"`, `"prefers"`). |
+| `from_entity` | TEXT | FK to `entities.id`. ON DELETE CASCADE. |
+| `to_entity` | TEXT | FK to `entities.id`. ON DELETE CASCADE. |
+| `relation_type` | TEXT | Free-form (e.g. `"maintains"`, `"prefers"`, `"SAME_AS"`). |
+| `weight` | REAL | 0.0–1.0. Default 1.0. Used as the edge-weight multiplier by spreading activation; the normalizer also writes the fuzzy-match similarity score here on `SAME_AS` edges. |
 | `created_at` | INTEGER | Unix seconds. |
-| `confidence` | REAL | 0.0–1.0. |
+| `valid_from` | INTEGER NULL | Unix seconds; null = always valid since `created_at`. |
+| `valid_until` | INTEGER NULL | Unix seconds; null = never expires. |
+| `source` | TEXT | Origin tag. The normalizer stamps `"normalization"` on the `SAME_AS` edges it writes. |
 
-Indexes: `source_entity_id`, `target_entity_id`, `relation_type`.
-
-### `consolidation_metadata`
-
-A single-row table tracking the last consolidation timestamp,
-duplicates merged, observations pruned, and entities removed.
-Read by `MemoryStore::status` for the `last_consolidation` field.
+Indexes: `from_entity`, `to_entity`, `relation_type`.
 
 ### `memory_meta`
 
-The schema-version row. Read on every open.
+Key/value table. Holds the schema-version row (read on every open)
+and a `last_consolidation` row stamped on every successful
+`MemoryStore::consolidate` call with the Unix-seconds timestamp of
+that run. There is no dedicated `consolidation_metadata` table;
+per-run counters (duplicates merged, observations pruned, entities
+removed) are returned in-memory as a `ConsolidateReport` and not
+persisted.
 
 ## `metadata.sqlite` schema
 
 Owned by
 [`crates/openmemory-index/src/metadata.rs`](../crates/openmemory-index/src/metadata.rs):
 
-The `sources` table tracks every URI the index knows about,
-regardless of which store created it. The `kind` discriminator
-distinguishes graph observations from `index_text` rows from file
-watcher entries.
+The `sources` table tracks every URI the index knows about. Two
+discriminator columns: `kind` is the structural source category
+(graph observation, free-text upsert, file watcher), and
+`source_type` is a free-form tag distinguishing finer-grained
+variants within a kind.
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `uri` | TEXT PRIMARY KEY | The caller-supplied URI (e.g. `note://standup`, `file:///path/to/file.md`, or a graph-internal URI). |
-| `kind` | TEXT | `observation`, `text`, `file_watcher`, ... |
+| `uri` | TEXT PRIMARY KEY | The caller-supplied URI (e.g. `note://standup`, `file:///path/to/file.md`, or a graph-internal `memory://observation/<id>`). |
+| `kind` | TEXT | `SourceKind` variant. `index_text` covers free-text upserts including the file watcher. |
 | `content_hash` | BLOB | BLAKE3 hash of the canonical content; the watcher uses this to skip unchanged files. |
-| `size` | INTEGER | Byte length of the canonical content. |
-| `chunk_count` | INTEGER | How many chunks were derived from this URI. |
-| `status` | TEXT | `live`, `tombstoned`. |
+| `size_bytes` | INTEGER | Byte length of the canonical content. Default `0`. |
+| `source_type` | TEXT | Free-form sub-category. The watcher stamps the literal string `"file:watcher"` (with the colon) so callers can distinguish file-watcher rows from MCP `openmemory_index_text` rows at query time. Default empty. |
+| `chunk_count` | INTEGER | How many chunks were derived from this URI. Default `0`. |
+| `status` | TEXT | Lifecycle marker. Default `"indexed"`. |
 | `created_at` | INTEGER | Unix seconds. |
 | `updated_at` | INTEGER | Unix seconds. |
 
-The `index_meta` table holds the schema version and a couple of
-maintenance counters.
+Indexes: `kind`, `updated_at`.
+
+The `index_meta` table holds the schema version (current version
+`1`).
 
 ## `fulltext.sqlite` (FTS5)
 
@@ -188,16 +195,37 @@ When the `fts5` feature is on (the default), keyword search lives
 in a SQLite FTS5 virtual table. Schema:
 
 ```sql
-CREATE VIRTUAL TABLE fts5_entries USING fts5(
-    uri,
+CREATE VIRTUAL TABLE chunks_fts USING fts5(
+    uri UNINDEXED,
     text,
-    chunk_index UNINDEXED
+    chunk_index UNINDEXED,
+    tokenize = 'unicode61 remove_diacritics 2'
 );
 ```
 
-Search uses BM25 ranking via the `bm25(fts5_entries)` aggregate
-function. There is no separate version row; FTS5's internal
-representation is stable for the use case.
+Search uses BM25 ranking via FTS5's built-in `rank` alias (`ORDER
+BY rank LIMIT ?`). There is no separate version row; FTS5's
+internal representation is stable for the use case.
+
+### Fielded indexing via repetition (v0.3)
+
+The table has a single `text` column on purpose; per-field BM25
+weighting is faked at index time. Callers can attach
+`title`, `summary`, `concepts`, `source_files`, `source_kind`,
+`entity_type`, and `entity_name` to an `IndexEntry`. On insert,
+[`fielded_text`](../crates/openmemory-index/src/fts5.rs)
+concatenates those fields into the `text` column, repeating each
+field `(weight * WEIGHT_SCALE).round()` times. With
+`WEIGHT_SCALE = 2.0` and the defaults documented in
+[configuration.md](configuration.md#searchfield_weights-section-v03),
+a `title` match contributes ~10x what a `text` match does. The
+pure-Rust BM25 fallback (`bm25.json`) applies the same scheme so
+behaviour is consistent across the two backends.
+
+Queries are escaped before being passed to FTS5: each token of
+length >= 2 becomes a quoted exact match, and tokens of length >= 4
+also get an unquoted prefix variant. See the `fts5_escape` helper
+in [`fts5.rs`](../crates/openmemory-index/src/fts5.rs).
 
 When the `fts5` feature is off (`--no-default-features`), the
 fallback is `Bm25Store`: a pure-Rust BM25 index serialised to
