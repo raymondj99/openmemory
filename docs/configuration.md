@@ -20,19 +20,19 @@ The schema is owned by
 jobs = 0   # 0 = use Config::num_jobs() (CPU count)
 
 [search]
-hybrid_alpha = 0.6
-max_results  = 50
+hybrid_alpha = 0.7
+max_results  = 10
 rrf_k        = 60
 
 [memory]
-decay_rate              = 0.05    # per day
-consolidation_interval  = 86400   # seconds (= 1 day)
+decay_rate              = 0.01    # per day
+consolidation_interval  = 1800    # seconds (= 30 minutes)
 dedup_threshold         = 0.95
 prune_floor             = 0.05
 
 [index]
-chunk_size = 1000
-max_chars  = 1_000_000
+chunk_size = 512
+max_chars  = 100_000
 
 [watch]
 debounce_ms = 200
@@ -56,16 +56,37 @@ max_candidates       = 100
 
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
-| `hybrid_alpha` | f32 | `0.6` | Weight for vector vs. keyword in RRF fusion. `1.0` = vector only; `0.0` = keyword only; `0.6` slightly favours vector. |
-| `max_results` | usize | `50` | Default `top_k` cap when callers do not pass one explicitly. |
+| `hybrid_alpha` | f32 | `0.7` | Weight for vector vs. keyword in RRF fusion. `1.0` = vector only; `0.0` = keyword only; `0.7` favours vector. |
+| `max_results` | usize | `10` | Default `top_k` cap when callers do not pass one explicitly. |
 | `rrf_k` | u32 | `60` | RRF dampening constant. Larger flattens the curve; smaller sharpens it. |
+
+### `[search.field_weights]` section (v0.3)
+
+Per-field BM25 weights applied at index time by the FTS5 keyword
+backend. The writer concatenates the v0.3 fielded inputs into the
+single FTS5 `text` column, repeating high-weight fields per the
+weights below so a match on `title` ranks above a match on `text`.
+Weights must be finite and non-negative. Existing indexed rows keep the
+weights used when they were written; rebuild or re-index to apply new
+weights to old content.
+
+| Key | Type | Default |
+|-----|------|---------|
+| `title` | f32 | `5.0` |
+| `text` | f32 | `1.0` |
+| `summary` | f32 | `2.0` |
+| `concepts` | f32 | `2.0` |
+| `source_files` | f32 | `2.0` |
+| `source_kind` | f32 | `0.5` |
+| `entity_type` | f32 | `0.5` |
+| `entity_name` | f32 | `4.0` |
 
 ### `[memory]` section
 
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
-| `decay_rate` | f64 | `0.05` per day | Lambda in `exp(-lambda * days)`. Higher = faster forgetting. |
-| `consolidation_interval` | u64 (secs) | `86400` | Minimum spacing between automatic consolidate runs (no in-process scheduler ships in v0.2; this is for future use). |
+| `decay_rate` | f64 | `0.01` per day | Lambda in `exp(-lambda * days)`. Higher = faster forgetting. |
+| `consolidation_interval` | u64 (secs) | `1800` | Minimum spacing between automatic consolidate runs (no in-process scheduler ships in v0.2; this is for future use). |
 | `dedup_threshold` | f32 | `0.95` | Jaccard text-similarity threshold for the consolidation dedup pass. |
 | `prune_floor` | f32 | `0.05` | Score floor for the consolidation decay-prune pass. |
 
@@ -73,8 +94,8 @@ max_candidates       = 100
 
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
-| `chunk_size` | usize | `1000` | Soft target chars per chunk for `index_text`. |
-| `max_chars` | usize | `1_000_000` | Hard cap on a single `index_text` payload. |
+| `chunk_size` | usize | `512` | Soft target chars per chunk for `index_text`. |
+| `max_chars` | usize | `100_000` | Hard cap on a single `index_text` payload. |
 
 ### `[watch]` section
 

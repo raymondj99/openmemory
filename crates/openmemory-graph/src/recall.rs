@@ -11,7 +11,8 @@
 //!   base_decay     = exp(-lambda * days_since_observed)
 //!   retrieval      = 1 + 0.15 * ln(1 + access_count)
 //!   correction     = source == "correction" ? 1.3 : 1.0
-//!   final_score    = search_score * base_decay * retrieval * correction * confidence
+//!   importance     = 1 + 0.25 * importance
+//!   final_score    = search_score * base_decay * retrieval * correction * importance * confidence
 //! ```
 //!
 //! Recall holds `read_rebuild()` only while the hybrid engine is doing its
@@ -24,16 +25,20 @@
 use std::collections::{HashMap, HashSet};
 
 use openmemory_index::SearchMode;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::params;
 
 use crate::error::MemoryResult;
-use crate::store::{row_to_observation, MemoryStore};
-use crate::types::{EntityType, Observation};
+use crate::store::{row_to_recall_observation, MemoryStore};
+use crate::types::{EntityType, MemoryTier, Observation};
 
 /// Multiplier applied when an observation's source matches one of the
 /// configured "correction" tags. These are high-priority "don't repeat
 /// this mistake" memories.
 pub const CORRECTION_RETRIEVAL_BOOST: f32 = 1.3;
+
+/// Maximum score multiplier contributed by an observation's optional
+/// importance prior (`importance = 1.0` -> 1.25x).
+pub const IMPORTANCE_RETRIEVAL_WEIGHT: f32 = 0.25;
 
 /// Score floor for direct hits. Raw search scores below this drop out so
 /// approximate-nearest-neighbour noise doesn't drown signal.
@@ -63,6 +68,9 @@ pub struct RecallFilters {
     /// Restrict to specific search mode. Defaults to whatever
     /// `SearchMode::default()` is (Hybrid).
     pub mode: Option<SearchMode>,
+    /// Restrict to observations stored under this memory tier. `None`
+    /// returns every tier.
+    pub memory_tier: Option<MemoryTier>,
     /// Whether to use the relation-spreading fallback when direct search
     /// underflows. Default: enabled.
     pub spreading_activation: bool,
@@ -108,8 +116,28 @@ impl MemoryStore {
 
         let mode = filters.mode.unwrap_or_default();
 
-        let vector = self.embed_query_text(query);
-        let fetch = top_k.saturating_mul(3).max(top_k);
+        let vector = self.embed_query(query);
+        // Filters run post-search, so we need enough headroom for any
+        // filter that may discard a large fraction of the candidate set.
+        // When a memory_tier filter is active we overfetch up to the
+        // total indexed count, since a query may match many higher-
+        // scoring observations from other tiers that would otherwise
+        // crowd valid tier-matching hits out of the candidate window.
+        let fetch = {
+            let base = top_k.saturating_mul(3).max(top_k);
+            if filters.memory_tier.is_some() {
+                let total = self
+                    .engine()
+                    .engine
+                    .count()
+                    .ok()
+                    .and_then(|c| usize::try_from(c).ok())
+                    .unwrap_or(base);
+                base.max(total)
+            } else {
+                base
+            }
+        };
 
         let raw_results = {
             let _guard = self.read_rebuild();
@@ -121,31 +149,60 @@ impl MemoryStore {
         let valid_at = filters.valid_at.unwrap_or_else(|| self.clock().now_secs());
         let lambda = self.decay_rate();
 
-        let mut hits: Vec<RecallResult> = self.with_reader(|conn| {
-            let mut hits: Vec<RecallResult> = Vec::with_capacity(raw_results.len());
-            for r in &raw_results {
-                let Some(obs_id) = r.uri.strip_prefix("memory://observation/") else {
-                    continue;
-                };
+        // Extract the (obs_id, raw_score) pairs from the engine response so
+        // we can fetch every candidate observation in a single SQL call
+        // instead of N round-trips. Skips URIs that don't decode to an
+        // observation key (e.g. plain `index_text` rows).
+        let mut candidates: Vec<(&str, f32)> = Vec::with_capacity(raw_results.len());
+        for r in &raw_results {
+            if let Some(obs_id) = r.uri.strip_prefix("memory://observation/") {
+                candidates.push((obs_id, r.score));
+            }
+        }
 
-                let lookup = conn
-                    .query_row(
-                        "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
-                                o.valid_until, o.confidence, o.source, o.tombstoned,
-                                o.access_count, e.name, e.entity_type
-                         FROM observations o
-                         JOIN entities e ON o.entity_id = e.id
-                         WHERE o.id = ?1",
-                        [obs_id],
-                        |row| {
-                            let obs = row_to_observation(row)?;
-                            let entity_name: String = row.get(10)?;
-                            let entity_type_str: String = row.get(11)?;
-                            Ok((obs, entity_name, entity_type_str))
-                        },
-                    )
-                    .optional()?;
-                let Some((obs, entity_name, entity_type_str)) = lookup else {
+        let mut hits: Vec<RecallResult> = self.with_reader(|conn| {
+            if candidates.is_empty() {
+                return Ok(Vec::new());
+            }
+            // Bulk-fetch every candidate observation + its entity in one
+            // round-trip with `WHERE o.id IN (?, ?, ...)`. The recall hot
+            // path runs at high frequency under low-latency SLAs, so
+            // collapsing N prepares + N executes (each holding the reader
+            // connection) into one statement is worth the dynamic SQL
+            // build. The result rows arrive in SQLite's natural order;
+            // we re-pair them with their RRF score via the obs_id map
+            // below to preserve the engine's ranking.
+            let placeholders = std::iter::repeat("?")
+                .take(candidates.len())
+                .collect::<Vec<_>>()
+                .join(",");
+            let sql = format!(
+                "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
+                        o.valid_until, o.confidence, o.source, o.tombstoned,
+                        o.access_count, o.memory_tier, o.importance,
+                        e.name, e.entity_type
+                 FROM observations o
+                 JOIN entities e ON o.entity_id = e.id
+                 WHERE o.id IN ({placeholders})",
+            );
+            // The SQL text is determined entirely by `candidates.len()`,
+            // so back-to-back recalls with the same `top_k` hit the
+            // per-connection statement cache.
+            let mut stmt = conn.prepare_cached(&sql)?;
+            let mut rows =
+                stmt.query(rusqlite::params_from_iter(candidates.iter().map(|c| c.0)))?;
+            let mut by_id: HashMap<String, (Observation, String, String)> =
+                HashMap::with_capacity(candidates.len());
+            while let Some(row) = rows.next()? {
+                let obs = row_to_recall_observation(row)?;
+                let entity_name: String = row.get(12)?;
+                let entity_type_str: String = row.get(13)?;
+                by_id.insert(obs.id.clone(), (obs, entity_name, entity_type_str));
+            }
+
+            let mut hits: Vec<RecallResult> = Vec::with_capacity(candidates.len());
+            for (obs_id, raw_score) in &candidates {
+                let Some((obs, entity_name, entity_type_str)) = by_id.remove(*obs_id) else {
                     continue;
                 };
 
@@ -169,6 +226,11 @@ impl MemoryStore {
                         continue;
                     }
                 }
+                if let Some(filter_tier) = filters.memory_tier {
+                    if obs.memory_tier != filter_tier {
+                        continue;
+                    }
+                }
                 if let Some(ref names) = filters.entity_names {
                     let name_lower = entity_name.to_lowercase();
                     if !names.iter().any(|n| n.to_lowercase() == name_lower) {
@@ -176,8 +238,7 @@ impl MemoryStore {
                     }
                 }
 
-                let raw_score = r.score;
-                let score = compute_score(&obs, raw_score, valid_at, lambda);
+                let score = compute_score(&obs, *raw_score, valid_at, lambda);
                 if score < RECALL_MIN_SCORE {
                     continue;
                 }
@@ -185,7 +246,7 @@ impl MemoryStore {
                     observation: obs,
                     entity_name,
                     entity_type,
-                    raw_score,
+                    raw_score: *raw_score,
                     score,
                 });
             }
@@ -254,18 +315,30 @@ impl MemoryStore {
                  WHERE to_entity = ?1
                     AND (valid_until IS NULL OR valid_until > ?2)",
             )?;
-            let mut obs_stmt = conn.prepare(
+            // Same narrow projection as the direct-hit path: only the
+            // columns the score+filter pipeline consumes. The
+            // memory_tier constraint is pushed into the SQL so it does
+            // not interact with the per-entity `LIMIT`.
+            let tier_clause = if filters.memory_tier.is_some() {
+                "AND o.memory_tier = ?4 "
+            } else {
+                ""
+            };
+            let obs_sql = format!(
                 "SELECT o.id, o.entity_id, o.content, o.observed_at, o.valid_from,
                         o.valid_until, o.confidence, o.source, o.tombstoned, o.access_count,
+                        o.memory_tier, o.importance,
                         e.name, e.entity_type
                  FROM observations o
                  JOIN entities e ON o.entity_id = e.id
                  WHERE o.entity_id = ?1
                     AND o.tombstoned = 0
                     AND (o.valid_until IS NULL OR o.valid_until > ?2)
+                    {tier_clause}
                  ORDER BY o.observed_at DESC
                  LIMIT ?3",
-            )?;
+            );
+            let mut obs_stmt = conn.prepare(&obs_sql)?;
 
             for (seed_entity, seed_score) in &seed_entities {
                 let mut neighbours = rel_stmt.query(params![seed_entity, valid_at])?;
@@ -279,15 +352,22 @@ impl MemoryStore {
                     let limit_remaining = i64::try_from(max_extra - out.len())
                         .unwrap_or(i64::MAX)
                         .max(1);
-                    let mut obs_rows =
-                        obs_stmt.query(params![neighbour_id, valid_at, limit_remaining])?;
+                    let mut obs_rows = match filters.memory_tier {
+                        Some(tier) => obs_stmt.query(params![
+                            neighbour_id,
+                            valid_at,
+                            limit_remaining,
+                            tier.as_str()
+                        ])?,
+                        None => obs_stmt.query(params![neighbour_id, valid_at, limit_remaining])?,
+                    };
                     while let Some(orow) = obs_rows.next()? {
-                        let obs = row_to_observation(orow)?;
+                        let obs = row_to_recall_observation(orow)?;
                         if !obs.is_valid_at(valid_at) {
                             continue;
                         }
-                        let entity_name: String = orow.get(10)?;
-                        let entity_type_str: String = orow.get(11)?;
+                        let entity_name: String = orow.get(12)?;
+                        let entity_type_str: String = orow.get(13)?;
                         let entity_type =
                             EntityType::parse(&entity_type_str).unwrap_or(EntityType::Concept);
 
@@ -296,6 +376,10 @@ impl MemoryStore {
                                 continue;
                             }
                         }
+                        // memory_tier is filtered in SQL via the tier_clause
+                        // above so the per-entity LIMIT does not drop valid
+                        // tier-matching hits behind higher-scoring rows from
+                        // other tiers.
                         if let Some(min_conf) = filters.min_confidence {
                             if obs.confidence < min_conf {
                                 continue;
@@ -365,11 +449,18 @@ fn compute_score(observation: &Observation, raw_score: f32, valid_at: i64, lambd
     } else {
         1.0
     };
+    let importance = observation
+        .importance
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    let importance_boost = 1.0 + IMPORTANCE_RETRIEVAL_WEIGHT * importance;
     raw_score
         * base_decay
         * retrieval_boost
         * observation.confidence.clamp(0.0, 1.0)
         * correction_boost
+        * importance_boost
 }
 
 #[cfg(test)]
@@ -396,6 +487,36 @@ mod tests {
         let (store, _) = open_with_clock();
         let r = store.recall("", 5, &RecallFilters::new()).unwrap();
         assert!(r.is_empty());
+    }
+
+    #[test]
+    fn recall_filters_memory_tier_excludes_other_tiers() {
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "T",
+                EntityType::Fact,
+                &[
+                    ObservationInput::new("alpha episodic"),
+                    ObservationInput::new("alpha semantic").with_memory_tier(MemoryTier::Semantic),
+                ],
+                &[],
+                "t",
+            )
+            .unwrap();
+
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        filters.memory_tier = Some(MemoryTier::Semantic);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+
+        assert!(!r.is_empty(), "expected at least one semantic hit");
+        assert!(
+            r.iter()
+                .all(|h| h.observation.memory_tier == MemoryTier::Semantic),
+            "tier filter leak: {r:?}",
+        );
+        assert!(r.iter().any(|h| h.observation.content.contains("semantic")));
     }
 
     #[test]
@@ -488,6 +609,58 @@ mod tests {
                 p.score
             );
         }
+    }
+
+    #[test]
+    fn importance_prior_boosts_equal_scores() {
+        let mut plain = Observation::new("entity", "alpha", 1_000_000);
+        plain.importance = None;
+        let mut important = plain.clone();
+        important.importance = Some(1.0);
+
+        let plain_score = compute_score(&plain, 1.0, 1_000_000, 0.01);
+        let important_score = compute_score(&important, 1.0, 1_000_000, 0.01);
+
+        assert!(
+            important_score > plain_score,
+            "importance should act as a positive ranking prior"
+        );
+    }
+
+    #[test]
+    fn recall_projects_importance_for_scoring() {
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "T",
+                EntityType::Fact,
+                &[ObservationInput::new("alpha mention").with_importance(0.8)],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+        assert_eq!(r[0].observation.importance, Some(0.8));
+    }
+
+    #[test]
+    fn summary_field_is_searchable() {
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "T",
+                EntityType::Fact,
+                &[ObservationInput::new("plain body").with_summary("rare summary term")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        let r = store.recall("rare", 5, &filters).unwrap();
+        assert!(!r.is_empty(), "summary text should be indexed");
     }
 
     #[test]

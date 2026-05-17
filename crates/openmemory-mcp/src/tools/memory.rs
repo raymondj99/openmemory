@@ -20,7 +20,8 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use openmemory_graph::{
-    EntityType, MemoryError, NormalizeMatch, ObservationInput, RecallFilters, RelationInput,
+    EntityType, MemoryError, MemoryTier, NormalizeMatch, ObservationInput, RecallFilters,
+    RelationInput,
 };
 
 use crate::params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
@@ -63,8 +64,12 @@ pub struct RememberInput {
     /// Entity classification. Defaults to `concept`.
     #[serde(default)]
     pub entity_type: Option<EntityTypeParam>,
-    /// One or more atomic facts about the entity. Empty list rejected.
-    pub observations: Vec<String>,
+    /// One or more atomic facts about the entity. Each entry is either
+    /// a bare string (legacy shape) or an object with the v0.3 fielded
+    /// inputs (`content`, plus optional `title`, `summary`,
+    /// `importance`, `source_kind`, `concepts`, `source_files`). Empty
+    /// list rejected.
+    pub observations: Vec<RememberObservationInput>,
     /// Optional directed relationships to other entities.
     #[serde(default)]
     pub relations: Option<Vec<RelationInputParam>>,
@@ -74,6 +79,39 @@ pub struct RememberInput {
     /// Per-observation confidence. Defaults to 1.0; clamped into [0.0, 1.0].
     #[serde(default)]
     pub confidence: Option<f32>,
+    /// Memory tier for the new observations. Defaults to `episodic`.
+    #[serde(default)]
+    pub memory_tier: Option<MemoryTierParam>,
+}
+
+/// One observation on the remember API. Either a bare string (the
+/// legacy shape) or a detailed object carrying the v0.3 fielded inputs.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum RememberObservationInput {
+    /// Bare-content shape, identical to v0.2 callers.
+    Plain(String),
+    /// Detailed shape with the v0.3 fielded inputs.
+    Detailed(ObservationInputBody),
+}
+
+/// Detailed observation body. All fields except `content` are optional;
+/// `importance` is clamped into `[0.0, 1.0]`.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ObservationInputBody {
+    pub content: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub importance: Option<f32>,
+    #[serde(default)]
+    pub source_kind: Option<String>,
+    #[serde(default)]
+    pub concepts: Vec<String>,
+    #[serde(default)]
+    pub source_files: Vec<String>,
 }
 
 /// One relation input on the remember API.
@@ -134,14 +172,47 @@ impl Tool for OpenMemoryRememberTool {
         let source = req.source.as_deref().unwrap_or("mcp").to_string();
 
         let confidence = req.confidence.unwrap_or(1.0);
+        let memory_tier = req
+            .memory_tier
+            .map_or(MemoryTier::Episodic, |p| p.to_tier());
         let observations: Vec<ObservationInput> = req
             .observations
             .iter()
-            .filter(|s| !s.trim().is_empty())
-            .map(|content| {
-                ObservationInput::new(content)
-                    .with_confidence(confidence)
-                    .with_source(&source)
+            .filter_map(|raw| {
+                let body = match raw {
+                    RememberObservationInput::Plain(s) => {
+                        if s.trim().is_empty() {
+                            return None;
+                        }
+                        ObservationInput::new(s)
+                    }
+                    RememberObservationInput::Detailed(d) => {
+                        if d.content.trim().is_empty() {
+                            return None;
+                        }
+                        let mut inp = ObservationInput::new(&d.content)
+                            .with_concepts(d.concepts.clone())
+                            .with_source_files(d.source_files.clone());
+                        if let Some(title) = d.title.as_deref() {
+                            inp = inp.with_title(title);
+                        }
+                        if let Some(summary) = d.summary.as_deref() {
+                            inp = inp.with_summary(summary);
+                        }
+                        if let Some(importance) = d.importance {
+                            inp = inp.with_importance(importance);
+                        }
+                        if let Some(kind) = d.source_kind.as_deref() {
+                            inp = inp.with_source_kind(kind);
+                        }
+                        inp
+                    }
+                };
+                Some(
+                    body.with_confidence(confidence)
+                        .with_source(&source)
+                        .with_memory_tier(memory_tier),
+                )
             })
             .collect();
         if observations.is_empty() {
@@ -212,7 +283,6 @@ pub struct RecallInput {
     pub min_confidence: Option<f32>,
     /// Restrict to a memory tier (`episodic` | `semantic` | `procedural`).
     #[serde(default)]
-    #[allow(dead_code)]
     pub memory_tier: Option<MemoryTierParam>,
     /// Restrict to specific entity names (case-insensitive).
     #[serde(default)]
@@ -260,6 +330,7 @@ impl Tool for OpenMemoryRecallTool {
         filters.min_confidence = req.min_confidence;
         filters.entity_names = req.entity_names;
         filters.mode = req.mode.map(|p| p.to_mode());
+        filters.memory_tier = req.memory_tier.map(|p| p.to_tier());
 
         let hits = server
             .memory()
@@ -280,6 +351,7 @@ impl Tool for OpenMemoryRecallTool {
                     "confidence": super::round2(h.observation.confidence),
                     "source": h.observation.source,
                     "access_count": h.observation.access_count,
+                    "memory_tier": h.observation.memory_tier.as_str(),
                 })
             })
             .collect();
@@ -433,6 +505,13 @@ impl Tool for OpenMemoryGetEntityTool {
                     "confidence": super::round2(o.confidence),
                     "source": o.source,
                     "access_count": o.access_count,
+                    "memory_tier": o.memory_tier.as_str(),
+                    "title": o.title,
+                    "summary": o.summary,
+                    "importance": o.importance,
+                    "source_kind": o.source_kind,
+                    "concepts": o.concepts,
+                    "source_files": o.source_files,
                 })
             })
             .collect();
@@ -639,6 +718,112 @@ mod tests {
         ] {
             assert!(d.name.starts_with("openmemory_"));
         }
+    }
+
+    #[test]
+    fn remember_fielded_observation_round_trips_via_get_entity() {
+        let s = server();
+        let _ = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "Sift",
+                "entity_type": "project",
+                "observations": [
+                    {
+                        "content": "uses fielded indexing",
+                        "title": "fielded indexing landed",
+                        "summary": "v0.3 ships fielded inputs",
+                        "importance": 0.7,
+                        "source_kind": "note",
+                        "concepts": ["indexing", "schema"],
+                        "source_files": ["docs/storage.md"]
+                    }
+                ]
+            }),
+        )
+        .unwrap();
+
+        let r = OpenMemoryGetEntityTool::call(&s, json!({"entity": "Sift"})).unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"title\": \"fielded indexing landed\""));
+        assert!(body.contains("\"summary\": \"v0.3 ships fielded inputs\""));
+        assert!(body.contains("\"source_kind\": \"note\""));
+        assert!(body.contains("\"concepts\""));
+        assert!(body.contains("indexing"));
+        assert!(body.contains("schema"));
+        assert!(body.contains("docs/storage.md"));
+        // importance is serialised as a JSON number; tolerate the f32
+        // rendering as either 0.7 or 0.699...
+        assert!(body.contains("\"importance\""));
+    }
+
+    #[test]
+    fn remember_plain_observation_strings_still_work() {
+        let s = server();
+        let _ = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "PlainShape",
+                "observations": ["bare string observation"],
+            }),
+        )
+        .unwrap();
+        let r = OpenMemoryGetEntityTool::call(&s, json!({"entity": "PlainShape"})).unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("bare string observation"));
+    }
+
+    #[test]
+    fn remember_then_recall_round_trips_semantic_tier() {
+        let s = server();
+        let _ = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "T",
+                "observations": ["alpha"],
+                "memory_tier": "semantic",
+            }),
+        )
+        .unwrap();
+
+        let r = OpenMemoryRecallTool::call(
+            &s,
+            json!({
+                "query": "alpha",
+                "mode": "keyword",
+                "memory_tier": "semantic",
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(
+            body.contains("\"memory_tier\": \"semantic\""),
+            "missing semantic tier in body: {body}",
+        );
+
+        // A tier-scoped recall with no semantic hits stays empty.
+        let r = OpenMemoryRecallTool::call(
+            &s,
+            json!({
+                "query": "alpha",
+                "mode": "keyword",
+                "memory_tier": "procedural",
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(
+            body.contains("\"results\": []"),
+            "procedural tier should yield no hits, got: {body}",
+        );
     }
 
     #[test]

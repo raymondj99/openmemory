@@ -9,7 +9,65 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Fielded observation indexing.** `openmemory_remember` now accepts a
+  detailed observation shape with optional `title`, `summary`,
+  `importance`, `source_kind`, `concepts`, and `source_files` (the
+  legacy bare-string shape still works). The FTS5 keyword backend
+  weights matches across the new fields via the repetition-based
+  `Config::search.field_weights` table (defaults bias `title` 5.0 and
+  `entity_name` 4.0, with `summary` at 2.0). `summary` participates in
+  keyword search, `importance` participates in recall scoring, and
+  `openmemory_get_entity` returns every new field on each observation row.
+- **Memory-store schema v2.** Forward-only migration adds four
+  nullable columns to `observations` (`title`, `summary`,
+  `importance`, `source_kind`) plus two new tables
+  (`observation_concepts`, `observation_source_files`) with
+  ON DELETE CASCADE. v1 stores upgrade in place on next open;
+  observations missing the new fields surface as `null` /
+  empty arrays.
+- **`memory_tier` end-to-end.** The `memory_tier` filter on
+  `openmemory_recall` now actually filters; previously the field was
+  accepted but dropped on the floor. The new `memory_tier` field on
+  `openmemory_remember` stamps every new observation with the
+  caller-supplied tier (defaults to `episodic`). Every
+  `openmemory_recall` result JSON now carries the source observation's
+  tier as `memory_tier`. The column has existed in schema v1 since
+  v0.2; this closes the read- and write-side gap.
+- **Retrieval-quality evaluation harness.** New `openmemory-eval`
+  crate ships a `Dataset` trait, a pure-function metrics module
+  (R@K, MRR, NDCG@K), and an `EvalRunner` that ingests a corpus into
+  a fresh `MemoryStore` and scores the configured queries. Two
+  adapters (`longmem-s`, `coding-mem`) read a JSONL fixture tree.
+  Drive it via the new `openmemory eval` CLI subcommand behind the
+  optional `eval` build feature; `--report <path>` writes the JSON
+  artifact, `--baseline <path>` prints per-metric deltas against a
+  prior run. Hybrid and vector evals require a downloaded embedding
+  model, and a non-gating `.github/workflows/eval.yml` downloads the
+  default model before running the longmem-s adapter on every PR once
+  fixtures land at `tests/fixtures/longmem-s`.
+
+### Fixed
+
+- **Hybrid search now actually runs on every documented path.** The
+  `openmemory_search` and `openmemory_index_text` MCP tools and the
+  `openmemory watch` ingestion loop previously bypassed the vector
+  backend even with an embedding model loaded. They now pass the
+  query vector into `HybridSearchEngine::search` and persist the
+  document vector via `engine.insert`. The change is silent when no
+  embedding model is loaded; hybrid mode continues to degrade to
+  keyword-only without raising.
+- **MCP `openmemory_search` no longer double-pumps `top_k * 3`.**
+  The wrapper used to inflate `limit` before handing off to the
+  hybrid engine, which already inflates internally. The duplicate
+  inflation produced slightly more candidates than needed and
+  inflated CPU on large indexes. Resolved by passing `limit`
+  through unchanged.
+- **MCP URI-prefix filters no longer hide lower-ranked matches.**
+  `openmemory_search` now fetches enough candidates before applying
+  `uri_prefix`, so a high-scoring result outside the requested URI
+  subtree cannot consume the caller's entire `limit`.
 
 ## [0.2.1] - 2026-05-16
 

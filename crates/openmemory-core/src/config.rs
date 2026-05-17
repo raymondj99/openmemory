@@ -35,6 +35,36 @@ pub struct SearchSection {
     pub max_results: usize,
     #[serde(default = "SearchSection::default_rrf_k")]
     pub rrf_k: u32,
+    /// Per-field BM25 weights used by the FTS5 keyword backend. The
+    /// backend stores a single FTS5 text column and applies each weight
+    /// by repeating the corresponding field at index time; higher weights
+    /// boost matches in that field. Defaults bias toward `title` and
+    /// `entity_name`.
+    #[serde(default)]
+    pub field_weights: FieldWeights,
+}
+
+/// Per-field BM25 weights, in the order expected by the FTS5 backend:
+/// `title`, `text`, `summary`, `concepts`, `source_files`,
+/// `source_kind`, `entity_type`, `entity_name`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldWeights {
+    #[serde(default = "FieldWeights::default_title")]
+    pub title: f32,
+    #[serde(default = "FieldWeights::default_text")]
+    pub text: f32,
+    #[serde(default = "FieldWeights::default_summary")]
+    pub summary: f32,
+    #[serde(default = "FieldWeights::default_concepts")]
+    pub concepts: f32,
+    #[serde(default = "FieldWeights::default_source_files")]
+    pub source_files: f32,
+    #[serde(default = "FieldWeights::default_source_kind")]
+    pub source_kind: f32,
+    #[serde(default = "FieldWeights::default_entity_type")]
+    pub entity_type: f32,
+    #[serde(default = "FieldWeights::default_entity_name")]
+    pub entity_name: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +182,13 @@ impl Config {
                 "search.max_results must be greater than 0".into(),
             ));
         }
+        for (name, weight) in self.search.field_weights.named() {
+            if !weight.is_finite() || weight < 0.0 {
+                return Err(OmError::Config(format!(
+                    "search.field_weights.{name} ({weight}) must be finite and non-negative"
+                )));
+            }
+        }
         if self.memory.decay_rate < 0.0 {
             return Err(OmError::Config(
                 "memory.decay_rate must be non-negative".into(),
@@ -210,6 +247,81 @@ impl Default for SearchSection {
             hybrid_alpha: Self::default_hybrid_alpha(),
             max_results: Self::default_max_results(),
             rrf_k: Self::default_rrf_k(),
+            field_weights: FieldWeights::default(),
+        }
+    }
+}
+
+impl FieldWeights {
+    fn default_title() -> f32 {
+        5.0
+    }
+    fn default_text() -> f32 {
+        1.0
+    }
+    fn default_summary() -> f32 {
+        2.0
+    }
+    fn default_concepts() -> f32 {
+        2.0
+    }
+    fn default_source_files() -> f32 {
+        2.0
+    }
+    fn default_source_kind() -> f32 {
+        0.5
+    }
+    fn default_entity_type() -> f32 {
+        0.5
+    }
+    fn default_entity_name() -> f32 {
+        4.0
+    }
+
+    /// Return the per-field weights in the FTS5 payload order:
+    /// `title`, `text`, `summary`, `concepts`, `source_files`,
+    /// `source_kind`, `entity_type`, `entity_name`.
+    #[must_use]
+    pub fn as_array(&self) -> [f32; 8] {
+        [
+            self.title,
+            self.text,
+            self.summary,
+            self.concepts,
+            self.source_files,
+            self.source_kind,
+            self.entity_type,
+            self.entity_name,
+        ]
+    }
+
+    /// Return `(name, weight)` pairs in the same order as [`Self::as_array`].
+    #[must_use]
+    pub fn named(&self) -> [(&'static str, f32); 8] {
+        [
+            ("title", self.title),
+            ("text", self.text),
+            ("summary", self.summary),
+            ("concepts", self.concepts),
+            ("source_files", self.source_files),
+            ("source_kind", self.source_kind),
+            ("entity_type", self.entity_type),
+            ("entity_name", self.entity_name),
+        ]
+    }
+}
+
+impl Default for FieldWeights {
+    fn default() -> Self {
+        Self {
+            title: Self::default_title(),
+            text: Self::default_text(),
+            summary: Self::default_summary(),
+            concepts: Self::default_concepts(),
+            source_files: Self::default_source_files(),
+            source_kind: Self::default_source_kind(),
+            entity_type: Self::default_entity_type(),
+            entity_name: Self::default_entity_name(),
         }
     }
 }
@@ -368,6 +480,23 @@ decay_rate = 0.02
         let mut config = Config::default();
         config.search.hybrid_alpha = 1.5;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_bad_field_weight() {
+        let mut config = Config::default();
+        config.search.field_weights.summary = -1.0;
+        let err = config.validate().unwrap_err().to_string();
+        assert!(err.contains("search.field_weights.summary"));
+    }
+
+    #[test]
+    fn field_weights_array_includes_summary() {
+        let weights = FieldWeights::default().as_array();
+        let expected = [5.0, 1.0, 2.0, 2.0, 2.0, 0.5, 0.5, 4.0];
+        for (actual, expected) in weights.iter().zip(expected) {
+            assert!((actual - expected).abs() < f32::EPSILON);
+        }
     }
 
     #[test]

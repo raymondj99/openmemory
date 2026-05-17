@@ -6,6 +6,8 @@
 
 pub mod completions;
 pub mod consolidate;
+#[cfg(feature = "eval")]
+pub mod eval;
 pub mod init;
 pub mod integrate;
 pub mod mcp;

@@ -52,8 +52,8 @@ other memory MCPs.
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `openmemory_remember` | write | Create or update an entity, append observations and relations atomically. Fuzzy-matches incoming names against existing entities of the same type to prevent duplicates (configurable thresholds in `[normalization]`). |
-| `openmemory_recall` | read | Hybrid (vector + keyword) search over observations, scored with Ebbinghaus decay. Optional spreading-activation expansion to related entities. |
+| `openmemory_remember` | write | Create or update an entity, append observations and relations atomically. Fuzzy-matches incoming names against existing entities of the same type to prevent duplicates (configurable thresholds in `[normalization]`). Accepts an optional `memory_tier` field (defaults to `episodic`). Each entry in `observations` is either a bare string (legacy shape) or an object with `content` plus optional `title`, `summary`, `importance`, `source_kind`, `concepts`, `source_files`. |
+| `openmemory_recall` | read | Hybrid (vector + keyword) search over observations, scored with Ebbinghaus decay. Optional spreading-activation expansion to related entities. Optional `memory_tier` filter restricts results to one consolidation stage; every result JSON includes the source observation's `memory_tier`. |
 | `openmemory_list_entities` | read | Browse entities. Optional filter by `entity_type`; pagination via `limit` / `offset`. |
 | `openmemory_get_entity` | read | All observations and relations for one entity, lookup by `entity_id` or `name`. Used after `recall` to drill in. |
 | `openmemory_forget` | destructive | Soft-delete a single observation by id. Lineage preserved (the row is tomb-stoned, not removed). |
@@ -133,7 +133,11 @@ JSON-Schema output ergonomic for OpenClaw's tool inspector:
 
 - `EntityTypeParam`: `person`, `project`, `concept`, `tool`,
   `preference`, `fact`, `event`, `location`, `organization`.
-- `MemoryTierParam`: `episodic`, `semantic`, `procedural`.
+- `MemoryTierParam`: `episodic` (default), `semantic`, `procedural`.
+  Accepted as an optional input on `openmemory_remember` (stamps every
+  new observation with that tier) and on `openmemory_recall` (filters
+  results to one tier). Every `openmemory_recall` result JSON object
+  carries the source observation's tier as `memory_tier`.
 - `SearchModeParam`: `hybrid` (default), `vector_only`,
   `keyword_only`.
 

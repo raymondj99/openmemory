@@ -23,10 +23,16 @@ fts5 = [
     "openmemory-index/fts5",
 ]
 hnsw = ["openmemory-mcp/hnsw", "openmemory-graph/hnsw", "openmemory-index/hnsw"]
-embeddings = ["dep:openmemory-embed", "openmemory-graph/embeddings", "openmemory-mcp/embeddings"]
+embeddings = [
+    "dep:openmemory-embed",
+    "openmemory-graph/embeddings",
+    "openmemory-mcp/embeddings",
+    "openmemory-eval?/embeddings",
+]
 mcp-http = ["openmemory-mcp/mcp-http"]
 completions = ["dep:clap_complete"]
 watch = ["dep:openmemory-watch"]
+eval = ["dep:openmemory-eval"]
 
 [dependencies]
 openmemory-core = { workspace = true }
@@ -35,6 +41,7 @@ openmemory-graph = { workspace = true, default-features = false }
 openmemory-mcp = { workspace = true, default-features = false }
 openmemory-embed = { workspace = true, default-features = false, optional = true }
 openmemory-watch = { workspace = true, default-features = false, optional = true }
+openmemory-eval = { workspace = true, default-features = false, optional = true }
 
 clap = { workspace = true }
 clap_complete = { workspace = true, optional = true }

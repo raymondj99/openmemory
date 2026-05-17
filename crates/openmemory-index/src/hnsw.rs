@@ -354,12 +354,9 @@ mod tests {
     use super::*;
 
     fn entry(uri: &str, text: &str, chunk: u32, vec: Vec<f32>) -> IndexEntry {
-        IndexEntry {
-            uri: uri.into(),
-            text: text.into(),
-            chunk_index: chunk,
-            vector: vec,
-        }
+        IndexEntry::new(uri, text)
+            .with_chunk_index(chunk)
+            .with_vector(vec)
     }
 
     #[test]

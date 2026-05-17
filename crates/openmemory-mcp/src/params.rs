@@ -106,7 +106,6 @@ pub enum MemoryTierParam {
 }
 
 impl MemoryTierParam {
-    #[allow(dead_code)]
     pub fn to_tier(self) -> MemoryTier {
         match self {
             Self::Episodic => MemoryTier::Episodic,

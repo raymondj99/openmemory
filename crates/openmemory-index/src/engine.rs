@@ -73,7 +73,10 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
     let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
 
     #[cfg(feature = "fts5")]
-    let fulltext_store = Fts5Store::open(&data_dir.join(FULLTEXT_FILE))?;
+    let fulltext_store = Fts5Store::open_with_field_weights(
+        &data_dir.join(FULLTEXT_FILE),
+        config.search.field_weights.as_array(),
+    )?;
     #[cfg(not(feature = "fts5"))]
     let fulltext_store = Bm25Store::open(&data_dir.join(FULLTEXT_FILE))?;
 
@@ -121,12 +124,7 @@ mod tests {
     use crate::traits::{IndexEntry, SearchMode};
 
     fn entry(uri: &str, text: &str, vec: Vec<f32>) -> IndexEntry {
-        IndexEntry {
-            uri: uri.into(),
-            text: text.into(),
-            chunk_index: 0,
-            vector: vec,
-        }
+        IndexEntry::new(uri, text).with_vector(vec)
     }
 
     #[test]

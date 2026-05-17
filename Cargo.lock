@@ -1575,6 +1575,7 @@ dependencies = [
  "json5",
  "openmemory-core",
  "openmemory-embed",
+ "openmemory-eval",
  "openmemory-graph",
  "openmemory-index",
  "openmemory-mcp",
@@ -1616,6 +1617,21 @@ dependencies = [
  "tokenizers",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "openmemory-eval"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "openmemory-core",
+ "openmemory-graph",
+ "openmemory-index",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
