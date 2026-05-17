@@ -9,6 +9,7 @@ members = [
     "crates/openmemory-cli",
     "crates/openmemory-watch",
     "crates/openmemory-bench",
+    "crates/openmemory-eval",
 ]
 
 [workspace.package]
@@ -28,6 +29,7 @@ openmemory-embed = { path = "crates/openmemory-embed", version = "0.2.1", defaul
 openmemory-graph = { path = "crates/openmemory-graph", version = "0.2.1", default-features = false }
 openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.2.1", default-features = false }
 openmemory-watch = { path = "crates/openmemory-watch", version = "0.2.1", default-features = false }
+openmemory-eval = { path = "crates/openmemory-eval", version = "0.2.1", default-features = false }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }

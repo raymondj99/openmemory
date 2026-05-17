@@ -34,8 +34,24 @@ pub struct ObservationInput {
     pub valid_from: Option<i64>,
     /// Open-ended `valid_until`. `None` = still valid.
     pub valid_until: Option<i64>,
-    /// Defaults to [`MemoryTier::Episodic`]. Reserved for v0.2 consolidation.
+    /// Defaults to [`MemoryTier::Episodic`].
     pub memory_tier: MemoryTier,
+    /// Optional caller-supplied title. Indexed at very high weight via
+    /// FTS5 in v0.3.
+    pub title: Option<String>,
+    /// Optional caller-supplied summary. Indexed at medium weight.
+    pub summary: Option<String>,
+    /// Optional importance in `[0.0, 1.0]`, clamped on write. Used as a
+    /// ranking prior, never indexed as text.
+    pub importance: Option<f32>,
+    /// Optional free-form source-kind discriminator.
+    pub source_kind: Option<String>,
+    /// Optional concept tags. Stored in the `observation_concepts` side
+    /// table.
+    pub concepts: Vec<String>,
+    /// Optional source-file paths. Stored in the
+    /// `observation_source_files` side table.
+    pub source_files: Vec<String>,
 }
 
 impl ObservationInput {
@@ -51,6 +67,12 @@ impl ObservationInput {
             valid_from: None,
             valid_until: None,
             memory_tier: MemoryTier::Episodic,
+            title: None,
+            summary: None,
+            importance: None,
+            source_kind: None,
+            concepts: Vec::new(),
+            source_files: Vec::new(),
         }
     }
 
@@ -67,6 +89,60 @@ impl ObservationInput {
     #[must_use]
     pub fn with_source(mut self, source: impl Into<String>) -> Self {
         self.source = source.into();
+        self
+    }
+
+    /// Tag the observation with a memory tier (episodic, semantic, or
+    /// procedural). Defaults to [`MemoryTier::Episodic`].
+    #[must_use]
+    pub fn with_memory_tier(mut self, tier: MemoryTier) -> Self {
+        self.memory_tier = tier;
+        self
+    }
+
+    /// Attach an optional caller-supplied title. Indexed at very high
+    /// weight (FTS5) in v0.3.
+    #[must_use]
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Attach an optional caller-supplied summary.
+    #[must_use]
+    pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = Some(summary.into());
+        self
+    }
+
+    /// Attach an optional importance prior. Clamps into `[0.0, 1.0]`.
+    /// Not indexed; used as a ranking prior only.
+    #[must_use]
+    pub fn with_importance(mut self, importance: f32) -> Self {
+        self.importance = Some(importance.clamp(0.0, 1.0));
+        self
+    }
+
+    /// Attach an optional free-form source-kind discriminator.
+    #[must_use]
+    pub fn with_source_kind(mut self, kind: impl Into<String>) -> Self {
+        self.source_kind = Some(kind.into());
+        self
+    }
+
+    /// Attach concept tags. Stored in the `observation_concepts` side
+    /// table.
+    #[must_use]
+    pub fn with_concepts(mut self, concepts: Vec<String>) -> Self {
+        self.concepts = concepts;
+        self
+    }
+
+    /// Attach source-file paths. Stored in the
+    /// `observation_source_files` side table.
+    #[must_use]
+    pub fn with_source_files(mut self, files: Vec<String>) -> Self {
+        self.source_files = files;
         self
     }
 }
@@ -98,6 +174,20 @@ impl RelationInput {
             source: String::new(),
         }
     }
+}
+
+/// Internal payload threaded from the SQLite write step to the
+/// search-index sync step. Carries everything the FTS5 backend needs to
+/// build a fielded `IndexEntry` without re-reading the row from disk.
+#[derive(Debug, Clone)]
+struct SearchPayload {
+    id: String,
+    content: String,
+    title: Option<String>,
+    summary: Option<String>,
+    concepts: Vec<String>,
+    source_files: Vec<String>,
+    source_kind: Option<String>,
 }
 
 /// Result of a successful [`MemoryStore::remember`] call.
@@ -181,15 +271,18 @@ impl MemoryStore {
         let normalized = ent.normalized;
 
         let mut observation_ids = Vec::with_capacity(observations.len());
-        let mut search_payload: Vec<(String, String)> = Vec::with_capacity(observations.len());
+        let mut search_payload: Vec<SearchPayload> = Vec::with_capacity(observations.len());
         for input in observations {
             let id = new_id();
+            let clamped_importance = input.importance.map(|v| v.clamp(0.0, 1.0));
             tx.execute(
                 "INSERT INTO observations
                     (id, entity_id, content, observed_at, valid_from, valid_until,
-                     confidence, source, tombstoned, access_count, memory_tier)
+                     confidence, source, tombstoned, access_count, memory_tier,
+                     title, summary, importance, source_kind)
                  VALUES
-                    (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9)",
+                    (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9,
+                     ?10, ?11, ?12, ?13)",
                 params![
                     id,
                     entity_id,
@@ -204,9 +297,43 @@ impl MemoryStore {
                         input.source.clone()
                     },
                     input.memory_tier.as_str(),
+                    input.title,
+                    input.summary,
+                    clamped_importance,
+                    input.source_kind,
                 ],
             )?;
-            search_payload.push((id.clone(), input.content.clone()));
+
+            for concept in &input.concepts {
+                if concept.trim().is_empty() {
+                    continue;
+                }
+                tx.execute(
+                    "INSERT OR IGNORE INTO observation_concepts (observation_id, concept)
+                     VALUES (?1, ?2)",
+                    params![id, concept],
+                )?;
+            }
+            for file in &input.source_files {
+                if file.trim().is_empty() {
+                    continue;
+                }
+                tx.execute(
+                    "INSERT OR IGNORE INTO observation_source_files (observation_id, file_path)
+                     VALUES (?1, ?2)",
+                    params![id, file],
+                )?;
+            }
+
+            search_payload.push(SearchPayload {
+                id: id.clone(),
+                content: input.content.clone(),
+                title: input.title.clone(),
+                summary: input.summary.clone(),
+                concepts: input.concepts.clone(),
+                source_files: input.source_files.clone(),
+                source_kind: input.source_kind.clone(),
+            });
             observation_ids.push(id);
         }
 
@@ -257,7 +384,7 @@ impl MemoryStore {
 
         // SQLite write succeeded; sync the search index.
         if !search_payload.is_empty() {
-            self.apply_search_sync_ops_with_recovery(name, &search_payload)?;
+            self.apply_search_sync_ops_with_recovery(name, entity_type, &search_payload)?;
         }
 
         Ok(RememberOutcome {
@@ -274,21 +401,35 @@ impl MemoryStore {
     ///
     /// "With recovery" reflects the strategy: if the search insert fails,
     /// log a warning and return Ok; the SQLite row is still authoritative,
-    /// and a future `rebuild_if_stale` call will catch up. This matches
-    /// what sift's MemoryStore does and avoids a partial-write panic from
-    /// taking the whole MCP server down.
+    /// and a future `rebuild_if_stale` call will catch up. The keyword
+    /// backend's `fielded_text` helper concatenates the v2 caller fields
+    /// (title, summary, concepts, source_files, source_kind, entity_type,
+    /// entity_name) into a single FTS5 payload with high-weight fields
+    /// repeated per their `Config::search.field_weights`.
     fn apply_search_sync_ops_with_recovery(
         &self,
         entity_name: &str,
-        payload: &[(String, String)],
+        _entity_type: EntityType,
+        payload: &[SearchPayload],
     ) -> MemoryResult<()> {
         let entries: Vec<IndexEntry> = payload
             .iter()
-            .map(|(id, content)| {
-                let uri = format!("memory://observation/{id}");
-                let text = format!("{entity_name}: {content}");
-                let vector = self.embed_document_text(&text);
-                let mut entry = IndexEntry::new(uri, text);
+            .map(|p| {
+                let uri = format!("memory://observation/{}", p.id);
+                // body_text already has the entity name as a prefix, so the
+                // keyword backend can match queries against it without a
+                // separate fielded entity_name column. Leaving entity_name
+                // and entity_type unset keeps the legacy (no caller title
+                // / concepts) write path on the v0.2 single-text indexed
+                // shape.
+                let body_text = format!("{entity_name}: {content}", content = p.content);
+                let vector = self.embed_document(&body_text);
+                let mut entry = IndexEntry::new(uri, body_text)
+                    .with_title(p.title.clone())
+                    .with_summary(p.summary.clone())
+                    .with_concepts(p.concepts.clone())
+                    .with_source_files(p.source_files.clone())
+                    .with_source_kind(p.source_kind.clone());
                 if !vector.is_empty() {
                     entry = entry.with_vector(vector);
                 }
@@ -308,11 +449,12 @@ impl MemoryStore {
         Ok(())
     }
 
-    /// Embed a search query via the attached embedder, if any. Returns an
-    /// empty vector when no embedder is attached; the FTS5/BM25 path still
-    /// indexes text either way, so recall keeps working keyword-only.
+    /// Embed a query string via the attached embedder. Returns
+    /// `Vec::new()` when no embedder is attached; the hybrid engine
+    /// treats an empty query vector as "skip the vector arm", so recall
+    /// keeps working keyword-only.
     #[allow(clippy::unused_self)]
-    pub(crate) fn embed_query_text(&self, text: &str) -> Vec<f32> {
+    pub fn embed_query(&self, text: &str) -> Vec<f32> {
         #[cfg(any(feature = "testing", feature = "embeddings"))]
         if let Some(emb) = self.embedder_ref() {
             let v = emb.embed_query(&[text]);
@@ -322,10 +464,11 @@ impl MemoryStore {
         Vec::new()
     }
 
-    /// Embed an indexed observation via the attached embedder, if any.
-    /// Real embedders can apply their document-side task prefix here.
+    /// Embed a document string via the attached embedder. Returns
+    /// `Vec::new()` when no embedder is attached. Production embedders
+    /// apply the model's document-side task prefix here.
     #[allow(clippy::unused_self)]
-    pub(crate) fn embed_document_text(&self, text: &str) -> Vec<f32> {
+    pub fn embed_document(&self, text: &str) -> Vec<f32> {
         #[cfg(any(feature = "testing", feature = "embeddings"))]
         if let Some(emb) = self.embedder_ref() {
             let v = emb.embed_documents(&[text]);
@@ -708,6 +851,45 @@ mod tests {
         assert!((i.confidence - 1.0).abs() < f32::EPSILON);
         let i = ObservationInput::new("x").with_confidence(-0.5);
         assert!(i.confidence.abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn observation_input_with_importance_clamps_into_unit_interval() {
+        let i = ObservationInput::new("x").with_importance(2.0);
+        assert_eq!(i.importance, Some(1.0));
+        let i = ObservationInput::new("x").with_importance(-0.5);
+        assert_eq!(i.importance, Some(0.0));
+    }
+
+    #[test]
+    fn remember_writes_fielded_columns_and_side_tables() {
+        let (store, _clock) = open_with_clock();
+        let outcome = store
+            .remember(
+                "Sift",
+                EntityType::Project,
+                &[ObservationInput::new("uses fielded indexing")
+                    .with_title("fielded indexing landed")
+                    .with_summary("v2 schema notes")
+                    .with_importance(0.8)
+                    .with_source_kind("note")
+                    .with_concepts(vec!["indexing".into(), "schema".into()])
+                    .with_source_files(vec!["docs/storage.md".into()])],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let obs = store.get_entity_observations(&outcome.entity_id).unwrap();
+        assert_eq!(obs.len(), 1);
+        let o = &obs[0];
+        assert_eq!(o.title.as_deref(), Some("fielded indexing landed"));
+        assert_eq!(o.summary.as_deref(), Some("v2 schema notes"));
+        assert!((o.importance.unwrap() - 0.8).abs() < 1e-6);
+        assert_eq!(o.source_kind.as_deref(), Some("note"));
+        assert_eq!(o.concepts.len(), 2);
+        assert!(o.concepts.iter().any(|c| c == "indexing"));
+        assert!(o.concepts.iter().any(|c| c == "schema"));
+        assert_eq!(o.source_files, vec!["docs/storage.md".to_string()]);
     }
 
     #[test]

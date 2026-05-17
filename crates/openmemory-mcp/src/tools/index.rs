@@ -52,9 +52,9 @@ pub struct IndexTextInput {
 
 const INDEX_TEXT_DESC: &str =
     "Index a piece of text under a caller-supplied URI for hybrid (vector + keyword) recall \
-     via openmemory_search. Use this for raw notes, snippets, or any content you want to \
-     retrieve by topic without modelling it as a graph entity. URIs starting with \
-     `memory://observation/` are reserved for the graph store.";
+     via openmemory_search. Embeds the text with the active embedding model when one is \
+     loaded; otherwise stores keyword-only. URIs starting with `memory://observation/` are \
+     reserved for the graph store.";
 
 /// Handler for the `openmemory_index_text` MCP tool. Indexes raw text
 /// under a caller-supplied URI for hybrid recall.
@@ -88,8 +88,12 @@ impl Tool for OpenMemoryIndexTextTool {
             return Err(JsonRpcError::invalid_params("text must not be empty"));
         }
 
-        let entry = IndexEntry::new(req.uri.clone(), req.text.clone())
+        let vector = server.memory().embed_document(&req.text);
+        let mut entry = IndexEntry::new(req.uri.clone(), req.text.clone())
             .with_chunk_index(req.chunk_index.unwrap_or(0));
+        if !vector.is_empty() {
+            entry = entry.with_vector(vector);
+        }
         server
             .memory()
             .engine()
@@ -127,7 +131,8 @@ pub struct SearchInput {
 const SEARCH_DESC: &str =
     "Hybrid (vector + keyword) search across every indexed source. Returns results sorted by \
      relevance with optional URI-prefix scoping and a minimum-score floor. Set `mode` to \
-     `keyword` to skip the vector path; `vector` to skip keyword.";
+     `keyword` to skip the vector path; `vector` to skip keyword. With no embedding model \
+     loaded, hybrid falls through to keyword-only and vector returns no results.";
 
 /// Handler for the `openmemory_search` MCP tool. Hybrid search across
 /// every indexed source with URI-prefix scoping and score floor.
@@ -155,16 +160,31 @@ impl Tool for OpenMemorySearchTool {
         let limit = req.limit.unwrap_or(10).clamp(1, 50) as usize;
         let mode = req.mode.unwrap_or_default().to_mode();
 
-        let fetch = limit.saturating_mul(3).max(limit);
-        let zero_vector: Vec<f32> = Vec::new();
+        let vector = server.memory().embed_query(&req.query);
+        let scoped_by_prefix = req.uri_prefix.as_deref().is_some_and(|p| !p.is_empty());
+        let has_min_score = req.min_score.is_some_and(|s| s > 0.0);
+        let needs_overfetch = scoped_by_prefix || has_min_score;
+        let fetch = if needs_overfetch {
+            let engine = &server.memory().engine().engine;
+            let vector_count = engine
+                .count()
+                .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
+            let keyword_count = engine
+                .keyword_count()
+                .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
+            usize::try_from(vector_count.max(keyword_count)).unwrap_or(usize::MAX)
+        } else {
+            limit
+        }
+        .max(limit);
         let mut results = server
             .memory()
             .engine()
             .engine
-            .search(&zero_vector, &req.query, fetch, mode, 0)
+            .search(&vector, &req.query, fetch, mode, 0)
             .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
 
-        if let Some(ref prefix) = req.uri_prefix {
+        if let Some(prefix) = req.uri_prefix.as_deref().filter(|p| !p.is_empty()) {
             results.retain(|r| r.uri.starts_with(prefix));
         }
         if let Some(floor) = req.min_score {
@@ -317,6 +337,40 @@ mod tests {
     }
 
     #[test]
+    fn search_uri_prefix_overfetches_before_filtering() {
+        use openmemory_core::testing::{Embedder, FakeEmbedder};
+        let store = MemoryStore::open_in_memory(&Config::default())
+            .unwrap()
+            .with_embedder(Arc::new(FakeEmbedder::new(32)) as Arc<dyn Embedder>);
+        let s = OpenMemoryMcpServer::from_memory(Config::default(), Arc::new(store));
+
+        OpenMemoryIndexTextTool::call(
+            &s,
+            json!({"uri": "doc://top", "text": "alpha bravo charlie"}),
+        )
+        .unwrap();
+        OpenMemoryIndexTextTool::call(
+            &s,
+            json!({"uri": "note://second", "text": "alpha bravo charlie extra"}),
+        )
+        .unwrap();
+
+        let r = OpenMemorySearchTool::call(
+            &s,
+            json!({
+                "query": "alpha bravo charlie",
+                "limit": 1,
+                "uri_prefix": "note://",
+                "mode": "vector",
+            }),
+        )
+        .unwrap();
+        let text = body(&r);
+        assert!(text.contains("note://second"), "{text}");
+        assert!(!text.contains("doc://top"), "{text}");
+    }
+
+    #[test]
     fn delete_drops_entry_from_results() {
         let s = server();
         OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://gone", "text": "to be deleted"}))
@@ -358,6 +412,46 @@ mod tests {
         let s = server();
         let err = OpenMemorySearchTool::call(&s, json!({"query": ""})).unwrap_err();
         assert_eq!(err.code, -32602);
+    }
+
+    #[test]
+    fn index_text_with_embedder_stores_vector() {
+        use openmemory_core::testing::{Embedder, FakeEmbedder};
+        let store = MemoryStore::open_in_memory(&Config::default())
+            .unwrap()
+            .with_embedder(Arc::new(FakeEmbedder::new(16)) as Arc<dyn Embedder>);
+        let s = OpenMemoryMcpServer::from_memory(Config::default(), Arc::new(store));
+
+        OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://vec", "text": "lorem ipsum"}))
+            .unwrap();
+
+        let vector_count = s.memory().engine().engine.count().unwrap();
+        assert_eq!(vector_count, 1, "vector backend must see the new row");
+    }
+
+    #[test]
+    fn search_returns_vector_only_hit_when_no_keyword_overlap() {
+        use openmemory_core::testing::{Embedder, FakeEmbedder};
+        let store = MemoryStore::open_in_memory(&Config::default())
+            .unwrap()
+            .with_embedder(Arc::new(FakeEmbedder::new(16)) as Arc<dyn Embedder>);
+        let s = OpenMemoryMcpServer::from_memory(Config::default(), Arc::new(store));
+
+        OpenMemoryIndexTextTool::call(
+            &s,
+            json!({"uri": "note://nokw", "text": "alpha bravo charlie"}),
+        )
+        .unwrap();
+
+        // Identical text on both sides matches via the deterministic
+        // FakeEmbedder regardless of the keyword backend; selecting
+        // mode=vector proves the vector arm actually runs.
+        let r = OpenMemorySearchTool::call(
+            &s,
+            json!({"query": "alpha bravo charlie", "mode": "vector"}),
+        )
+        .unwrap();
+        assert!(body(&r).contains("note://nokw"));
     }
 
     #[test]

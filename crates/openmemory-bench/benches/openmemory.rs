@@ -74,11 +74,9 @@ const TOP_K: usize = 10;
 
 fn populated_vector_index(n: usize) -> FlatVectorIndex {
     let entries: Vec<IndexEntry> = (0..n)
-        .map(|i| IndexEntry {
-            uri: format!("u://{i}"),
-            text: format!("doc {i}"),
-            chunk_index: 0,
-            vector: synthetic_vector(i as u64 + 1, VEC_DIM),
+        .map(|i| {
+            IndexEntry::new(format!("u://{i}"), format!("doc {i}"))
+                .with_vector(synthetic_vector(i as u64 + 1, VEC_DIM))
         })
         .collect();
     let store = FlatVectorIndex::new();
@@ -113,11 +111,9 @@ fn make_hybrid_engine(n: usize) -> HybridSearchEngine<FlatVectorIndex, Fts5Store
     let v = FlatVectorIndex::new();
     let f = Fts5Store::open_in_memory().unwrap();
     let entries: Vec<IndexEntry> = (0..n)
-        .map(|i| IndexEntry {
-            uri: format!("u://{i}"),
-            text: synthetic_text(i as u64 + 1, 16),
-            chunk_index: 0,
-            vector: synthetic_vector(i as u64 + 1, HYBRID_DIM),
+        .map(|i| {
+            IndexEntry::new(format!("u://{i}"), synthetic_text(i as u64 + 1, 16))
+                .with_vector(synthetic_vector(i as u64 + 1, HYBRID_DIM))
         })
         .collect();
     let engine = HybridSearchEngine::new(v, f, 0.7);

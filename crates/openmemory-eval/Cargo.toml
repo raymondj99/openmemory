@@ -1,0 +1,31 @@
+[package]
+name = "openmemory-eval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Retrieval-quality evaluation harness for openmemory."
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5"]
+sqlite = ["openmemory-index/sqlite", "openmemory-graph/sqlite"]
+fts5 = ["sqlite", "openmemory-index/fts5", "openmemory-graph/fts5"]
+embeddings = ["openmemory-core/testing", "openmemory-graph/embeddings"]
+testing = ["openmemory-core/testing", "openmemory-graph/testing"]
+
+[dependencies]
+openmemory-core = { workspace = true }
+openmemory-graph = { workspace = true, default-features = false }
+openmemory-index = { workspace = true, default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

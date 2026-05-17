@@ -115,6 +115,11 @@ impl<V: VectorStore, F: FullTextStore> HybridSearchEngine<V, F> {
     pub fn count(&self) -> IndexResult<u64> {
         self.vector_store.count()
     }
+
+    /// Total entries in the keyword store.
+    pub fn keyword_count(&self) -> IndexResult<u64> {
+        self.fulltext_store.count()
+    }
 }
 
 /// Reciprocal Rank Fusion of two ranked lists.
@@ -327,12 +332,9 @@ mod tests {
         let f = make_fts();
         let engine = HybridSearchEngine::new(v, f, 0.7);
         engine
-            .insert(&[IndexEntry {
-                uri: "u://a".into(),
-                text: "hello world from rust".into(),
-                chunk_index: 0,
-                vector: vec![1.0, 0.0, 0.0],
-            }])
+            .insert(&[
+                IndexEntry::new("u://a", "hello world from rust").with_vector(vec![1.0, 0.0, 0.0])
+            ])
             .unwrap();
 
         let r = engine
@@ -347,12 +349,7 @@ mod tests {
         let f = make_fts();
         let engine = HybridSearchEngine::new(v, f, 0.5);
         engine
-            .insert(&[IndexEntry {
-                uri: "u://a".into(),
-                text: "irrelevant text".into(),
-                chunk_index: 0,
-                vector: vec![1.0, 0.0],
-            }])
+            .insert(&[IndexEntry::new("u://a", "irrelevant text").with_vector(vec![1.0, 0.0])])
             .unwrap();
         let r = engine
             .search(&[1.0, 0.0], "totallyabsentword", 10, SearchMode::VectorOnly)
@@ -367,12 +364,7 @@ mod tests {
         let f = make_fts();
         let engine = HybridSearchEngine::new(v, f, 0.5);
         engine
-            .insert(&[IndexEntry {
-                uri: "u://a".into(),
-                text: "needle haystack".into(),
-                chunk_index: 0,
-                vector: vec![0.0, 0.0],
-            }])
+            .insert(&[IndexEntry::new("u://a", "needle haystack").with_vector(vec![0.0, 0.0])])
             .unwrap();
         let r = engine
             .search(&[1.0, 0.0], "needle", 10, SearchMode::KeywordOnly)
@@ -404,12 +396,7 @@ mod tests {
         let f = make_fts();
         let engine = HybridSearchEngine::new(v, f, 0.5);
         engine
-            .insert(&[IndexEntry {
-                uri: "u://a".into(),
-                text: "needle haystack".into(),
-                chunk_index: 0,
-                vector: vec![1.0, 0.0],
-            }])
+            .insert(&[IndexEntry::new("u://a", "needle haystack").with_vector(vec![1.0, 0.0])])
             .unwrap();
 
         let r = engine
@@ -441,18 +428,8 @@ mod tests {
         let engine = HybridSearchEngine::new(v, f, 0.5);
         engine
             .insert(&[
-                IndexEntry {
-                    uri: "u://a".into(),
-                    text: "hello".into(),
-                    chunk_index: 0,
-                    vector: vec![1.0, 0.0],
-                },
-                IndexEntry {
-                    uri: "u://b".into(),
-                    text: "world".into(),
-                    chunk_index: 0,
-                    vector: vec![0.0, 1.0],
-                },
+                IndexEntry::new("u://a", "hello").with_vector(vec![1.0, 0.0]),
+                IndexEntry::new("u://b", "world").with_vector(vec![0.0, 1.0]),
             ])
             .unwrap();
         let removed = engine.delete_by_uri("u://a").unwrap();

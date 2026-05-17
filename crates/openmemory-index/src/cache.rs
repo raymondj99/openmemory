@@ -115,6 +115,10 @@ impl<V: VectorStore, F: FullTextStore> CachedSearchEngine<V, F> {
         self.inner.count()
     }
 
+    pub fn keyword_count(&self) -> IndexResult<u64> {
+        self.inner.keyword_count()
+    }
+
     /// Search with caching. The `filters_hash` parameter folds caller-supplied
     /// filter state into the cache key — pass `0` if you have none.
     pub fn search(
@@ -199,12 +203,7 @@ mod tests {
     }
 
     fn entry(uri: &str, text: &str, vec: Vec<f32>) -> IndexEntry {
-        IndexEntry {
-            uri: uri.into(),
-            text: text.into(),
-            chunk_index: 0,
-            vector: vec,
-        }
+        IndexEntry::new(uri, text).with_vector(vec)
     }
 
     fn make_engine() -> CachedSearchEngine<FlatVectorIndex, TestFts> {

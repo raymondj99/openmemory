@@ -1,0 +1,59 @@
+name: eval
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  ORT_VERSION: 1.20.1
+
+jobs:
+  longmem-s:
+    name: longmem-s retrieval eval (non-gating)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check eval fixture presence
+        id: fixtures
+        run: |
+          if [ -f tests/fixtures/longmem-s/corpus.jsonl ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.fixtures.outputs.exists == 'true'
+      - uses: Swatinem/rust-cache@v2
+        if: steps.fixtures.outputs.exists == 'true'
+        with:
+          key: eval
+      - name: Build openmemory-cli (eval feature)
+        if: steps.fixtures.outputs.exists == 'true'
+        run: cargo build --release --locked --features eval -p openmemory-cli
+      - name: Install ONNX Runtime
+        if: steps.fixtures.outputs.exists == 'true'
+        run: |
+          curl -L --fail \
+            -o "$RUNNER_TEMP/onnxruntime.tgz" \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz"
+          tar -xzf "$RUNNER_TEMP/onnxruntime.tgz" -C "$RUNNER_TEMP"
+          echo "ORT_DYLIB_PATH=$RUNNER_TEMP/onnxruntime-linux-x64-${ORT_VERSION}/lib/libonnxruntime.so" >> "$GITHUB_ENV"
+      - name: Download default embedding model
+        if: steps.fixtures.outputs.exists == 'true'
+        run: ./target/release/openmemory model download
+      - name: Run eval (longmem-s, hybrid)
+        if: steps.fixtures.outputs.exists == 'true'
+        run: |
+          ./target/release/openmemory eval \
+            --dataset longmem-s \
+            --dataset-path tests/fixtures/longmem-s \
+            --mode hybrid \
+            --k 10 \
+            --report report-longmem-s.json
+      - uses: actions/upload-artifact@v4
+        if: steps.fixtures.outputs.exists == 'true'
+        with:
+          name: retrieval-report-longmem-s
+          path: report-longmem-s.json

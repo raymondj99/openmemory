@@ -17,7 +17,7 @@ use rusqlite::Connection;
 use crate::error::MemoryResult;
 
 /// Current memory-store schema version. Bump when a new migration step lands.
-pub const MEMORY_SCHEMA_VERSION: u32 = 1;
+pub const MEMORY_SCHEMA_VERSION: u32 = 2;
 
 /// Apply the recommended SQLite pragmas for the memory database. WAL keeps
 /// readers from blocking the write path; `foreign_keys=ON` makes the FK
@@ -37,7 +37,7 @@ pub fn configure(conn: &Connection) -> MemoryResult<()> {
 /// Run forward migrations on `conn` up to [`MEMORY_SCHEMA_VERSION`].
 pub fn migrate(conn: &Connection) -> MemoryResult<()> {
     let migrator = Migrator::new(conn, "memory_meta");
-    migrator.apply(MEMORY_SCHEMA_VERSION, &[(1, V1_SQL)])?;
+    migrator.apply(MEMORY_SCHEMA_VERSION, &[(1, V1_SQL), (2, V2_SQL)])?;
     Ok(())
 }
 
@@ -106,6 +106,34 @@ CREATE INDEX IF NOT EXISTS idx_relations_type
     ON relations(relation_type);
 ";
 
+/// v2 — fielded observation columns plus concept/file side tables. Lets
+/// callers tag observations with a caller-provided `title`, `summary`,
+/// `importance` (used as a ranking prior, not indexed), and free-form
+/// `source_kind`; the side tables carry the arrays so a future fielded
+/// FTS5 schema can weight them per-column without changing the row shape.
+const V2_SQL: &str = "
+ALTER TABLE observations ADD COLUMN title       TEXT;
+ALTER TABLE observations ADD COLUMN summary     TEXT;
+ALTER TABLE observations ADD COLUMN importance  REAL;
+ALTER TABLE observations ADD COLUMN source_kind TEXT;
+
+CREATE TABLE IF NOT EXISTS observation_concepts (
+    observation_id TEXT NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+    concept        TEXT NOT NULL,
+    PRIMARY KEY (observation_id, concept)
+);
+CREATE INDEX IF NOT EXISTS idx_concept_lookup
+    ON observation_concepts(concept);
+
+CREATE TABLE IF NOT EXISTS observation_source_files (
+    observation_id TEXT NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+    file_path      TEXT NOT NULL,
+    PRIMARY KEY (observation_id, file_path)
+);
+CREATE INDEX IF NOT EXISTS idx_source_file_lookup
+    ON observation_source_files(file_path);
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,7 +174,50 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(v, "1");
+        assert_eq!(v, MEMORY_SCHEMA_VERSION.to_string());
+    }
+
+    #[test]
+    fn migrate_v1_to_v2_adds_observation_columns() {
+        let conn = open();
+        // Stage a v1 store: apply only V1_SQL and pin schema_version=1.
+        Migrator::new(&conn, "memory_meta")
+            .apply(1, &[(1, V1_SQL)])
+            .unwrap();
+
+        // Now migrate forward via the public entry point.
+        migrate(&conn).unwrap();
+
+        let cols: Vec<String> = conn
+            .prepare("PRAGMA table_info(observations)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        for col in &["title", "summary", "importance", "source_kind"] {
+            assert!(cols.contains(&(*col).to_string()), "missing {col}");
+        }
+
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        for t in &["observation_concepts", "observation_source_files"] {
+            assert!(tables.contains(&(*t).to_string()), "missing table {t}");
+        }
+
+        let v: String = conn
+            .query_row(
+                "SELECT value FROM memory_meta WHERE key = 'schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(v, "2");
     }
 
     #[test]
@@ -161,6 +232,21 @@ mod tests {
             )
             .unwrap();
         assert_eq!(v.parse::<u32>().unwrap(), MEMORY_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migrate_creates_v2_tables_on_fresh_store() {
+        let conn = open();
+        migrate(&conn).unwrap();
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        assert!(tables.contains(&"observation_concepts".to_string()));
+        assert!(tables.contains(&"observation_source_files".to_string()));
     }
 
     #[test]

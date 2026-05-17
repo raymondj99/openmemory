@@ -17,6 +17,15 @@ use crate::traits::{FullTextStore, IndexEntry, SearchResult};
 const K1: f64 = 1.2;
 /// BM25 ranking parameter `b` — strength of length normalization.
 const B: f64 = 0.75;
+/// Default field weights for caller-supplied metadata. Mirrors the FTS5
+/// backend's repetition-based weighting so no-default builds keep the same
+/// searchable fields.
+const DEFAULT_FIELD_WEIGHTS: [f32; 8] = [5.0, 1.0, 2.0, 2.0, 2.0, 0.5, 0.5, 4.0];
+
+/// Multiplier applied to per-field weights before rounding to an integer
+/// repetition count. Mirrors `openmemory_index::fts5::WEIGHT_SCALE` so the
+/// two backends produce comparable surrogates.
+const WEIGHT_SCALE: f32 = 2.0;
 
 /// Pure-Rust BM25 store.
 #[derive(Debug)]
@@ -159,11 +168,11 @@ impl Bm25Inner {
         }
     }
 
-    fn add_doc(&mut self, uri: String, text: String, chunk_index: u32) {
+    fn add_doc(&mut self, uri: String, display_text: String, index_text: &str, chunk_index: u32) {
         let id = self.next_id;
         self.next_id += 1;
 
-        let tokens = tokenize(&text);
+        let tokens = tokenize(index_text);
         let doc_len = tokens.len() as u32;
         let mut term_freqs: HashMap<String, u32> = HashMap::new();
         for tok in &tokens {
@@ -181,7 +190,7 @@ impl Bm25Inner {
             id,
             DocMeta {
                 uri,
-                text,
+                text: display_text,
                 chunk_index,
                 doc_len,
             },
@@ -240,7 +249,12 @@ impl FullTextStore for Bm25Store {
     fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
         let mut inner = self.lock()?;
         for e in entries {
-            inner.add_doc(e.uri.clone(), e.text.clone(), e.chunk_index);
+            let index_text = if entry_is_fielded(e) {
+                fielded_text(e, &DEFAULT_FIELD_WEIGHTS)
+            } else {
+                e.text.clone()
+            };
+            inner.add_doc(e.uri.clone(), e.text.clone(), &index_text, e.chunk_index);
         }
         Ok(())
     }
@@ -278,6 +292,11 @@ impl FullTextStore for Bm25Store {
         Ok(removed)
     }
 
+    fn count(&self) -> IndexResult<u64> {
+        let inner = self.lock()?;
+        Ok(u64::from(inner.doc_count))
+    }
+
     fn flush(&self) -> IndexResult<()> {
         self.save()
     }
@@ -301,17 +320,71 @@ fn tokenize(text: &str) -> Vec<String> {
         .collect()
 }
 
+fn entry_is_fielded(e: &IndexEntry) -> bool {
+    e.title.is_some()
+        || e.summary.is_some()
+        || e.entity_name.is_some()
+        || e.entity_type.is_some()
+        || e.source_kind.is_some()
+        || !e.concepts.is_empty()
+        || !e.source_files.is_empty()
+}
+
+fn fielded_text(entry: &IndexEntry, weights: &[f32; 8]) -> String {
+    fn repeat(out: &mut String, value: &str, weight: f32) {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let n = (weight.max(0.0) * WEIGHT_SCALE).round() as u32;
+        if n == 0 {
+            return;
+        }
+        for _ in 0..n {
+            if !out.is_empty() {
+                out.push(' ');
+            }
+            out.push_str(trimmed);
+        }
+    }
+
+    let [w_title, w_text, w_summary, w_concepts, w_files, w_kind, w_etype, w_ename] = *weights;
+    let mut out = String::new();
+    if let Some(title) = entry.title.as_deref() {
+        repeat(&mut out, title, w_title);
+    }
+    if let Some(summary) = entry.summary.as_deref() {
+        repeat(&mut out, summary, w_summary);
+    }
+    if let Some(name) = entry.entity_name.as_deref() {
+        repeat(&mut out, name, w_ename);
+    }
+    repeat(&mut out, &entry.text, w_text);
+    for concept in &entry.concepts {
+        repeat(&mut out, concept, w_concepts);
+    }
+    for file in &entry.source_files {
+        repeat(&mut out, file, w_files);
+    }
+    if let Some(kind) = entry.source_kind.as_deref() {
+        repeat(&mut out, kind, w_kind);
+    }
+    if let Some(entity_type) = entry.entity_type.as_deref() {
+        repeat(&mut out, entity_type, w_etype);
+    }
+    if out.is_empty() {
+        entry.text.clone()
+    } else {
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn entry(uri: &str, text: &str) -> IndexEntry {
-        IndexEntry {
-            uri: uri.into(),
-            text: text.into(),
-            chunk_index: 0,
-            vector: Vec::new(),
-        }
+        IndexEntry::new(uri, text)
     }
 
     #[test]
@@ -354,6 +427,7 @@ mod tests {
         assert!(FullTextStore::search(&store, "hello", 10)
             .unwrap()
             .is_empty());
+        assert_eq!(store.count().unwrap(), 1);
     }
 
     #[test]
@@ -377,6 +451,17 @@ mod tests {
         let r = FullTextStore::search(&store, "rust", 10).unwrap();
         assert_eq!(r.len(), 2);
         assert!(r[0].score >= r[1].score);
+    }
+
+    #[test]
+    fn fielded_summary_is_searchable() {
+        let store = Bm25Store::new();
+        store
+            .insert(&[IndexEntry::new("u://summary", "ordinary body")
+                .with_summary(Some("rare summary token".into()))])
+            .unwrap();
+        let r = FullTextStore::search(&store, "rare", 10).unwrap();
+        assert_eq!(r[0].uri, "u://summary");
     }
 
     #[test]

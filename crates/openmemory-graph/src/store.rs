@@ -396,13 +396,16 @@ impl MemoryStore {
 
     /// Active observations for `entity_id`, sorted by `observed_at` DESC.
     /// Tombstoned observations are excluded; observations with a
-    /// `valid_until` already in the past are excluded.
+    /// `valid_until` already in the past are excluded. Each row's
+    /// concepts and source_files arrays are populated via two batched
+    /// follow-up queries against the v2 side tables.
     pub fn get_entity_observations(&self, entity_id: &str) -> MemoryResult<Vec<Observation>> {
         let now = self.clock.now_secs();
         self.with_reader(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT id, entity_id, content, observed_at, valid_from, valid_until,
-                        confidence, source, tombstoned, access_count
+                        confidence, source, tombstoned, access_count, memory_tier,
+                        title, summary, importance, source_kind
                  FROM observations
                  WHERE entity_id = ?1
                     AND tombstoned = 0
@@ -414,6 +417,29 @@ impl MemoryStore {
             while let Some(row) = rows.next()? {
                 out.push(row_to_observation(row)?);
             }
+
+            if !out.is_empty() {
+                let ids: Vec<&str> = out.iter().map(|o| o.id.as_str()).collect();
+                let concepts_by_id = load_observation_side_table(
+                    conn,
+                    "SELECT observation_id, concept FROM observation_concepts WHERE observation_id IN",
+                    &ids,
+                )?;
+                let files_by_id = load_observation_side_table(
+                    conn,
+                    "SELECT observation_id, file_path FROM observation_source_files WHERE observation_id IN",
+                    &ids,
+                )?;
+                for obs in &mut out {
+                    if let Some(v) = concepts_by_id.get(&obs.id) {
+                        obs.concepts = v.clone();
+                    }
+                    if let Some(v) = files_by_id.get(&obs.id) {
+                        obs.source_files = v.clone();
+                    }
+                }
+            }
+
             Ok(out)
         })
     }
@@ -575,6 +601,7 @@ fn row_to_entity_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EntityListRow>
 pub(crate) fn row_to_observation(row: &rusqlite::Row<'_>) -> rusqlite::Result<Observation> {
     let tombstoned: i64 = row.get(8)?;
     let access_count: i64 = row.get(9)?;
+    let memory_tier = parse_tier_column(row, 10)?;
     Ok(Observation {
         id: row.get(0)?,
         entity_id: row.get(1)?,
@@ -586,7 +613,65 @@ pub(crate) fn row_to_observation(row: &rusqlite::Row<'_>) -> rusqlite::Result<Ob
         source: row.get(7)?,
         tombstoned: tombstoned != 0,
         access_count: access_count.max(0) as u32,
+        memory_tier,
+        title: row.get(11)?,
+        summary: row.get(12)?,
+        importance: row.get(13)?,
+        source_kind: row.get(14)?,
+        // The concepts and source_files arrays live in side tables.
+        // The recall hot path leaves them empty; openmemory_get_entity
+        // populates them with a follow-up query.
+        concepts: Vec::new(),
+        source_files: Vec::new(),
     })
+}
+
+/// Lean variant for the recall hot path. Expects the projection
+/// `id, entity_id, content, observed_at, valid_from, valid_until,
+/// confidence, source, tombstoned, access_count, memory_tier,
+/// importance` (12 columns). Skips title/summary/source_kind reads
+/// because recall does not surface them; the corresponding fields on
+/// the returned [`Observation`] are left `None` / empty so callers that
+/// inspect `RecallResult::observation` see explicit absence rather than
+/// a stale value.
+pub(crate) fn row_to_recall_observation(row: &rusqlite::Row<'_>) -> rusqlite::Result<Observation> {
+    let tombstoned: i64 = row.get(8)?;
+    let access_count: i64 = row.get(9)?;
+    let memory_tier = parse_tier_column(row, 10)?;
+    Ok(Observation {
+        id: row.get(0)?,
+        entity_id: row.get(1)?,
+        content: row.get(2)?,
+        observed_at: row.get(3)?,
+        valid_from: row.get(4)?,
+        valid_until: row.get(5)?,
+        confidence: row.get(6)?,
+        source: row.get(7)?,
+        tombstoned: tombstoned != 0,
+        access_count: access_count.max(0) as u32,
+        memory_tier,
+        title: None,
+        summary: None,
+        importance: row.get(11)?,
+        source_kind: None,
+        concepts: Vec::new(),
+        source_files: Vec::new(),
+    })
+}
+
+/// Parse the `memory_tier` column at `idx` without allocating a `String`
+/// for the column value. The enum's `parse` only ever inspects the
+/// borrowed slice, so going through `get_ref` keeps the column value
+/// owned by SQLite for the duration of the call. The recall hot path
+/// reads this column on every candidate row.
+fn parse_tier_column(row: &rusqlite::Row<'_>, idx: usize) -> rusqlite::Result<MemoryTier> {
+    let tier = row
+        .get_ref(idx)?
+        .as_str()
+        .ok()
+        .and_then(MemoryTier::parse)
+        .unwrap_or(MemoryTier::Episodic);
+    Ok(tier)
 }
 
 pub(crate) fn row_to_relation(row: &rusqlite::Row<'_>) -> rusqlite::Result<Relation> {
@@ -614,16 +699,40 @@ where
     Ok(out)
 }
 
+/// Run a single `SELECT observation_id, value FROM ... WHERE observation_id IN (...)`
+/// against the supplied connection and group the results by observation id.
+/// Used to populate the v2 side-table arrays (`concepts`, `source_files`) for
+/// a batch of observations in O(1) round-trips.
+fn load_observation_side_table(
+    conn: &Connection,
+    sql_prefix: &str,
+    ids: &[&str],
+) -> MemoryResult<HashMap<String, Vec<String>>> {
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    if ids.is_empty() {
+        return Ok(out);
+    }
+    let placeholders = std::iter::repeat("?")
+        .take(ids.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!("{sql_prefix} ({placeholders})");
+    let mut stmt = conn.prepare(&sql)?;
+    let params = rusqlite::params_from_iter(ids.iter());
+    let mut rows = stmt.query(params)?;
+    while let Some(row) = rows.next()? {
+        let obs_id: String = row.get(0)?;
+        let value: String = row.get(1)?;
+        out.entry(obs_id).or_default().push(value);
+    }
+    Ok(out)
+}
+
 #[allow(dead_code)]
 fn _impl_send_sync_check() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<MemoryStore>();
 }
-
-// Marker so `MemoryTier` doesn't get pruned as unused when the writer-side
-// commits land later. The tier column lives in the schema today.
-#[allow(dead_code)]
-const _MEMORY_TIER_DEFAULT: MemoryTier = MemoryTier::Episodic;
 
 #[allow(dead_code)]
 fn _ensure_error_module_used(_e: MemoryError) {}

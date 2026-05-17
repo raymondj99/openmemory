@@ -142,7 +142,11 @@ pub fn process_file(
     };
 
     if matches!(outcome, ProcessOutcome::Inserted | ProcessOutcome::Updated) {
-        let entry = IndexEntry::new(uri.clone(), text.to_string());
+        let vector = memory.embed_document(text);
+        let mut entry = IndexEntry::new(uri.clone(), text.to_string());
+        if !vector.is_empty() {
+            entry = entry.with_vector(vector);
+        }
         memory.engine().engine.insert(&[entry])?;
         let record = SourceRecord {
             uri,
@@ -212,6 +216,22 @@ mod tests {
 
     fn opts() -> WatchOptions {
         WatchOptions::from_config(&Config::default())
+    }
+
+    #[test]
+    fn process_file_with_embedder_populates_vector_index() {
+        use openmemory_core::testing::{Embedder, FakeEmbedder};
+        let store = Arc::new(
+            MemoryStore::open_in_memory(&Config::default())
+                .unwrap()
+                .with_embedder(Arc::new(FakeEmbedder::new(16)) as Arc<dyn Embedder>),
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("note.md");
+        std::fs::write(&p, "vectorisable content").unwrap();
+
+        process_file(&store, &p, &opts()).unwrap();
+        assert_eq!(store.engine().engine.count().unwrap(), 1);
     }
 
     #[test]

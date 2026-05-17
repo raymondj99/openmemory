@@ -8,6 +8,11 @@ Ebbinghaus forgetting-curve decay.
 
 This document explains the math and the moving parts.
 
+Every ingestion path (the `openmemory_remember` write path, the
+`openmemory_index_text` tool, and the file watcher) calls the same
+`embed_document` helper, so the keyword and vector backends always
+hold the same set of URIs.
+
 ## The hybrid engine
 
 `HybridSearchEngine<V, F>` (in
@@ -52,7 +57,7 @@ final_score(uri) = alpha * vector_rrf(uri) + (1 - alpha) * keyword_rrf(uri)
 
 4. Sorts descending and trims to `top_k`.
 
-The default `alpha = 0.6` slightly favours vector hits; tune via
+The default `alpha = 0.7` favours vector hits; tune via
 `Config::search.hybrid_alpha`. `SearchMode::VectorOnly` short-circuits
 to the vector backend (alpha = 1.0); `SearchMode::KeywordOnly`
 short-circuits to keyword only (alpha = 0.0).
@@ -63,9 +68,9 @@ short-circuits to keyword only (alpha = 0.0).
 [`src/cache.rs`](../crates/openmemory-index/src/cache.rs)) wraps
 the hybrid engine with an LRU + TTL cache:
 
-- `DEFAULT_CACHE_CAPACITY = 1000` entries.
-- `DEFAULT_CACHE_TTL = 300` seconds.
-- Cache key: `(query, mode, alpha, top_k, filter_hash)`.
+- `DEFAULT_CACHE_CAPACITY = 50` entries.
+- `DEFAULT_CACHE_TTL = 60` seconds.
+- Cache key: `(query, top_k, mode, filter_hash)`.
 
 A `MemoryStore` write invalidates the cache automatically (the
 hybrid engine is rebuilt under the `RwLock<()>` rebuild barrier).
@@ -119,14 +124,15 @@ the `sqlite` feature is off) is keyed by `BLAKE3(content)` (hex).
 A second `embed()` call on the same text is a cache hit, no model
 inference.
 
-### Recall fallback
+### When the vector arm runs
 
-When the `embeddings` feature is off, or no cached model is present,
-`MemoryStore::recall` skips the vector backend and runs keyword-only.
-The hybrid engine treats an empty query vector as a keyword-only
-search in that mode. Recall still works; it just loses the
-semantic-similarity contribution until `openmemory model download`
-has populated the cache.
+The vector arm runs whenever an embedding model is loaded, on every
+hybrid-mode call into `openmemory_recall`, `openmemory_search`, and
+the file watcher. When no model is loaded (the `embeddings` feature
+off, or the cached model files absent), the same calls fall through
+to keyword-only without raising an error. Hybrid mode is therefore
+safe to ask for unconditionally. `VectorOnly` mode returns no results
+without a loaded model because there is no query vector to search.
 
 ## Recall scoring (graph only)
 
@@ -134,17 +140,18 @@ Once the hybrid engine returns a list of candidate observations,
 `MemoryStore::recall` (in
 [`crates/openmemory-graph/src/recall.rs`](../crates/openmemory-graph/src/recall.rs))
 re-scores each with the Ebbinghaus forgetting curve plus
-retrieval, correction, and confidence boosts:
+retrieval, correction, importance, and confidence boosts:
 
 ```text
 base_decay     = exp(-lambda * days_since_observed)
 retrieval      = 1 + 0.15 * ln(1 + access_count)
 correction     = source in {"correction", "cortex:correction"} ? 1.3 : 1.0
-final_score    = search_score * base_decay * retrieval * correction * confidence
+importance     = 1 + 0.25 * importance
+final_score    = search_score * base_decay * retrieval * correction * importance * confidence
 ```
 
 - `lambda` is the per-store decay rate. Default
-  `Config::memory.decay_rate = 0.05` per day. Override per-store
+  `Config::memory.decay_rate = 0.01` per day. Override per-store
   via `MemoryStore::with_decay_rate(rate)` for tests.
 - `access_count` increments after each successful recall via the
   background `bump_access_counts` write. Frequently-recalled
@@ -153,6 +160,8 @@ final_score    = search_score * base_decay * retrieval * correction * confidence
 - `correction` flags observations the agent should not repeat; the
   `1.3` boost (`CORRECTION_RETRIEVAL_BOOST` constant) ensures they
   surface ahead of competing facts.
+- `importance` is the optional per-observation prior in `[0.0, 1.0]`.
+  It contributes up to a 1.25x multiplier and is not indexed as text.
 - `confidence` is the per-observation `confidence` field (default
   1.0; the `remember` API lets the caller drop it for uncertain
   facts).
@@ -219,3 +228,65 @@ re-exported from the graph crate:
 
 The MCP tools accept `SearchModeParam { hybrid, vector_only,
 keyword_only }` (snake_case wire shape).
+
+## Fielded indexing (v0.3)
+
+`openmemory_remember` accepts a fielded observation shape: callers can
+attach an optional `title`, `summary`, `importance` (a ranking prior in
+`[0.0, 1.0]`), `source_kind`, `concepts` (string array), and
+`source_files` (string array) per observation. The FTS5 keyword
+backend folds the fielded inputs into its single `text` column at index
+time, repeating high-weight fields per the
+`[search.field_weights]` config. Defaults bias `title` and
+`entity_name`, and give `summary`, `concepts`, and `source_files`
+medium weight:
+
+```toml
+[search.field_weights]
+title = 5.0
+text = 1.0
+summary = 2.0
+concepts = 2.0
+source_files = 2.0
+source_kind = 0.5
+entity_type = 0.5
+entity_name = 4.0
+```
+
+The vector backend ignores the fielded inputs and embeds the
+`{entity_name}: {content}` body the way it did in v0.2.
+
+## Measuring retrieval quality
+
+`openmemory-eval` is the crate that runs canonical retrieval-quality
+benchmarks against a fresh `MemoryStore`. It reports three metrics
+on every dataset:
+
+- **R@K (recall at K).** Fraction of relevant documents that appear
+  in the top K results.
+- **MRR (mean reciprocal rank).** Mean over queries of `1 / rank` of
+  the first relevant hit (0 if none).
+- **NDCG@K (normalised discounted cumulative gain at K).** Graded
+  relevance weighted by position; perfect ranking is 1.0.
+
+Run it via the `openmemory eval` subcommand (behind the `eval` build
+feature). Hybrid and vector evals require the `embeddings` feature and
+a downloaded model; run `openmemory model download` first. Keyword evals
+do not need a model.
+
+```bash
+cargo build --release --features eval -p openmemory-cli
+./target/release/openmemory eval \
+    --dataset longmem-s \
+    --dataset-path tests/fixtures/longmem-s \
+    --mode hybrid \
+    --report /tmp/report.json
+```
+
+Datasets are read as three JSONL files under `--dataset-path`:
+`corpus.jsonl` (documents), `queries.jsonl` (queries), and
+`judgments.jsonl` (one `{query_id, uri, relevance}` per line).
+
+The CHANGELOG pins the current baseline on every release; an
+ablation that regresses any metric by more than the noise floor
+(documented inline with each release) is a hard stop.

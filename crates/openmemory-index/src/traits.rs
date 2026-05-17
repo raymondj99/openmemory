@@ -5,8 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::error::IndexResult;
 
 /// A piece of text to index. Carries the embedding vector when one is
-/// available; pure-keyword backends ignore it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// available and optional caller-supplied fielded metadata (title,
+/// short summary, concept tags, source files, source-kind discriminator,
+/// entity name and entity type). The keyword backend uses the fielded
+/// shape for BM25 weighting; the vector backend looks at `vector` and
+/// `text` and ignores the rest.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct IndexEntry {
     pub uri: String,
     pub text: String,
@@ -14,6 +18,20 @@ pub struct IndexEntry {
     pub chunk_index: u32,
     #[serde(default)]
     pub vector: Vec<f32>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub concepts: Vec<String>,
+    #[serde(default)]
+    pub source_files: Vec<String>,
+    #[serde(default)]
+    pub source_kind: Option<String>,
+    #[serde(default)]
+    pub entity_type: Option<String>,
+    #[serde(default)]
+    pub entity_name: Option<String>,
 }
 
 impl IndexEntry {
@@ -22,8 +40,7 @@ impl IndexEntry {
         Self {
             uri: uri.into(),
             text: text.into(),
-            chunk_index: 0,
-            vector: Vec::new(),
+            ..Self::default()
         }
     }
 
@@ -36,6 +53,48 @@ impl IndexEntry {
     #[must_use]
     pub fn with_chunk_index(mut self, chunk_index: u32) -> Self {
         self.chunk_index = chunk_index;
+        self
+    }
+
+    #[must_use]
+    pub fn with_title(mut self, title: Option<String>) -> Self {
+        self.title = title;
+        self
+    }
+
+    #[must_use]
+    pub fn with_summary(mut self, summary: Option<String>) -> Self {
+        self.summary = summary;
+        self
+    }
+
+    #[must_use]
+    pub fn with_concepts(mut self, concepts: Vec<String>) -> Self {
+        self.concepts = concepts;
+        self
+    }
+
+    #[must_use]
+    pub fn with_source_files(mut self, source_files: Vec<String>) -> Self {
+        self.source_files = source_files;
+        self
+    }
+
+    #[must_use]
+    pub fn with_source_kind(mut self, source_kind: Option<String>) -> Self {
+        self.source_kind = source_kind;
+        self
+    }
+
+    #[must_use]
+    pub fn with_entity_type(mut self, entity_type: Option<String>) -> Self {
+        self.entity_type = entity_type;
+        self
+    }
+
+    #[must_use]
+    pub fn with_entity_name(mut self, entity_name: Option<String>) -> Self {
+        self.entity_name = entity_name;
         self
     }
 }
@@ -101,6 +160,7 @@ impl From<ExportEntry> for IndexEntry {
             text: e.text,
             chunk_index: e.chunk_index,
             vector: e.vector,
+            ..Self::default()
         }
     }
 }
@@ -126,6 +186,9 @@ pub trait FullTextStore: Send + Sync {
 
     /// Delete every entry whose `uri` matches. Returns the number removed.
     fn delete_by_uri(&self, uri: &str) -> IndexResult<u64>;
+
+    /// Total number of keyword rows stored.
+    fn count(&self) -> IndexResult<u64>;
 
     /// Persist any buffered state. Default is a no-op for stores that commit
     /// on every mutation (FTS5).
@@ -194,6 +257,9 @@ mod tests {
                 Ok(vec![])
             }
             fn delete_by_uri(&self, _u: &str) -> IndexResult<u64> {
+                Ok(0)
+            }
+            fn count(&self) -> IndexResult<u64> {
                 Ok(0)
             }
         }

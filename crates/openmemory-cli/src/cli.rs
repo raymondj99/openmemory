@@ -75,6 +75,10 @@ pub enum Command {
     /// Requires the `watch` build feature (default-on).
     #[cfg(feature = "watch")]
     Watch(WatchArgs),
+    /// Run a retrieval-quality benchmark and emit a JSON + text report.
+    /// Requires the `eval` build feature.
+    #[cfg(feature = "eval")]
+    Eval(EvalArgs),
 }
 
 /// Subcommands for `openmemory integrate <target>`.
@@ -298,6 +302,32 @@ pub struct WatchArgs {
     pub no_initial_scan: bool,
 }
 
+/// `eval` arguments. Behind the `eval` build feature.
+#[cfg(feature = "eval")]
+#[derive(Debug, Args)]
+pub struct EvalArgs {
+    /// Dataset adapter name. Built-in: `longmem-s`, `coding-mem`.
+    #[arg(long, value_name = "NAME")]
+    pub dataset: String,
+    /// Path to the dataset fixture tree (JSONL files at the root).
+    #[arg(long, value_name = "PATH")]
+    pub dataset_path: std::path::PathBuf,
+    /// Search mode override. One of `hybrid`, `keyword`, `vector`.
+    #[arg(long, value_name = "MODE", default_value = "hybrid")]
+    pub mode: String,
+    /// Top-K to fetch from the engine; R@K and NDCG@K are computed
+    /// from the same single ranked list.
+    #[arg(long, value_name = "K", default_value = "10")]
+    pub k: usize,
+    /// Output path for the JSON report. Omit to skip the JSON write.
+    #[arg(long, value_name = "PATH")]
+    pub report: Option<std::path::PathBuf>,
+    /// Optional baseline JSON to diff against; the run prints the
+    /// metric deltas when present.
+    #[arg(long, value_name = "PATH")]
+    pub baseline: Option<std::path::PathBuf>,
+}
+
 /// `consolidate` arguments.
 #[derive(Debug, Args)]
 pub struct ConsolidateArgs {
@@ -349,6 +379,8 @@ where
         Command::Completions(args) => commands::completions::run(args.shell),
         #[cfg(feature = "watch")]
         Command::Watch(args) => commands::watch::run(&cli.profile, args),
+        #[cfg(feature = "eval")]
+        Command::Eval(args) => commands::eval::run(args),
     }
 }
 

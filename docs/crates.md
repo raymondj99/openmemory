@@ -119,20 +119,22 @@ compiled at a time.
 
 **Key types.**
 
-- `pub struct IndexEntry { uri, text, chunk_index, vector }` with
-  builder methods `with_vector`, `with_chunk_index`.
+- `pub struct IndexEntry { uri, text, chunk_index, vector, ...fielded metadata }`
+  with builder methods for vectors, chunk index, and optional fielded
+  metadata (`title`, `summary`, concepts, source files, source kind,
+  entity type/name).
 - `pub struct SearchResult { uri, text, chunk_index, score }`.
 - `pub enum SearchMode { Hybrid, VectorOnly, KeywordOnly }`. Default
   is `Hybrid`.
 - `pub trait VectorStore: Send + Sync { insert(...); search(query_vec, top_k); delete_by_uri(uri); count(); }`.
 - `pub trait VectorIndex: VectorStore { save(path); export_all() -> Vec<ExportEntry>; }`.
-- `pub trait FullTextStore: Send + Sync { insert(...); search(query, top_k); delete_by_uri(uri); flush(); }`.
+- `pub trait FullTextStore: Send + Sync { insert(...); search(query, top_k); delete_by_uri(uri); count(); flush(); }`.
 - `pub struct HybridSearchEngine<V, F>` parameterised over vector
   and fulltext backends. Method:
-  `search(query_vec, query_text, top_k, mode, alpha, rrf_k) -> Vec<SearchResult>`.
+  `search(query_vec, query_text, top_k, mode) -> Vec<SearchResult>`.
 - `pub struct CachedSearchEngine<V, F>` wraps the hybrid engine
-  with an LRU TTL cache. `DEFAULT_CACHE_CAPACITY = 1000`,
-  `DEFAULT_CACHE_TTL = 300 s`.
+  with an LRU TTL cache. `DEFAULT_CACHE_CAPACITY = 50`,
+  `DEFAULT_CACHE_TTL = 60 s`.
 - `pub fn open_engine(config, data_dir) -> IndexResult<OpenEngine>`
   wires metadata + vector + fulltext + cache from feature flags.
 - `pub fn flush(engine) -> IndexResult<()>` persists vector and

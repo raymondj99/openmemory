@@ -110,8 +110,30 @@ Indexes: `(name, entity_type)` (unique), `entity_type`.
 | `confidence` | REAL | 0.0–1.0. |
 | `source` | TEXT | Origin tag. |
 | `memory_tier` | TEXT | One of `episodic`, `semantic`, `procedural`. |
+| `title` | TEXT NULL | v0.3. Caller-supplied title; indexed at very high weight by FTS5. |
+| `summary` | TEXT NULL | v0.3. Caller-supplied short summary. |
+| `importance` | REAL NULL | v0.3. Importance prior in [0.0, 1.0]; not indexed as text. |
+| `source_kind` | TEXT NULL | v0.3. Free-form source-kind discriminator. |
 
 Indexes: `entity_id`, `observed_at`, `tombstoned`.
+
+### `observation_concepts` (v0.3)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `observation_id` | TEXT | FK to `observations.id`. ON DELETE CASCADE. |
+| `concept` | TEXT | One concept tag per row. |
+
+Primary key: `(observation_id, concept)`. Lookup index on `concept`.
+
+### `observation_source_files` (v0.3)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `observation_id` | TEXT | FK to `observations.id`. ON DELETE CASCADE. |
+| `file_path` | TEXT | One source file per row. |
+
+Primary key: `(observation_id, file_path)`. Lookup index on `file_path`.
 
 ### `relations`
 

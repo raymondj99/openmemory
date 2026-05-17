@@ -154,6 +154,32 @@ pub struct Observation {
     pub tombstoned: bool,
     #[serde(default)]
     pub access_count: u32,
+    /// Consolidation stage. Defaults to [`MemoryTier::Episodic`]; the
+    /// column exists since schema v1 but the in-memory `Observation`
+    /// only learned to surface it in v0.3.
+    #[serde(default = "MemoryTier::default_episodic")]
+    pub memory_tier: MemoryTier,
+    /// Caller-supplied title (very-high-weight indexing field). v2.
+    #[serde(default)]
+    pub title: Option<String>,
+    /// Caller-supplied short summary. v2.
+    #[serde(default)]
+    pub summary: Option<String>,
+    /// Caller-supplied importance in `[0.0, 1.0]`. Used as a ranking
+    /// prior, never indexed as text. v2.
+    #[serde(default)]
+    pub importance: Option<f32>,
+    /// Free-form source-kind discriminator. v2.
+    #[serde(default)]
+    pub source_kind: Option<String>,
+    /// Caller-supplied concept tags. Indexed via the
+    /// `observation_concepts` side table. v2.
+    #[serde(default)]
+    pub concepts: Vec<String>,
+    /// Caller-supplied source-file paths. Indexed via the
+    /// `observation_source_files` side table. v2.
+    #[serde(default)]
+    pub source_files: Vec<String>,
 }
 
 impl Observation {
@@ -171,6 +197,13 @@ impl Observation {
             source: String::new(),
             tombstoned: false,
             access_count: 0,
+            memory_tier: MemoryTier::Episodic,
+            title: None,
+            summary: None,
+            importance: None,
+            source_kind: None,
+            concepts: Vec::new(),
+            source_files: Vec::new(),
         }
     }
 
@@ -245,6 +278,13 @@ pub enum MemoryTier {
 }
 
 impl MemoryTier {
+    /// Helper used by serde's `default` attribute on `Observation`. The
+    /// in-memory default matches the SQL column default so a row that
+    /// never had its tier set surfaces as Episodic on read.
+    pub(crate) fn default_episodic() -> Self {
+        MemoryTier::Episodic
+    }
+
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -415,6 +455,25 @@ mod tests {
     #[test]
     fn memory_tier_unknown_returns_none() {
         assert!(MemoryTier::parse("unknown").is_none());
+    }
+
+    #[test]
+    fn observation_serde_round_trips_memory_tier() {
+        let mut o = Observation::new("e1", "x", 0);
+        o.memory_tier = MemoryTier::Semantic;
+        let s = serde_json::to_string(&o).unwrap();
+        let back: Observation = serde_json::from_str(&s).unwrap();
+        assert_eq!(back.memory_tier, MemoryTier::Semantic);
+    }
+
+    #[test]
+    fn observation_serde_defaults_memory_tier_to_episodic() {
+        let json = r#"{
+            "id":"a","entity_id":"e","content":"c",
+            "observed_at":0,"confidence":1.0,"source":""
+        }"#;
+        let o: Observation = serde_json::from_str(json).unwrap();
+        assert_eq!(o.memory_tier, MemoryTier::Episodic);
     }
 
     #[test]
