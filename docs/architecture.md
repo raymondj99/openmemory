@@ -33,12 +33,14 @@ openmemory/
 │   ├── configuration.md
 │   ├── cli.md
 │   ├── watcher.md
+│   ├── integrations.md
 │   ├── development.md
 │   └── roadmap.md
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              # build/test/clippy/fmt/doc matrix
 │       ├── audit.yml           # cargo-deny weekly + on push
+│       ├── eval.yml            # non-gating retrieval-quality eval (v0.3)
 │       └── release.yml         # tagged release tarballs
 └── crates/
     ├── openmemory-core/       # clock, config, error, migrations, retry
@@ -47,7 +49,9 @@ openmemory/
     ├── openmemory-graph/      # entity/observation/relation knowledge graph
     ├── openmemory-mcp/        # MCP server + tool router
     ├── openmemory-cli/        # binary `openmemory`
-    └── openmemory-watch/      # filesystem watcher with incremental re-indexing
+    ├── openmemory-watch/      # filesystem watcher with incremental re-indexing
+    ├── openmemory-bench/      # criterion benchmarks (recall, consolidate, vector)
+    └── openmemory-eval/       # retrieval-quality harness (R@K, MRR, NDCG@K)  [v0.3]
 ```
 
 ## Crate dependency graph
@@ -62,23 +66,26 @@ openmemory/
             └────────┐   ┌────┘
                      ▼   ▼
                openmemory-graph
-                ╱       │       ╲
-               ╱        │        ╲
-              ▼         ▼         ▼
-   openmemory-watch  openmemory-mcp
-              ╲          │
-               ╲         ▼
-                ╲   openmemory-cli
-                 ╲      ╱
-                  ╲    ╱
-                   ▼  ▼
-              (watch is also a direct dep of cli for the
-               `watch` subcommand)
+              ╱   │      │      ╲       ╲
+             ╱    │      │       ╲       ╲
+            ▼    ▼       ▼        ▼       ▼
+  openmemory-watch  openmemory-mcp  openmemory-eval  openmemory-bench
+            ╲          │                ╲             (dev-only)
+             ╲         ▼                 ╲
+              ╲   openmemory-cli ◀───────┘  (eval re-exported behind `eval` feature)
+               ╲      ╱
+                ╲    ╱
+                 ▼  ▼
+            (watch is also a direct dep of cli for the
+             `watch` subcommand)
 ```
 
 Strict layering: there are no upward edges. `openmemory-core`
 depends on no internal crate; `openmemory-cli` depends on every
-other crate transitively.
+other crate transitively. `openmemory-eval` (new in v0.3) sits
+above the graph crate and is reachable from the CLI behind the
+optional `eval` feature. `openmemory-bench` is dev-only and
+carries the criterion benchmarks; it is not published.
 
 The `openmemory-mcp` crate intentionally does **not** depend on
 the upstream `rmcp` Rust SDK. Every published rmcp release uses
@@ -99,6 +106,8 @@ a mechanical change.
 | `openmemory-mcp` | JSON-RPC 2.0 server, eleven `openmemory_*` tools, stdio transport, optional Streamable HTTP transport with bearer-token auth. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
 | `openmemory-cli` | The `openmemory` binary with the eleven subcommands. | every crate above |
 | `openmemory-watch` | Filesystem watcher: initial scan, debounced event loop, BLAKE3 dedup, ignore-file precedence. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
+| `openmemory-bench` | Criterion benchmarks for the recall hot path, consolidation, and the flat vector backend. Dev-only; not published. | `openmemory-core`, `openmemory-graph`, `openmemory-index` |
+| `openmemory-eval` (v0.3) | Retrieval-quality harness: `Dataset` trait, R@K / MRR / NDCG@K metrics, `EvalRunner`, adapters for `longmem-s` and `coding-mem` JSONL fixtures. Driven by the `openmemory eval` CLI subcommand behind the `eval` feature. | `openmemory-core`, `openmemory-graph`, `openmemory-index` |
 
 Per-crate API detail (every public type, trait, and feature flag)
 lives in [crates.md](crates.md):
@@ -201,6 +210,7 @@ Toggleable features (per crate detail in
 | `watch` | on (CLI) | The `openmemory watch` subcommand and the watcher crate. |
 | `hnsw` | off | usearch-backed approximate vector index. Adds a C++ build dep. |
 | `mcp-http` | on | Streamable HTTP transport for the MCP server. |
+| `eval` | off | Compiles `openmemory-eval` into the CLI and enables the `openmemory eval` subcommand. New in v0.3. |
 | `simd` | off | Reserved. |
 
 ## Design philosophy

@@ -21,15 +21,28 @@ The project is built around three opinionated choices:
    `openmemory integrate openclaw` writes a working entry into
    OpenClaw's config. Nothing else is required.
 
-Current release: **v0.2.1**. A production-hardening patch on top
-of v0.2.0: entity normalization on the `remember` write path,
-explicit embedding-model management (`openmemory model list /
-download / use`), SHA-256 integrity verification for ONNX models,
-and optional bearer-token auth on the Streamable HTTP transport.
-v0.2.0 introduced multi-agent memory (a pool of read-only WAL
-connections so concurrent recalls run in parallel) and the
-`openmemory watch DIR` filesystem watcher. The MCP tool surface
-is unchanged at v0.1.
+Current release: **v0.3.0** (on the `feat/memory-retrieval-enhancements`
+branch). Lands hybrid-search correctness fixes (callers now embed text
+on the way into and out of the index, recall overfetches when filters
+are active), the new `openmemory-eval` retrieval-quality harness
+(R@K, MRR, NDCG@K with `longmem-s` and `coding-mem` adapters), the
+`memory_tier` filter end-to-end (`openmemory_remember`,
+`openmemory_recall`, `openmemory_get_entity`), and forward-only
+schema v2 with fielded observation indexing (`title`, `summary`,
+`importance`, `source_kind`, plus `observation_concepts` and
+`observation_source_files` side tables, weighted via FTS5 repetition
+under the new `[search.field_weights]` config). The recall hot path
+was reshaped around the v2 schema and runs 2.6x–3.8x faster on the
+keyword and hybrid benches versus pre-v0.3 `main`. v0.2.1 added
+entity normalization on the `remember` write path, explicit
+embedding-model management (`openmemory model list / download /
+use`), SHA-256 integrity verification for ONNX models, and optional
+bearer-token auth on the Streamable HTTP transport. v0.2.0 introduced
+multi-agent memory (a pool of read-only WAL connections so concurrent
+recalls run in parallel) and the `openmemory watch DIR` filesystem
+watcher. The MCP tool surface is unchanged at v0.1 in name set;
+`openmemory_remember` and `openmemory_recall` accept new optional
+fields, and every recall result carries `memory_tier`.
 
 ## Document map
 
@@ -40,7 +53,7 @@ its own; skip ahead if you only need one slice.
 |----------|---------|
 | [overview.md](overview.md) | What `openmemory` is, the problem it solves, the goals and non-goals that bound the project, and the high-level deliverables. Start here. |
 | [architecture.md](architecture.md) | Workspace layout, crate boundaries, the dependency graph, the writer-mutex + reader-pool + rebuild-barrier threading model, and the design philosophy that explains why several plausible abstractions are deliberately absent. |
-| [crates.md](crates.md) | Per-crate reference: purpose, feature flags, public API surface, key types, and source-file map for each of the seven workspace crates. |
+| [crates.md](crates.md) | Per-crate reference: purpose, feature flags, public API surface, key types, and source-file map for each of the nine workspace crates (seven shipping crates plus `openmemory-bench` and v0.3's `openmemory-eval`). |
 | [mcp.md](mcp.md) | MCP server contract. Wire-level JSON-RPC 2.0 framing, the eleven `openmemory_*` tools, their input schemas and annotations, error shapes, and the stdio + Streamable HTTP transports including bearer-token auth. |
 | [openclaw.md](openclaw.md) | The OpenClaw integration contract. Config-file resolution rules, the JSON entry written by `openmemory integrate openclaw`, the stdio vs. HTTP entry shapes, multi-profile coexistence, and the verification path. |
 | [search.md](search.md) | How recall actually works. Hybrid (vector + FTS5) search via Reciprocal Rank Fusion, the Ebbinghaus decay scoring with retrieval and correction boosts, optional spreading activation through relations, and the embedding model registry (Nomic, Snowflake Arctic). |

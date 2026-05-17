@@ -72,8 +72,11 @@ the hybrid engine with an LRU + TTL cache:
 - `DEFAULT_CACHE_TTL = 60` seconds.
 - Cache key: `(query, top_k, mode, filter_hash)`.
 
-A `MemoryStore` write invalidates the cache automatically (the
-hybrid engine is rebuilt under the `RwLock<()>` rebuild barrier).
+Every `CachedSearchEngine::insert` and `delete_by_uri` calls
+`invalidate()` on the LRU, so a `MemoryStore` write automatically
+drops stale cached results. The `RwLock<()>` rebuild barrier on
+`MemoryStore` is a separate mechanism guarding vector-index
+visibility (see [architecture.md](architecture.md#threading-model)).
 
 ## Embeddings
 
@@ -112,10 +115,13 @@ Mismatches surface as `EmbedError::ChecksumMismatch` with a
 
 The verification implementation streams files in 64 KiB
 heap-allocated blocks, normalises expected hex case-insensitively,
-and treats empty hashes as `VerificationOutcome::Skipped`. The
-v0.2.0 registry uses empty hashes as a placeholder; populating
-real hashes is tracked for v0.3 and tightens to "always verified"
-with no further code changes.
+and treats empty hashes as `VerificationOutcome::Skipped`. Both
+shipped models (Nomic v1.5, Snowflake Arctic Embed L v2) carry
+real `onnx_sha256` and `tokenizer_sha256` values in
+[`models.rs`](../crates/openmemory-embed/src/models.rs), so loads
+always run a real check. A future registry entry that ships with
+empty hashes still surfaces as `Skipped` (warns and loads) rather
+than blocking startup.
 
 ### Cache
 
@@ -211,8 +217,9 @@ runs two phases:
    formula above. Tombstone every observation below `prune_floor`.
 
 Consolidation is **idempotent**: a second call right after the
-first reports zero work. Run it on a schedule (the Unreleased
-`openmemory_consolidate` MCP tool exists for that).
+first reports zero work. Run it on a schedule via the
+`openmemory_consolidate` MCP tool or the `openmemory consolidate`
+CLI subcommand.
 
 ## SearchMode reference
 

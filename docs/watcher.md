@@ -34,14 +34,15 @@ Files are indexed under `file://<canonical-absolute-path>`. The
 helper:
 
 ```rust
-pub fn path_to_uri(root: &Path, path: &Path) -> String;
+pub fn path_to_uri(path: &Path) -> String;
 ```
 
-resolves the path canonically before formatting; symlinks and
-relative paths normalise to one stable URI per inode. This means
-deleting and re-creating the same file (with the same canonical
-path) replaces the previous index entry rather than creating a
-stale duplicate.
+The `Watcher::new` constructor canonicalises the watch root once
+on startup, so every path the helper sees is already absolute and
+the URI is stable across runs. Symlinks and relative paths
+normalise to one URI per inode. This means deleting and re-creating
+the same file (with the same canonical path) replaces the previous
+index entry rather than creating a stale duplicate.
 
 The watcher writes one chunk per file (`chunk_index = 0`) for v0.2.
 Multi-chunk file ingestion is tracked for a future release.
@@ -70,7 +71,9 @@ Override sources, in order of precedence:
 2. `[watch] extensions = [...]` in `config.toml`.
 3. `DEFAULT_EXTENSIONS` (the compiled fallback).
 
-A file whose extension is not in the active list gets `SkipReason::WrongExtension`.
+A file whose extension is not in the active list is filtered out
+by the directory walker before `process_file` runs, so it never
+produces a `ProcessOutcome` at all.
 
 ## Always-ignore paths
 
@@ -111,16 +114,26 @@ work is the directory walk plus a hash per file.
 
 `process_file` returns one of:
 
-- `ProcessOutcome::Indexed`: text was read, hashed, written to the
-  index. The metadata-store row was upserted with the new hash.
-- `ProcessOutcome::Skipped(SkipReason::TooLarge | WrongExtension | Ignored)`.
-  the file was visited but did not match the active filters.
-- `ProcessOutcome::Error(WatchError)`: read or index failure.
-  Logged at warn level; the watcher continues with the next event.
+- `ProcessOutcome::Inserted`: first time the watcher has seen this
+  URI. Text was read, hashed, written to the index, and the
+  metadata-store row was inserted.
+- `ProcessOutcome::Updated`: the URI was already in the metadata
+  store but the BLAKE3 hash differed. The old engine entry was
+  dropped and the new content was indexed.
+- `ProcessOutcome::Unchanged`: the BLAKE3 hash matched the stored
+  hash; no engine work was done.
+- `ProcessOutcome::Skipped(SkipReason::TooLarge | UnreadableUtf8 | EmptyContent)`:
+  the file was rejected by the size cap, was not valid UTF-8, or
+  had zero bytes.
 
-`remove_path` mirrors the shape: it removes the index entry for a
-deleted file and returns `Indexed` (treating "removed from index"
-as the success state) or `Error`.
+Read or index failures bubble up as `WatchError` from the
+`WatchResult` return value; the caller (`Watcher::scan_initial` and
+the event loop) logs them at warn level and continues with the
+next path.
+
+`remove_path` returns `WatchResult<bool>`: `true` if either the
+search engine or the metadata store had a row for the URI, `false`
+if the path was never indexed.
 
 ## Initial scan vs. event loop
 
