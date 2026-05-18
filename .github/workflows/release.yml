@@ -35,15 +35,31 @@ jobs:
             runner: macos-latest
             archive_suffix: tar.gz
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
+            # Pinned to ubuntu-22.04 (glibc 2.35) so the released binary
+            # runs on Debian 11/12, Ubuntu 22.04+, RHEL 8/9, and older
+            # WSL images. ubuntu-latest currently ships glibc 2.39, which
+            # excludes most LTS distros.
+            runner: ubuntu-22.04
             archive_suffix: tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Read pinned toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          channel="$(awk -F'"' '/^channel/ { print $2 }' rust-toolchain.toml)"
+          if [[ -z "$channel" ]]; then
+            echo "could not parse channel from rust-toolchain.toml" >&2
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           targets: ${{ matrix.target }}
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}

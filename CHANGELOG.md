@@ -9,6 +9,8 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-17
+
 ### Added
 
 - **Fielded observation indexing.** `openmemory_remember` now accepts a
