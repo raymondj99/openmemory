@@ -37,7 +37,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::error::{MemoryError, MemoryResult};
 use crate::pool::ReadPool;
 use crate::schema::{configure, migrate, MEMORY_SCHEMA_VERSION};
-use crate::types::{Entity, EntityType, MemoryTier, Observation, Relation};
+use crate::types::{new_id, Entity, EntityType, MemoryTier, Observation, Relation};
 
 #[cfg(any(feature = "testing", feature = "embeddings"))]
 use openmemory_core::testing::Embedder;
@@ -464,6 +464,105 @@ impl MemoryStore {
             }
             Ok(out)
         })
+    }
+
+    /// Attach a relation between two existing entities.
+    ///
+    /// Unlike [`Self::remember`], which creates the relation as part
+    /// of an atomic observation write, this method targets the
+    /// post-hoc curator policy: *"I just stored observation X on
+    /// entity A; now I need to link A to B as `supersedes`"*.
+    ///
+    /// Both entities must already exist; `add_relation` will not
+    /// create them. Returns the new relation id.
+    ///
+    /// `weight` defaults to `1.0` when callers pass `None`. Empty
+    /// `relation_type` is rejected with [`MemoryError::InvalidInput`].
+    /// Unknown entity ids surface as [`MemoryError::NotFound`].
+    pub fn add_relation(
+        &self,
+        from_entity_id: &str,
+        to_entity_id: &str,
+        relation_type: &str,
+        weight: Option<f32>,
+        source: &str,
+    ) -> MemoryResult<String> {
+        if relation_type.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "relation_type must not be empty".into(),
+            ));
+        }
+        if from_entity_id == to_entity_id {
+            return Err(MemoryError::InvalidInput(
+                "from_entity_id and to_entity_id must differ".into(),
+            ));
+        }
+        let now = self.clock.now_secs();
+        let _guard = self.write_rebuild();
+        let mut conn = self.lock_db();
+        let tx = conn.transaction()?;
+        for id in [from_entity_id, to_entity_id] {
+            let exists: i64 = tx
+                .query_row(
+                    "SELECT COUNT(1) FROM entities WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .unwrap_or(0);
+            if exists == 0 {
+                return Err(MemoryError::EntityNotFound(id.to_string()));
+            }
+        }
+        let id = new_id();
+        tx.execute(
+            "INSERT INTO relations
+                (id, from_entity, to_entity, relation_type, weight, created_at,
+                 valid_from, valid_until, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, ?8)",
+            params![
+                id,
+                from_entity_id,
+                to_entity_id,
+                relation_type,
+                weight.unwrap_or(1.0),
+                now,
+                now,
+                source,
+            ],
+        )?;
+        tx.commit()?;
+        Ok(id)
+    }
+
+    /// Promote (or demote) an observation between memory tiers.
+    ///
+    /// Backs the [`crate::types::MemoryTier`] lifecycle: a curator
+    /// typically writes new observations as `Episodic` and promotes
+    /// them to `Semantic` once they've survived consolidation, or to
+    /// `Procedural` once they describe a stable how-to. Returns
+    /// `true` if the observation existed and was updated, `false` if
+    /// no row matched the id (i.e. the observation is missing or
+    /// tombstoned).
+    pub fn set_observation_memory_tier(
+        &self,
+        observation_id: &str,
+        tier: crate::types::MemoryTier,
+    ) -> MemoryResult<bool> {
+        if observation_id.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "observation_id must not be empty".into(),
+            ));
+        }
+        let _guard = self.write_rebuild();
+        let mut conn = self.lock_db();
+        let tx = conn.transaction()?;
+        let updated = tx.execute(
+            "UPDATE observations SET memory_tier = ?1
+              WHERE id = ?2 AND tombstoned = 0",
+            params![tier.as_str(), observation_id],
+        )?;
+        tx.commit()?;
+        Ok(updated > 0)
     }
 
     /// Aggregate counts + timestamps for the store.
@@ -1057,5 +1156,96 @@ mod tests {
         let kinds: Vec<_> = rels.iter().map(|r| r.relation_type.clone()).collect();
         assert!(kinds.contains(&"maintains".to_string()));
         assert!(kinds.contains(&"mentions".to_string()));
+    }
+
+    #[test]
+    fn add_relation_links_existing_entities() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
+        let a = store
+            .remember(
+                "A",
+                EntityType::Fact,
+                &[crate::ObservationInput::new("a-obs")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let b = store
+            .remember(
+                "B",
+                EntityType::Fact,
+                &[crate::ObservationInput::new("b-obs")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let rel_id = store
+            .add_relation(&a.entity_id, &b.entity_id, "supersedes", None, "curator")
+            .unwrap();
+        assert!(!rel_id.is_empty());
+        let rels = store.get_entity_relations(&a.entity_id).unwrap();
+        assert_eq!(rels.len(), 1);
+        assert_eq!(rels[0].relation_type, "supersedes");
+    }
+
+    #[test]
+    fn add_relation_rejects_unknown_entity() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
+        let err = store
+            .add_relation("does-not-exist", "also-missing", "supersedes", None, "t")
+            .unwrap_err();
+        assert!(matches!(err, MemoryError::EntityNotFound(_)));
+    }
+
+    #[test]
+    fn add_relation_rejects_self_loop() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
+        let a = store
+            .remember(
+                "Solo",
+                EntityType::Fact,
+                &[crate::ObservationInput::new("o")],
+                &[],
+                "t",
+            )
+            .unwrap();
+        let err = store
+            .add_relation(&a.entity_id, &a.entity_id, "supersedes", None, "t")
+            .unwrap_err();
+        assert!(matches!(err, MemoryError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn set_observation_memory_tier_updates_active_row() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
+        let outcome = store
+            .remember(
+                "X",
+                EntityType::Fact,
+                &[crate::ObservationInput::new("episodic on write")],
+                &[],
+                "t",
+            )
+            .unwrap();
+        let modified = store
+            .set_observation_memory_tier(&outcome.observation_ids[0], MemoryTier::Semantic)
+            .unwrap();
+        assert!(modified);
+        let obs = store.get_entity_observations(&outcome.entity_id).unwrap();
+        assert_eq!(obs[0].memory_tier, MemoryTier::Semantic);
+    }
+
+    #[test]
+    fn set_observation_memory_tier_noop_on_missing_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
+        let modified = store
+            .set_observation_memory_tier("missing", MemoryTier::Semantic)
+            .unwrap();
+        assert!(!modified);
     }
 }

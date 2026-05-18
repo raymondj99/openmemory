@@ -1,11 +1,13 @@
 //! Knowledge-graph tools.
 //!
-//! Seven tools wrap the [`openmemory_graph::MemoryStore`] API:
+//! Nine tools wrap the [`openmemory_graph::MemoryStore`] API:
 //!
 //! - `openmemory_remember` — atomic write (entity + observations + relations)
 //! - `openmemory_recall` — hybrid search + decay scoring
 //! - `openmemory_list_entities` — paginated entity index
 //! - `openmemory_get_entity` — entity + observations + relations bundle
+//! - `openmemory_add_relation` — attach a relation between two existing entities
+//! - `openmemory_promote_observation` — move an observation between memory tiers
 //! - `openmemory_forget` — soft-delete a single observation
 //! - `openmemory_forget_entity` — hard-delete an entity (cascade)
 //! - `openmemory_status` — counts and timestamps
@@ -134,7 +136,14 @@ const REMEMBER_DESC: &str =
      fuzzy-matched against existing entities of the same type: near-identical names \
      (e.g. \"ProjectAlpha\" vs \"Project Alpha\") auto-merge; close matches create a SAME_AS \
      relation. The response includes a 'normalized' field when normalization fires. Use this \
-     to persist knowledge across sessions: user preferences, project decisions, learned patterns.";
+     to persist knowledge across sessions: user preferences, project decisions, learned patterns. \
+     \n\nIdempotency: observations are always APPENDED, not deduplicated at write time. Calling \
+     this twice with the same `entity` + identical `content` creates two parallel observation \
+     rows (with different ids and timestamps). Run `openmemory_consolidate` periodically to \
+     dedup near-duplicates by text similarity. Callers that need write-time dedup should \
+     `openmemory_recall` the proposed title first and skip the write when a high-scoring hit \
+     already exists. Relations follow the same append-only contract: identical edges are \
+     duplicated, not merged.";
 
 /// Handler for the `openmemory_remember` MCP tool. Stores or updates
 /// an entity and appends observations + optional relations atomically.
@@ -637,6 +646,167 @@ impl Tool for OpenMemoryForgetEntityTool {
 }
 
 // ---------------------------------------------------------------------------
+// openmemory_add_relation
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AddRelationInput {
+    /// Name of the entity the relation originates from. Must already
+    /// exist (use `openmemory_remember` to create it first).
+    pub from_entity: String,
+    /// Entity type of `from_entity`. Defaults to `concept` when
+    /// omitted, matching the resolution policy elsewhere in the API.
+    #[serde(default)]
+    pub from_entity_type: Option<EntityTypeParam>,
+    /// Name of the entity the relation points to. Must already exist.
+    pub to_entity: String,
+    /// Entity type of `to_entity`. Defaults to `concept`.
+    #[serde(default)]
+    pub to_entity_type: Option<EntityTypeParam>,
+    /// Relationship kind, e.g. `supersedes`, `clarifies`,
+    /// `depends_on`, `instance_of`. Free-form string; conventions are
+    /// agent-side, not server-enforced.
+    pub relation_type: String,
+    /// Edge weight in `[0, 1]`. Defaults to `1.0` when omitted.
+    #[serde(default)]
+    pub weight: Option<f32>,
+    /// Source tag for audit/dedup (e.g. `"curator"`, `"omdemos:..."`).
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+const ADD_RELATION_DESC: &str =
+    "Attach a relation between two existing entities. Use this when an observation you just \
+     wrote needs an explicit edge to another entity — e.g. recording that a new decision \
+     `supersedes` an older one, or that a runbook `clarifies` an incident note. Both entities \
+     must already exist; the tool will not silently create them. Returns the new relation id. \
+     Idempotent in spirit but not in storage: calling twice creates two parallel edges, so \
+     callers should check `openmemory_get_entity` first if dedup matters.";
+
+/// Handler for the `openmemory_add_relation` MCP tool. Attaches a
+/// relation between two existing entities resolved by `(name, type)`.
+pub struct OpenMemoryAddRelationTool;
+impl Tool for OpenMemoryAddRelationTool {
+    const NAME: &'static str = "openmemory_add_relation";
+    const SUMMARY: &'static str =
+        "Attach a relation (e.g. `supersedes`) between two existing entities.";
+    const GROUP: ToolGroup = ToolGroup::Memory;
+
+    fn descriptor() -> ToolDescriptor {
+        ToolDescriptor {
+            name: Self::NAME.into(),
+            description: ADD_RELATION_DESC.into(),
+            input_schema: schema_for::<AddRelationInput>(),
+            annotations: Some(write_annotations()),
+        }
+    }
+
+    fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
+        let req: AddRelationInput = parse_args(args)?;
+        if req.relation_type.trim().is_empty() {
+            return Err(JsonRpcError::invalid_params(
+                "relation_type must not be empty",
+            ));
+        }
+        let from_type = req
+            .from_entity_type
+            .map_or(EntityType::Concept, |p| p.to_entity_type());
+        let to_type = req
+            .to_entity_type
+            .map_or(EntityType::Concept, |p| p.to_entity_type());
+        let from = server
+            .memory()
+            .get_entity_by_name_and_type(&req.from_entity, from_type)
+            .map_err(map_memory_err)?
+            .ok_or_else(|| JsonRpcError {
+                code: -32004,
+                message: format!(
+                    "from_entity not found: {:?} ({})",
+                    req.from_entity,
+                    from_type.as_str()
+                ),
+                data: None,
+            })?;
+        let to = server
+            .memory()
+            .get_entity_by_name_and_type(&req.to_entity, to_type)
+            .map_err(map_memory_err)?
+            .ok_or_else(|| JsonRpcError {
+                code: -32004,
+                message: format!(
+                    "to_entity not found: {:?} ({})",
+                    req.to_entity,
+                    to_type.as_str()
+                ),
+                data: None,
+            })?;
+        let source = req.source.as_deref().unwrap_or("mcp");
+        let rel_id = server
+            .memory()
+            .add_relation(&from.id, &to.id, &req.relation_type, req.weight, source)
+            .map_err(map_memory_err)?;
+        json_text_result(&json!({
+            "relation_id": rel_id,
+            "from_entity_id": from.id,
+            "to_entity_id": to.id,
+            "relation_type": req.relation_type,
+        }))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// openmemory_promote_observation
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct PromoteObservationInput {
+    /// Observation ID (UUIDv7) returned by `openmemory_recall` or
+    /// `openmemory_remember`.
+    pub observation_id: String,
+    /// Target tier: `episodic`, `semantic`, or `procedural`.
+    pub memory_tier: MemoryTierParam,
+}
+
+const PROMOTE_DESC: &str =
+    "Move an observation between memory tiers (`episodic` -> `semantic` -> `procedural`, \
+     or back). Use this after an observation has survived consolidation, been accessed \
+     repeatedly, or otherwise earned promotion out of short-term `episodic` storage. \
+     Returns `{ modified: true }` when the row was updated, `{ modified: false }` if the \
+     observation is missing or tombstoned. Tier is the only field touched; content, \
+     importance, and relations are unchanged.";
+
+/// Handler for the `openmemory_promote_observation` MCP tool. Mutates
+/// a single observation's `memory_tier` in place.
+pub struct OpenMemoryPromoteObservationTool;
+impl Tool for OpenMemoryPromoteObservationTool {
+    const NAME: &'static str = "openmemory_promote_observation";
+    const SUMMARY: &'static str = "Move an observation between memory tiers.";
+    const GROUP: ToolGroup = ToolGroup::Memory;
+
+    fn descriptor() -> ToolDescriptor {
+        ToolDescriptor {
+            name: Self::NAME.into(),
+            description: PROMOTE_DESC.into(),
+            input_schema: schema_for::<PromoteObservationInput>(),
+            annotations: Some(write_annotations()),
+        }
+    }
+
+    fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
+        let req: PromoteObservationInput = parse_args(args)?;
+        let tier = req.memory_tier.to_tier();
+        let modified = server
+            .memory()
+            .set_observation_memory_tier(&req.observation_id, tier)
+            .map_err(map_memory_err)?;
+        json_text_result(&json!({
+            "modified": modified,
+            "memory_tier": tier.as_str(),
+        }))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // openmemory_status
 // ---------------------------------------------------------------------------
 
@@ -690,6 +860,8 @@ pub(crate) fn register_all(out: &mut Vec<Entry>) {
     out.push(entry::<OpenMemoryRecallTool>());
     out.push(entry::<OpenMemoryListEntitiesTool>());
     out.push(entry::<OpenMemoryGetEntityTool>());
+    out.push(entry::<OpenMemoryAddRelationTool>());
+    out.push(entry::<OpenMemoryPromoteObservationTool>());
     out.push(entry::<OpenMemoryForgetTool>());
     out.push(entry::<OpenMemoryForgetEntityTool>());
     out.push(entry::<OpenMemoryStatusTool>());
@@ -951,5 +1123,128 @@ mod tests {
             crate::protocol::Content::Text { text } => text.clone(),
         };
         assert!(body.contains("\"total_entities\": 0"));
+    }
+
+    #[test]
+    fn add_relation_links_two_existing_entities() {
+        let s = server();
+        s.memory()
+            .remember(
+                "Current Policy",
+                EntityType::Fact,
+                &[ObservationInput::new("active threshold = 0.075")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        s.memory()
+            .remember(
+                "Legacy Policy",
+                EntityType::Fact,
+                &[ObservationInput::new("old threshold = 0.100")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let r = OpenMemoryAddRelationTool::call(
+            &s,
+            json!({
+                "from_entity": "Current Policy",
+                "from_entity_type": "fact",
+                "to_entity": "Legacy Policy",
+                "to_entity_type": "fact",
+                "relation_type": "supersedes",
+                "source": "curator-test",
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"relation_type\": \"supersedes\""));
+        assert!(body.contains("\"relation_id\""));
+    }
+
+    #[test]
+    fn add_relation_rejects_missing_entity_with_typed_error() {
+        let s = server();
+        let err = OpenMemoryAddRelationTool::call(
+            &s,
+            json!({
+                "from_entity": "GhostA",
+                "to_entity": "GhostB",
+                "relation_type": "supersedes",
+            }),
+        )
+        .unwrap_err();
+        assert_eq!(
+            err.code, -32004,
+            "should surface entity-not-found typed error"
+        );
+    }
+
+    #[test]
+    fn add_relation_rejects_empty_relation_type() {
+        let s = server();
+        let err = OpenMemoryAddRelationTool::call(
+            &s,
+            json!({
+                "from_entity": "X",
+                "to_entity": "Y",
+                "relation_type": "   ",
+            }),
+        )
+        .unwrap_err();
+        assert!(
+            err.message.contains("relation_type must not be empty"),
+            "unexpected message: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn promote_observation_updates_tier() {
+        let s = server();
+        let outcome = s
+            .memory()
+            .remember(
+                "Decision",
+                EntityType::Fact,
+                &[ObservationInput::new("call this episodic on write")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let obs_id = &outcome.observation_ids[0];
+        let r = OpenMemoryPromoteObservationTool::call(
+            &s,
+            json!({
+                "observation_id": obs_id,
+                "memory_tier": "semantic",
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"modified\": true"));
+        assert!(body.contains("\"memory_tier\": \"semantic\""));
+    }
+
+    #[test]
+    fn promote_observation_returns_false_for_unknown_id() {
+        let s = server();
+        let r = OpenMemoryPromoteObservationTool::call(
+            &s,
+            json!({
+                "observation_id": "00000000-0000-0000-0000-000000000000",
+                "memory_tier": "semantic",
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"modified\": false"));
     }
 }

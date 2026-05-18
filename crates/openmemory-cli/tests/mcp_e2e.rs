@@ -178,6 +178,8 @@ fn e2e_initialize_tools_list_and_each_tool() {
         "openmemory_forget",
         "openmemory_forget_entity",
         "openmemory_status",
+        "openmemory_add_relation",
+        "openmemory_promote_observation",
         "openmemory_index_text",
         "openmemory_search",
         "openmemory_delete",
@@ -185,7 +187,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
     ] {
         assert!(names.contains(&expected), "missing {expected}: {names:?}");
     }
-    assert_eq!(names.len(), 11);
+    assert_eq!(names.len(), 13);
 
     // 3. openmemory_status (read) — zero counts on a fresh store
     let resp = server.call_tool("openmemory_status", json!({}));
