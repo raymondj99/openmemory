@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_embed::{ModelManager, ModelRegistry};
+use openmemory_embed::{ModelManager, ModelRegistry, RuntimeManager};
 
 use crate::cli::ModelCommand;
 
@@ -32,12 +32,24 @@ fn download(name: Option<&str>) -> Result<()> {
 
     let manager = ModelManager::new(models_dir);
 
-    if let Some(dir) = manager.downloaded_model_dir(model) {
+    let model_ready = manager.downloaded_model_dir(model).is_some();
+    if model_ready {
         println!(
             "Model '{}' already downloaded at {}",
             model.name,
-            dir.display()
+            manager
+                .downloaded_model_dir(model)
+                .expect("model present")
+                .display()
         );
+    }
+
+    // Install the platform-matched ONNX Runtime alongside the model so
+    // `openmemory recall --mode vector` works on a clean machine
+    // without manual `LD_LIBRARY_PATH` / `ORT_DYLIB_PATH` plumbing.
+    install_runtime()?;
+
+    if model_ready {
         return Ok(());
     }
 
@@ -46,6 +58,23 @@ fn download(name: Option<&str>) -> Result<()> {
         .download(model)
         .with_context(|| format!("downloading model '{}'", model.name))?;
     println!("Model '{}' ready.", model.name);
+    Ok(())
+}
+
+fn install_runtime() -> Result<()> {
+    let runtime = RuntimeManager::from_config().context("resolving runtime directory")?;
+    if runtime.is_installed() {
+        return Ok(());
+    }
+    println!(
+        "Installing ONNX Runtime {}...",
+        openmemory_embed::ONNX_RUNTIME_VERSION
+    );
+    runtime.install().context("installing ONNX Runtime")?;
+    println!(
+        "ONNX Runtime {} ready.",
+        openmemory_embed::ONNX_RUNTIME_VERSION
+    );
     Ok(())
 }
 

@@ -34,6 +34,9 @@ pub enum EmbedError {
 
     #[error("download failed: {0}")]
     Download(String),
+
+    #[error("configuration error: {0}")]
+    Config(String),
 }
 
 #[cfg(test)]

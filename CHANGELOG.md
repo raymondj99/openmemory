@@ -9,6 +9,34 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-17
+
+### Added
+
+- **`openmemory model download` now installs the platform-matched ONNX
+  Runtime.** Previously the released binary was compiled with
+  `ort = "load-dynamic"` but the tarball shipped no `libonnxruntime`,
+  so every fresh install of vector or hybrid mode panicked with
+  `cannot open shared object file: libonnxruntime.so`. The model
+  downloader now fetches the Microsoft ONNX Runtime 1.20.0 release for
+  the current target (linux x86_64/aarch64, macOS arm64/x86_64),
+  verifies its SHA-256, extracts the `lib/` subtree into
+  `<openmemory home>/runtime/onnxruntime-1.20.0/lib/`, and points the
+  CLI at it at startup via `ORT_DYLIB_PATH`. Users who set
+  `ORT_DYLIB_PATH` or `LD_LIBRARY_PATH` themselves take precedence;
+  the new behavior never overwrites a user-supplied value.
+
+### Fixed
+
+- **Flaky `integration_concurrent_recall_runs_in_parallel` test.** The
+  single-thread baseline already took the median of three runs, but
+  the parallel measurement ran exactly once, so a single noisy CI
+  invocation (cgroup throttling, runner contention) could fail the
+  test even when reader parallelism was healthy. The parallel
+  measurement now also runs three times and the assertion uses the
+  minimum elapsed time, matching the single-thread noise filter; a
+  real reader-serialisation regression still flunks every attempt.
+
 ## [0.3.1] - 2026-05-17
 
 ### Changed

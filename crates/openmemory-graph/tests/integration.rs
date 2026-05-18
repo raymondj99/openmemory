@@ -438,27 +438,38 @@ fn integration_concurrent_recall_runs_in_parallel() {
     // Run pool_size threads in parallel, each doing the same `iters`
     // recalls. If readers were serialised, total wall time would be
     // ~N * single_median. With the pool, expect ~single_median.
+    //
+    // We run the parallel measurement THREE times and take the minimum
+    // to match the noise filtering the single-thread baseline already
+    // gets (median of 3). A single GH runner cgroup stall would
+    // otherwise blow the assertion despite zero changes to the recall
+    // path; a real reader-serialisation regression makes all three
+    // attempts slow, and `min` still flags it.
     let n = pool_size;
-    let barrier = Arc::new(Barrier::new(n));
-    let start = Instant::now();
-    let handles: Vec<_> = (0..n)
-        .map(|_| {
-            let store = Arc::clone(&store);
-            let barrier = Arc::clone(&barrier);
-            let filters = filters.clone();
-            thread::spawn(move || {
-                barrier.wait();
-                let mut last = Vec::new();
-                for _ in 0..iters {
-                    last = store.recall("alpha", 20, &filters).unwrap();
-                }
-                last
+    let mut parallel_attempts: Vec<Duration> = Vec::with_capacity(3);
+    let mut results: Vec<Vec<openmemory_graph::RecallResult>> = Vec::new();
+    for _ in 0..3 {
+        let barrier = Arc::new(Barrier::new(n));
+        let start = Instant::now();
+        let handles: Vec<_> = (0..n)
+            .map(|_| {
+                let store = Arc::clone(&store);
+                let barrier = Arc::clone(&barrier);
+                let filters = filters.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    let mut last = Vec::new();
+                    for _ in 0..iters {
+                        last = store.recall("alpha", 20, &filters).unwrap();
+                    }
+                    last
+                })
             })
-        })
-        .collect();
-
-    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-    let parallel_elapsed = start.elapsed();
+            .collect();
+        results = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        parallel_attempts.push(start.elapsed());
+    }
+    let parallel_elapsed = parallel_attempts.iter().min().copied().unwrap();
 
     // 1) Every thread saw real, non-empty data. Observation IDs are
     //    drawn from the seeded set: no torn reads surfacing garbage.
