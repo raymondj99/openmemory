@@ -14,6 +14,7 @@ pub mod error;
 pub mod integrity;
 pub mod models;
 pub mod onnx;
+pub mod runtime;
 pub mod traits;
 
 #[cfg(feature = "sqlite")]
@@ -29,6 +30,7 @@ pub use error::{EmbedError, EmbedResult};
 pub use integrity::{verify_sha256, VerificationOutcome};
 pub use models::{Model, ModelRegistry, NOMIC_EMBED_TEXT_V1_5, SNOWFLAKE_ARCTIC_EMBED_L_V2};
 pub use onnx::{OnnxEmbedder, OnnxOptions, PoolingStrategy};
+pub use runtime::{RuntimeManager, ONNX_RUNTIME_VERSION};
 pub use traits::Embedder;
 
 #[cfg(feature = "sqlite")]

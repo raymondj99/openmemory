@@ -145,6 +145,14 @@ impl Config {
         Ok(Self::home_dir()?.join("models"))
     }
 
+    /// Shared ONNX Runtime install directory (`<home>/runtime/`). The
+    /// platform-matched `libonnxruntime` shared library is unpacked
+    /// here under `onnxruntime-<version>/lib/`. Shared across profiles
+    /// and resolved by the CLI at startup to set `ORT_DYLIB_PATH`.
+    pub fn runtime_dir() -> OmResult<PathBuf> {
+        Ok(Self::home_dir()?.join("runtime"))
+    }
+
     pub fn load() -> OmResult<Self> {
         Self::load_from(Self::config_path()?)
     }
