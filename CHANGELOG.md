@@ -9,6 +9,22 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-17
+
+### Fixed
+
+- **`init_ort_dylib_path` now respects `--home`.** v0.3.2 installs the
+  ONNX Runtime under `<home>/runtime/onnxruntime-<ver>/`, but the
+  CLI's startup hook resolved `<home>` from `OPENMEMORY_HOME` /
+  `~/.openmemory` only — not from the `--home` flag. Spawning
+  `openmemory --home X mcp` from an integrating tool (e.g.
+  `omdemos check --mode vector`) therefore missed the runtime install
+  and panicked with `cannot open shared object file:
+  libonnxruntime.so`. The startup hook now scans argv for
+  `--home <path>` / `--home=<path>` and promotes the value into
+  `OPENMEMORY_HOME` before the runtime path resolves. User-set
+  `OPENMEMORY_HOME` and `ORT_DYLIB_PATH` still take precedence.
+
 ## [0.3.2] - 2026-05-17
 
 ### Added
