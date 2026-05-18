@@ -9,6 +9,38 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-17
+
+### Added
+
+- **`openmemory_add_relation` MCP tool.** Attach a relation
+  (`supersedes`, `clarifies`, `depends_on`, …) between two existing
+  entities resolved by `(name, type)`. Closes the post-hoc curator
+  gap where the only way to add an edge was through
+  `openmemory_remember`, which forced callers to write a dummy
+  observation just to attach a relation. Both entities must already
+  exist; missing entities surface as a typed `-32004` error rather
+  than being silently created. New `MemoryStore::add_relation`
+  method backs the tool.
+- **`openmemory_promote_observation` MCP tool.** Move an observation
+  between `memory_tier` values (`episodic` ↔ `semantic` ↔
+  `procedural`) without rewriting its content. Use after a fact has
+  survived consolidation, been accessed repeatedly, or earned
+  promotion out of short-term storage. Returns `{ modified: bool,
+  memory_tier: <new> }`; unknown or tombstoned observation ids
+  return `{ modified: false }` rather than erroring. New
+  `MemoryStore::set_observation_memory_tier` method backs the tool.
+
+### Changed
+
+- **`openmemory_remember` description now spells out its idempotency
+  contract.** Observations are always **appended**, not deduplicated
+  at write time. Calling twice with the same `entity` + identical
+  `content` creates two parallel observation rows. Use
+  `openmemory_consolidate` for periodic dedup, or
+  `openmemory_recall` the proposed title and skip the write on a
+  high-scoring hit. Relations follow the same append-only contract.
+
 ## [0.3.3] - 2026-05-17
 
 ### Fixed

@@ -281,12 +281,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_lists_all_eleven_tools() {
+    fn registry_lists_all_tools() {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         assert_eq!(
             names.len(),
-            11,
-            "expected 11 tools (7 memory + 3 index + 1 maintenance), got {}: {names:?}",
+            13,
+            "expected 13 tools (9 memory + 3 index + 1 maintenance), got {}: {names:?}",
             names.len()
         );
     }
@@ -309,6 +309,8 @@ mod tests {
             "openmemory_recall",
             "openmemory_list_entities",
             "openmemory_get_entity",
+            "openmemory_add_relation",
+            "openmemory_promote_observation",
             "openmemory_forget",
             "openmemory_forget_entity",
             "openmemory_status",
@@ -322,13 +324,15 @@ mod tests {
     }
 
     #[test]
-    fn registry_includes_all_seven_memory_tools() {
+    fn registry_includes_all_memory_tools() {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         for expected in [
             "openmemory_remember",
             "openmemory_recall",
             "openmemory_list_entities",
             "openmemory_get_entity",
+            "openmemory_add_relation",
+            "openmemory_promote_observation",
             "openmemory_forget",
             "openmemory_forget_entity",
             "openmemory_status",
