@@ -9,6 +9,17 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-17
+
+### Changed
+
+- **Raised the embedding-model download cap from 500 MB to 1 GB.** The
+  default `nomic-embed-text-v1.5` ONNX (547 MB) and the registered
+  `snowflake-arctic-embed-l-v2.0` model both exceeded the previous
+  cap, blocking `openmemory model download` on fresh installs. The new
+  cap accommodates every model in the typed registry; `MAX_DATA_BYTES`
+  for ancillary data files is unchanged at 3 GB.
+
 ## [0.3.0] - 2026-05-17
 
 ### Added
