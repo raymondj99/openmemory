@@ -16,7 +16,7 @@ use tracing::info;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_MODEL_BYTES: u64 = 500 * 1024 * 1024;
+const MAX_MODEL_BYTES: u64 = 1024 * 1024 * 1024;
 const MAX_DATA_BYTES: u64 = 3 * 1024 * 1024 * 1024;
 const DOWNLOAD_BUF_BYTES: usize = 64 * 1024;
 
