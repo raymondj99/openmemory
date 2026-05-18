@@ -478,7 +478,7 @@ impl MemoryStore {
     ///
     /// `weight` defaults to `1.0` when callers pass `None`. Empty
     /// `relation_type` is rejected with [`MemoryError::InvalidInput`].
-    /// Unknown entity ids surface as [`MemoryError::NotFound`].
+    /// Unknown entity ids surface as [`MemoryError::EntityNotFound`].
     pub fn add_relation(
         &self,
         from_entity_id: &str,
