@@ -9,6 +9,23 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+### Fixed
+
+- **macOS ONNX Runtime extraction.** v0.3.2 introduced bundled
+  runtime installation via `openmemory model download`, but the tar
+  extractor matched archive entries by literal string prefix. macOS
+  ONNX Runtime tarballs prefix every entry with `./` while Linux
+  ones do not, so on macOS no entries matched: nothing extracted,
+  and then `ensure_dylib_symlink` wrote a broken
+  `libonnxruntime.dylib` symlink, triggering the post-check
+  `extraction completed but ...libonnxruntime.1.20.0.dylib is
+  missing`. The matcher now strips a leading `./` before comparing,
+  and `ensure_dylib_symlink` uses `symlink_metadata` so a broken
+  symlink left by a prior failed run no longer poisons the retry
+  with `File exists (os error 17)`. New tests build synthetic
+  Linux- and macOS-shaped tarballs and assert both extract the
+  versioned dylib and the unversioned symlink.
+
 ## [0.4.0] - 2026-05-17
 
 ### Added
