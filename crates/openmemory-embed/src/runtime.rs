@@ -354,8 +354,12 @@ fn extract_lib_subtree(tarball: &Path, install_dir: &Path, archive_root: &str) -
             .path()
             .map_err(|e| EmbedError::Download(format!("tar entry path: {e}")))?
             .into_owned();
-        let path_str = raw_path.to_string_lossy().to_string();
-        let Some(rel) = path_str.strip_prefix(&lib_prefix) else {
+        // macOS ONNX Runtime tarballs prefix every entry with `./`; the
+        // Linux ones do not. Strip the leading `./` so the same
+        // `lib_prefix` match works for both.
+        let path_str = raw_path.to_string_lossy();
+        let normalized = path_str.strip_prefix("./").unwrap_or(&path_str);
+        let Some(rel) = normalized.strip_prefix(&lib_prefix) else {
             continue;
         };
         if rel.is_empty() {
@@ -381,7 +385,10 @@ fn extract_lib_subtree(tarball: &Path, install_dir: &Path, archive_root: &str) -
 
 fn ensure_dylib_symlink(lib_dir: &Path, target: &str, link_name: &str) -> EmbedResult<()> {
     let link = lib_dir.join(link_name);
-    if link.exists() {
+    // Use symlink_metadata so a broken symlink left over from a prior
+    // failed extraction is still considered "present" and re-running the
+    // installer can recover instead of failing with EEXIST.
+    if link.symlink_metadata().is_ok() {
         return Ok(());
     }
     #[cfg(unix)]
@@ -462,5 +469,132 @@ mod tests {
             "must not overwrite user-set ORT_DYLIB_PATH"
         );
         std::env::remove_var("ORT_DYLIB_PATH");
+    }
+
+    /// Build a synthetic ONNX Runtime tarball that mimics the layout
+    /// upstream ships for the requested `entry_prefix` (`""` for Linux,
+    /// `"./"` for macOS). Inside the lib/ subtree we ship one real
+    /// "dylib" plus an unversioned symlink pointing at it, mirroring the
+    /// real release artifact.
+    fn build_fake_tarball(dir: &Path, archive_root: &str, entry_prefix: &str) -> PathBuf {
+        let path = dir.join("fake.tgz");
+        let file = fs::File::create(&path).unwrap();
+        let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+        let mut builder = tar::Builder::new(encoder);
+
+        let dylib_name = "libfake.so.1.20.0";
+        let symlink_name = "libfake.so";
+        let dylib_bytes = b"FAKE-ONNX-RUNTIME-BINARY";
+
+        // Real file entry.
+        let mut header = tar::Header::new_gnu();
+        header.set_size(dylib_bytes.len() as u64);
+        header.set_mode(0o644);
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_cksum();
+        let dylib_path = format!("{entry_prefix}{archive_root}/lib/{dylib_name}");
+        builder
+            .append_data(&mut header, &dylib_path, &dylib_bytes[..])
+            .unwrap();
+
+        // Symlink entry, target relative within lib/.
+        let mut link_header = tar::Header::new_gnu();
+        link_header.set_size(0);
+        link_header.set_mode(0o777);
+        link_header.set_entry_type(tar::EntryType::Symlink);
+        link_header.set_cksum();
+        let symlink_path = format!("{entry_prefix}{archive_root}/lib/{symlink_name}");
+        builder
+            .append_link(&mut link_header, &symlink_path, dylib_name)
+            .unwrap();
+
+        // Out-of-scope entry that the extractor must skip.
+        let mut other = tar::Header::new_gnu();
+        let payload: &[u8] = b"include header";
+        other.set_size(payload.len() as u64);
+        other.set_mode(0o644);
+        other.set_entry_type(tar::EntryType::Regular);
+        other.set_cksum();
+        let include_path = format!("{entry_prefix}{archive_root}/include/foo.h");
+        builder
+            .append_data(&mut other, &include_path, payload)
+            .unwrap();
+
+        builder.into_inner().unwrap().finish().unwrap();
+        path
+    }
+
+    #[test]
+    fn extracts_macos_style_tarball_with_dot_slash_prefix() {
+        // Regression: macOS ONNX Runtime tarballs prefix every entry
+        // with `./`. The original prefix matcher dropped every entry,
+        // leaving the install dir empty and the post-check error.
+        let tmp = tempfile::tempdir().unwrap();
+        let archive_root = "onnxruntime-osx-arm64-1.20.0";
+        let tarball = build_fake_tarball(tmp.path(), archive_root, "./");
+        let install_dir = tmp.path().join("install");
+
+        extract_lib_subtree(&tarball, &install_dir, archive_root).unwrap();
+
+        let dylib = install_dir.join("lib").join("libfake.so.1.20.0");
+        assert!(dylib.exists(), "macOS-style dylib must extract: {dylib:?}");
+        assert_eq!(
+            fs::read(&dylib).unwrap(),
+            b"FAKE-ONNX-RUNTIME-BINARY",
+            "extracted bytes must match the tarball entry"
+        );
+
+        let symlink = install_dir.join("lib").join("libfake.so");
+        let meta = symlink
+            .symlink_metadata()
+            .expect("symlink entry must extract on macOS-style tarballs");
+        assert!(
+            meta.file_type().is_symlink(),
+            "{symlink:?} must be a symlink"
+        );
+
+        // The include/ subtree should not have leaked in.
+        assert!(
+            !install_dir.join("include").exists(),
+            "non-lib entries must be skipped"
+        );
+    }
+
+    #[test]
+    fn extracts_linux_style_tarball_without_dot_slash_prefix() {
+        // Make sure the same matcher still works for Linux tarballs,
+        // which do not have the leading `./` prefix. This is the
+        // shipping-since-v0.3.2 happy path.
+        let tmp = tempfile::tempdir().unwrap();
+        let archive_root = "onnxruntime-linux-x64-1.20.0";
+        let tarball = build_fake_tarball(tmp.path(), archive_root, "");
+        let install_dir = tmp.path().join("install");
+
+        extract_lib_subtree(&tarball, &install_dir, archive_root).unwrap();
+
+        assert!(install_dir.join("lib").join("libfake.so.1.20.0").exists());
+        assert!(install_dir
+            .join("lib")
+            .join("libfake.so")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+
+    #[test]
+    fn ensure_dylib_symlink_recovers_from_broken_link() {
+        // Regression: a prior failed run can leave a broken symlink. We
+        // must treat that as "already there" so retrying the install
+        // succeeds instead of dying with EEXIST.
+        let tmp = tempfile::tempdir().unwrap();
+        let lib = tmp.path().to_path_buf();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("libfake.so.1.20.0", lib.join("libfake.so")).unwrap();
+        // The target deliberately does not exist. `Path::exists()` would
+        // follow the link and report false; we must use `symlink_metadata`.
+        assert!(!lib.join("libfake.so.1.20.0").exists());
+
+        ensure_dylib_symlink(&lib, "libfake.so.1.20.0", "libfake.so").unwrap();
     }
 }
