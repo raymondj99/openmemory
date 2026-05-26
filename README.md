@@ -13,44 +13,56 @@ MCP client.
 
 ## Install
 
-**Pre-built binary** (macOS, Linux):
+One command. Installs the binary, registers `openmemory` with every
+MCP client it finds (Claude Code, Claude Desktop, Codex CLI, OpenClaw),
+and verifies the result:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/raymondj99/openmemory/main/scripts/install.sh | bash
 ```
 
-**From source** (requires Rust 1.85+):
-
-```bash
-cargo install --locked --git https://github.com/raymondj99/openmemory.git openmemory
-```
-
-## Quick start
-
-Pick your MCP client, then run one command to register `openmemory`:
-
-```bash
-openmemory init
-openmemory integrate claude-code      # Claude Code
-openmemory integrate claude-desktop   # Claude Desktop
-openmemory integrate openclaw         # OpenClaw
-```
-
-That's it. The next session in your client has all `openmemory_*` tools
+That's it. The next session in your agent has all `openmemory_*` tools
 available. Try it:
-
-For semantic vector recall, run `openmemory model download` once to
-cache the default local ONNX model. Without that cache, recall still
-works in keyword-only mode. Use `openmemory model list` to see
-available models and cache status, and `openmemory model use <name>`
-to switch the active model.
 
 ```
 > remember that I prefer Rust over Python
 > what do you remember about my language preferences?
 ```
 
-Or drive the graph from the CLI:
+**Already have the binary?** Run the same end-to-end flow with:
+
+```bash
+openmemory setup
+```
+
+`setup` is idempotent. Re-run it any time to register newly-installed
+clients or pick up upgrades.
+
+**From source** (requires Rust 1.85+):
+
+```bash
+cargo install --locked --git https://github.com/raymondj99/openmemory.git openmemory
+openmemory setup
+```
+
+## Explicit, per-client commands
+
+`openmemory setup` orchestrates these for you, but each is still
+available for scripted or partial installs:
+
+```bash
+openmemory integrate claude-code      # Claude Code
+openmemory integrate claude-desktop   # Claude Desktop
+openmemory integrate codex            # Codex CLI
+openmemory integrate openclaw         # OpenClaw
+```
+
+For semantic vector recall, run `openmemory model download` once to
+cache the default local ONNX model. Without that cache, recall still
+works in keyword-only mode. (Or pass `--with-model` to
+`openmemory setup`.)
+
+Drive the graph from the CLI:
 
 ```bash
 openmemory remember Raymond \
@@ -63,25 +75,8 @@ openmemory list-entities
 openmemory status
 ```
 
-### Manual configuration
-
-If you prefer to configure your client by hand, add this to its MCP
-server config (the key path varies by client):
-
-```json
-{
-  "openmemory": {
-    "command": "openmemory",
-    "args": ["mcp"]
-  }
-}
-```
-
-| Client | Config file | Key path |
-|--------|-------------|----------|
-| Claude Code | `~/.claude.json` | `mcpServers` |
-| Claude Desktop | [platform-specific](docs/integrations.md#claude-desktop) | `mcpServers` |
-| OpenClaw | `~/.openclaw/openclaw.json` | `mcp.servers` |
+Manual configuration (when you want full control over the JSON/TOML
+yourself) lives in [docs/integrations.md](docs/integrations.md).
 
 ## Features
 

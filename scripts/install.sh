@@ -21,7 +21,7 @@ main() {
     download_and_install
     verify_path
     printf "\nopenmemory %s installed to %s/openmemory\n" "$VERSION" "$INSTALL_DIR"
-    printf "Run 'openmemory init' to get started.\n"
+    run_setup_or_hint
 }
 
 check_dependencies() {
@@ -105,13 +105,62 @@ download_and_install() {
 
 verify_path() {
     case ":${PATH}:" in
-        *":${INSTALL_DIR}:"*) ;;
-        *)
-            printf "\nNote: %s is not in your PATH.\n" "$INSTALL_DIR"
-            printf "Add it with:\n"
-            printf "  export PATH=\"%s:\$PATH\"\n" "$INSTALL_DIR"
+        *":${INSTALL_DIR}:"*)
+            PATH_ALREADY_OK=1
+            return
             ;;
     esac
+    PATH_ALREADY_OK=0
+
+    # Detect the user's shell and patch the matching rc file so the
+    # next shell sees the new PATH. We only append once and we always
+    # print the line we added.
+    local shell_name rc_file line
+    shell_name="$(basename "${SHELL:-}")"
+    line="export PATH=\"${INSTALL_DIR}:\$PATH\""
+
+    case "$shell_name" in
+        zsh)  rc_file="$HOME/.zshrc" ;;
+        bash) rc_file="$HOME/.bashrc" ;;
+        fish)
+            rc_file="$HOME/.config/fish/config.fish"
+            line="set -gx PATH \"${INSTALL_DIR}\" \$PATH"
+            ;;
+        *)    rc_file="" ;;
+    esac
+
+    if [ -n "$rc_file" ] && [ -f "$rc_file" ] && grep -Fq "$INSTALL_DIR" "$rc_file" 2>/dev/null; then
+        printf "\nNote: %s is not on PATH in this shell, but %s already mentions it.\n" \
+            "$INSTALL_DIR" "$rc_file"
+        printf "Open a new shell or run: exec %s -l\n" "$shell_name"
+        return
+    fi
+
+    if [ -n "$rc_file" ]; then
+        mkdir -p "$(dirname "$rc_file")"
+        {
+            printf "\n# Added by openmemory installer (%s)\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf "%s\n" "$line"
+        } >> "$rc_file"
+        printf "\nAdded to %s:\n  %s\n" "$rc_file" "$line"
+        printf "Open a new shell or run: exec %s -l\n" "$shell_name"
+    else
+        printf "\nNote: %s is not on your PATH.\n" "$INSTALL_DIR"
+        printf "Add this to your shell rc file:\n  %s\n" "$line"
+    fi
+
+    # Make the binary resolvable in *this* shell so run_setup_or_hint
+    # can chain directly into `openmemory setup`.
+    export PATH="${INSTALL_DIR}:${PATH}"
+}
+
+run_setup_or_hint() {
+    if command -v openmemory >/dev/null 2>&1; then
+        printf "\nRunning 'openmemory setup'...\n"
+        openmemory setup
+    else
+        printf "\nOnce %s is on your PATH, run:\n  openmemory setup\n" "$INSTALL_DIR"
+    fi
 }
 
 main

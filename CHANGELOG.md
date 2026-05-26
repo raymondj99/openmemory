@@ -9,6 +9,27 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+### Added
+
+- **`openmemory setup` onboarding command.** Runs `init`, detects
+  supported MCP clients, registers `openmemory` with each detected
+  client, and verifies `openmemory mcp` boots by completing an
+  `initialize` round trip. The installer now chains into this command
+  after placing the binary on PATH.
+- **Codex CLI integration.** `openmemory integrate codex` writes
+  `~/.codex/config.toml` or `$CODEX_HOME/config.toml` under
+  `[mcp_servers.<name>]` using `toml_edit`, preserving sibling tables,
+  comments, and unrelated settings.
+
+### Changed
+
+- **MCP relation input aliases are now agent-friendly.**
+  `openmemory_remember` relations now accept the canonical
+  `to_entity` / `to_entity_type` shape that matches
+  `openmemory_add_relation`, while preserving the existing
+  `type` / `to` / `to_type` form. Entity tools also accept
+  `entity_name` as an alias for `entity`.
+
 ### Fixed
 
 - **macOS ONNX Runtime extraction.** v0.3.2 introduced bundled

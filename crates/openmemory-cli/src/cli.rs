@@ -44,6 +44,9 @@ pub struct Cli {
 pub enum Command {
     /// Initialise the data directory and write a default config file.
     Init(InitArgs),
+    /// One-shot end-to-end onboarding: init + detect MCP clients +
+    /// register openmemory with each.
+    Setup(SetupArgs),
     /// Print summary of memory + index state.
     Status,
     /// Start the MCP server (stdio by default; --http for HTTP).
@@ -93,6 +96,8 @@ pub enum IntegrateTarget {
     /// Register the MCP server in Claude Desktop's config at the
     /// platform-specific path.
     ClaudeDesktop(IntegrateClaudeDesktopArgs),
+    /// Register the MCP server in Codex CLI's `~/.codex/config.toml`.
+    Codex(IntegrateCodexArgs),
 }
 
 /// `remember` arguments.
@@ -228,6 +233,23 @@ pub struct IntegrateClaudeDesktopArgs {
     pub binary: Option<String>,
 }
 
+/// `integrate codex` arguments.
+#[derive(Debug, Args)]
+pub struct IntegrateCodexArgs {
+    /// Override the path to Codex CLI's config. Defaults to
+    /// `$CODEX_HOME/config.toml` or `~/.codex/config.toml`.
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<std::path::PathBuf>,
+    /// Emit an HTTP-transport entry (`streamable-http`) pointing at
+    /// the given address (e.g. 127.0.0.1:7800) instead of stdio.
+    #[arg(long, value_name = "ADDR")]
+    pub http: Option<String>,
+    /// Override the binary path written into the entry. Defaults to
+    /// the bare `openmemory` (resolved via `$PATH`).
+    #[arg(long, value_name = "PATH")]
+    pub binary: Option<String>,
+}
+
 /// Subcommands for `openmemory model <action>`.
 #[cfg(feature = "embeddings")]
 #[derive(Debug, Subcommand)]
@@ -255,6 +277,26 @@ pub struct ModelDownloadArgs {
 pub struct ModelUseArgs {
     /// Model name or alias (e.g. `nomic`, `arctic`).
     pub model: String,
+}
+
+/// `setup` arguments.
+#[derive(Debug, Args)]
+pub struct SetupArgs {
+    /// Comma-separated list of clients to target. Valid values:
+    /// `claude-code`, `claude-desktop`, `codex`, `openclaw`. If
+    /// omitted, every detected client is targeted.
+    #[arg(long, value_name = "LIST")]
+    pub client: Option<String>,
+    /// Register with every known client even if not detected.
+    #[arg(long)]
+    pub all: bool,
+    /// Also download the default embedding model.
+    #[cfg(feature = "embeddings")]
+    #[arg(long)]
+    pub with_model: bool,
+    /// Non-interactive; assume yes to every prompt.
+    #[arg(long)]
+    pub yes: bool,
 }
 
 /// `init` arguments.
@@ -357,6 +399,7 @@ where
 
     match cli.command {
         Command::Init(args) => commands::init::run(&cli.profile, args),
+        Command::Setup(args) => commands::setup::run(&cli.profile, args),
         Command::Status => commands::status::run(&cli.profile),
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
@@ -368,6 +411,9 @@ where
         }
         Command::Integrate(IntegrateTarget::ClaudeDesktop(args)) => {
             commands::integrate::claude_desktop::run(&cli.profile, args)
+        }
+        Command::Integrate(IntegrateTarget::Codex(args)) => {
+            commands::integrate::codex::run(&cli.profile, args)
         }
         Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),

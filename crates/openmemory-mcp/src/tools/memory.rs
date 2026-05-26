@@ -62,6 +62,7 @@ fn map_memory_err(e: MemoryError) -> JsonRpcError {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct RememberInput {
     /// Entity name (e.g., "Raymond", "openmemory project", "Rust").
+    #[serde(alias = "entity_name", alias = "name")]
     pub entity: String,
     /// Entity classification. Defaults to `concept`.
     #[serde(default)]
@@ -116,16 +117,27 @@ pub struct ObservationInputBody {
     pub source_files: Vec<String>,
 }
 
-/// One relation input on the remember API.
+/// One relation input on the remember API. Field names mirror
+/// `AddRelationInput` so agents that learn one shape work with the
+/// other. Common aliases (`to`, `to_type`, `type`,
+/// `target_name`, `target_entity_type`, `relationship_type`) are
+/// accepted so a wider range of natural agent guesses parse cleanly.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct RelationInputParam {
-    /// Target entity name (case-sensitive).
-    pub to: String,
-    /// Target entity type. Defaults to `concept`.
-    #[serde(default)]
-    pub to_type: Option<EntityTypeParam>,
-    /// Relationship type — active-voice verb (`maintains`, `prefers`, …).
-    #[serde(rename = "type")]
+    /// Target entity name (case-sensitive). Example: `"toml_edit"`.
+    #[serde(alias = "to", alias = "target_name", alias = "target")]
+    pub to_entity: String,
+    /// Target entity type. Defaults to `concept`. Example: `"tool"`.
+    #[serde(
+        default,
+        alias = "to_type",
+        alias = "target_entity_type",
+        alias = "target_type"
+    )]
+    pub to_entity_type: Option<EntityTypeParam>,
+    /// Relationship type, active-voice verb (`maintains`, `prefers`,
+    /// `uses`). Example: `"uses"`.
+    #[serde(alias = "type", alias = "relationship_type")]
     pub relation_type: String,
 }
 
@@ -143,7 +155,12 @@ const REMEMBER_DESC: &str =
      dedup near-duplicates by text similarity. Callers that need write-time dedup should \
      `openmemory_recall` the proposed title first and skip the write when a high-scoring hit \
      already exists. Relations follow the same append-only contract: identical edges are \
-     duplicated, not merged.";
+     duplicated, not merged. \
+     \n\nRelation shape: each entry is \
+     `{\"relation_type\": \"<verb>\", \"to_entity\": \"<name>\", \"to_entity_type\": \"<type>\"}`. \
+     Example: `[{\"relation_type\": \"uses\", \"to_entity\": \"toml_edit\", \"to_entity_type\": \"tool\"}]`. \
+     Field names match `openmemory_add_relation`; older keys (`type`, `to`, `to_type`, \
+     `target_name`, `target_entity_type`) are accepted as aliases for backward compatibility.";
 
 /// Handler for the `openmemory_remember` MCP tool. Stores or updates
 /// an entity and appends observations + optional relations atomically.
@@ -236,9 +253,9 @@ impl Tool for OpenMemoryRememberTool {
             .into_iter()
             .map(|r| {
                 let target_type = r
-                    .to_type
+                    .to_entity_type
                     .map_or(EntityType::Concept, |p| p.to_entity_type());
-                RelationInput::new(r.relation_type, r.to, target_type)
+                RelationInput::new(r.relation_type, r.to_entity, target_type)
             })
             .collect();
 
@@ -455,6 +472,7 @@ impl Tool for OpenMemoryListEntitiesTool {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct GetEntityInput {
     /// Entity name (exact match).
+    #[serde(alias = "entity_name", alias = "name")]
     pub entity: String,
 }
 
@@ -609,6 +627,7 @@ impl Tool for OpenMemoryForgetTool {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ForgetEntityInput {
     /// Entity name (exact match).
+    #[serde(alias = "entity_name", alias = "name")]
     pub entity: String,
 }
 
@@ -653,19 +672,32 @@ impl Tool for OpenMemoryForgetEntityTool {
 pub struct AddRelationInput {
     /// Name of the entity the relation originates from. Must already
     /// exist (use `openmemory_remember` to create it first).
+    #[serde(alias = "from", alias = "from_name", alias = "source_entity")]
     pub from_entity: String,
     /// Entity type of `from_entity`. Defaults to `concept` when
     /// omitted, matching the resolution policy elsewhere in the API.
-    #[serde(default)]
+    #[serde(default, alias = "from_type", alias = "source_entity_type")]
     pub from_entity_type: Option<EntityTypeParam>,
     /// Name of the entity the relation points to. Must already exist.
+    #[serde(
+        alias = "to",
+        alias = "to_name",
+        alias = "target_name",
+        alias = "target"
+    )]
     pub to_entity: String,
     /// Entity type of `to_entity`. Defaults to `concept`.
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "to_type",
+        alias = "target_entity_type",
+        alias = "target_type"
+    )]
     pub to_entity_type: Option<EntityTypeParam>,
     /// Relationship kind, e.g. `supersedes`, `clarifies`,
     /// `depends_on`, `instance_of`. Free-form string; conventions are
     /// agent-side, not server-enforced.
+    #[serde(alias = "type", alias = "relationship_type")]
     pub relation_type: String,
     /// Edge weight in `[0, 1]`. Defaults to `1.0` when omitted.
     #[serde(default)]
@@ -677,11 +709,12 @@ pub struct AddRelationInput {
 
 const ADD_RELATION_DESC: &str =
     "Attach a relation between two existing entities. Use this when an observation you just \
-     wrote needs an explicit edge to another entity — e.g. recording that a new decision \
+     wrote needs an explicit edge to another entity, e.g. recording that a new decision \
      `supersedes` an older one, or that a runbook `clarifies` an incident note. Both entities \
      must already exist; the tool will not silently create them. Returns the new relation id. \
      Idempotent in spirit but not in storage: calling twice creates two parallel edges, so \
-     callers should check `openmemory_get_entity` first if dedup matters.";
+     callers should check `openmemory_get_entity` first if dedup matters. Field aliases such as \
+     `from`, `to`, `type`, `from_type`, and `to_type` are accepted for backward compatibility.";
 
 /// Handler for the `openmemory_add_relation` MCP tool. Attaches a
 /// relation between two existing entities resolved by `(name, type)`.
@@ -1116,6 +1149,44 @@ mod tests {
     }
 
     #[test]
+    fn entity_name_alias_works_for_entity_tools() {
+        let s = server();
+        let r = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity_name": "Alias Project",
+                "entity_type": "project",
+                "observations": ["stored via entity_name alias"],
+            }),
+        )
+        .expect("remember should accept entity_name alias");
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"observation_ids\""));
+
+        let fetched = OpenMemoryGetEntityTool::call(
+            &s,
+            json!({
+                "entity_name": "Alias Project",
+            }),
+        )
+        .expect("get_entity should accept entity_name alias");
+        let fetched_body = match &fetched.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(fetched_body.contains("\"found\": true"));
+
+        OpenMemoryForgetEntityTool::call(
+            &s,
+            json!({
+                "entity_name": "Alias Project",
+            }),
+        )
+        .expect("forget_entity should accept entity_name alias");
+    }
+
+    #[test]
     fn status_returns_zero_counts_on_fresh_store() {
         let s = server();
         let r = OpenMemoryStatusTool::call(&s, json!({})).unwrap();
@@ -1181,6 +1252,131 @@ mod tests {
             err.code, -32004,
             "should surface entity-not-found typed error"
         );
+    }
+
+    /// Codex (and other agents) idiomatically guess
+    /// `{"relation_type", "to_entity", "to_entity_type"}`, matching
+    /// `openmemory_add_relation`'s field names, when wiring up
+    /// `openmemory_remember` relations. We canonicalised on those names
+    /// after a real-world demo showed agents fishing for the right
+    /// shape; this test pins the contract so a regression to the old
+    /// terse names (`type`/`to`/`to_type`) would fail loudly.
+    ///
+    /// Three independent calls with three field-name dialects, all
+    /// asserted to return a non-empty `relation_ids` array.
+    #[test]
+    fn remember_relations_accept_canonical_and_alias_shapes() {
+        fn relation_count(r: &crate::protocol::CallToolResult) -> usize {
+            let body = match &r.content[0] {
+                crate::protocol::Content::Text { text } => text.clone(),
+            };
+            let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+            v.get("relation_ids")
+                .and_then(|x| x.as_array())
+                .map_or(0, std::vec::Vec::len)
+        }
+
+        let s = server();
+
+        // Canonical: matches AddRelationInput's field naming.
+        let r1 = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "AlphaProject",
+                "entity_type": "project",
+                "observations": ["uses something canonical"],
+                "relations": [{
+                    "relation_type": "uses",
+                    "to_entity": "toml_edit",
+                    "to_entity_type": "tool",
+                }],
+            }),
+        )
+        .expect("canonical relation shape should parse");
+        assert_eq!(
+            relation_count(&r1),
+            1,
+            "canonical write should create one relation"
+        );
+
+        // Legacy / terse: `type` / `to` / `to_type`. Pre-rename callers.
+        let r2 = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "BravoVenture",
+                "entity_type": "project",
+                "observations": ["uses something terse"],
+                "relations": [{
+                    "type": "uses",
+                    "to": "toml_edit",
+                    "to_type": "tool",
+                }],
+            }),
+        )
+        .expect("legacy terse relation shape should parse via aliases");
+        assert_eq!(
+            relation_count(&r2),
+            1,
+            "terse aliases should create one relation"
+        );
+
+        // Natural-language guess that codex tried first in the demo.
+        let r3 = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "CharlieInitiative",
+                "entity_type": "project",
+                "observations": ["uses something agent-y"],
+                "relations": [{
+                    "relation_type": "uses",
+                    "target_name": "toml_edit",
+                    "target_entity_type": "tool",
+                }],
+            }),
+        )
+        .expect("agent-friendly target_name/target_entity_type aliases should parse");
+        assert_eq!(
+            relation_count(&r3),
+            1,
+            "agent-friendly aliases should create one relation"
+        );
+    }
+
+    /// Same forgiveness contract for `openmemory_add_relation`.
+    #[test]
+    fn add_relation_accepts_alias_field_names() {
+        let s = server();
+        s.memory()
+            .remember(
+                "Alpha",
+                EntityType::Fact,
+                &[ObservationInput::new("a")],
+                &[],
+                "t",
+            )
+            .unwrap();
+        s.memory()
+            .remember(
+                "Beta",
+                EntityType::Fact,
+                &[ObservationInput::new("b")],
+                &[],
+                "t",
+            )
+            .unwrap();
+
+        // Use every legacy / natural alias at once.
+        let _ = OpenMemoryAddRelationTool::call(
+            &s,
+            json!({
+                "from": "Alpha",
+                "from_type": "fact",
+                "to": "Beta",
+                "to_type": "fact",
+                "type": "supersedes",
+            }),
+        )
+        .expect("add_relation should accept aliased field names");
     }
 
     #[test]

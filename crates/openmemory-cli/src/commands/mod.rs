@@ -14,6 +14,7 @@ pub mod mcp;
 #[cfg(feature = "embeddings")]
 pub mod model;
 pub mod scriptable;
+pub mod setup;
 pub mod status;
 #[cfg(feature = "watch")]
 pub mod watch;

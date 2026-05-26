@@ -19,6 +19,32 @@ openmemory [--home <PATH>] [--profile <NAME>] <SUBCOMMAND> [ARGS...]
 
 Built-in `--help`, `--version`, and shell completions all work.
 
+## `openmemory setup`
+
+One-shot end-to-end onboarding. Runs `init`, detects every supported
+MCP client on the machine, and registers `openmemory` with each.
+Idempotent: re-run any time after installing a new client or
+upgrading the binary.
+
+```text
+openmemory setup [--client <LIST>] [--all] [--with-model] [--yes]
+```
+
+| Flag | Effect |
+|------|--------|
+| `--client <LIST>` | Comma-separated subset of `claude-code,claude-desktop,codex,openclaw`. Defaults to every detected client. |
+| `--all` | Register with every known client even if not detected on the machine. |
+| `--with-model` | Also download the default embedding model. Requires the `embeddings` build feature. |
+| `--yes` | Non-interactive; assume yes to every prompt. |
+
+Exit code is non-zero if every targeted integration failed or if MCP
+startup verification failed. Partial integration success returns zero
+when verification succeeds, and the per-client status is reported.
+
+The verification step (spawning `openmemory mcp` and confirming it
+boots) can be skipped by setting `OPENMEMORY_SETUP_SKIP_VERIFY=1` in
+the environment, which is useful inside test harnesses.
+
 ## `openmemory init`
 
 Initialise the data directory and write a default `config.toml`.
@@ -135,6 +161,24 @@ openmemory integrate openclaw --binary /opt/openmemory/bin/openmemory
 Idempotent: a re-run with no changes reports "no changes". A re-run
 with a changed entry prints the diff. Full integration contract in
 [openclaw.md](openclaw.md):
+
+## `openmemory integrate codex`
+
+Register `openmemory` in Codex CLI's TOML config. Edits
+`~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) in place using
+`toml_edit`, preserving every sibling table and comment.
+
+```text
+openmemory integrate codex [--config <PATH>] [--http <ADDR>] [--binary <PATH>]
+```
+
+| Flag | Effect |
+|------|--------|
+| `--config <PATH>` | Override the Codex config path. Defaults to `$CODEX_HOME/config.toml` or `~/.codex/config.toml`. |
+| `--http <ADDR>` | Emit an HTTP-transport entry (`streamable-http`) pointing at the given address (e.g. `127.0.0.1:7800`) instead of stdio. |
+| `--binary <PATH>` | Override the binary path written into the entry. Defaults to the bare `openmemory`, which Codex resolves via `$PATH`. |
+
+Restart `codex` after registering so it re-reads the config.
 
 ## `openmemory remember`
 
