@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 version = "0.4.1"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "Apache-2.0"
 rust-version = "1.85"
 description = "Persistent agent memory + hybrid text search, behind an MCP server"
 repository = "https://github.com/raymondj99/openmemory"

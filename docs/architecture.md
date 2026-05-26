@@ -19,7 +19,6 @@ openmemory/
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
-├── LICENSE-MIT
 ├── LICENSE-APACHE
 ├── docs/                       # you are reading this directory
 │   ├── index.md
