@@ -9,6 +9,8 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-25
+
 ### Added
 
 - **`openmemory setup` onboarding command.** Runs `init`, detects

@@ -1567,7 +1567,7 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "openmemory-bench"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "codspeed-criterion-compat",
  "openmemory-core",
@@ -1577,7 +1577,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-cli"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "rand 0.8.6",
  "rusqlite",
@@ -1613,7 +1613,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-embed"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "blake3",
  "flate2",
@@ -1634,7 +1634,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-eval"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "openmemory-core",
@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-graph"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "blake3",
  "openmemory-core",
@@ -1668,7 +1668,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-index"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "lru",
  "openmemory-core",
@@ -1685,7 +1685,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-mcp"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -1705,7 +1705,7 @@ dependencies = [
 
 [[package]]
 name = "openmemory-watch"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "blake3",
  "ignore",
