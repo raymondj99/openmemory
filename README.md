@@ -13,23 +13,29 @@ MCP client.
 
 ## Install
 
-One command. Installs the binary, registers `openmemory` with every
-MCP client it finds (Claude Code, Claude Desktop, Codex CLI, OpenClaw),
-and verifies the result:
+Install the binary:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/raymondj99/openmemory/main/scripts/install.sh | bash
 ```
 
-That's it. The next session in your agent has all `openmemory_*` tools
-available. Try it:
+The installer does not modify Claude Code, Claude Desktop, Codex CLI,
+or OpenClaw configuration. Run setup when you're ready to detect and
+register installed MCP clients:
+
+```bash
+openmemory setup
+```
+
+The next session in your agent has all `openmemory_*` tools available.
+Try it:
 
 ```
 > remember that I prefer Rust over Python
 > what do you remember about my language preferences?
 ```
 
-**Already have the binary?** Run the same end-to-end flow with:
+**Already have the binary?** Run the same setup flow with:
 
 ```bash
 openmemory setup
@@ -41,7 +47,7 @@ clients or pick up upgrades.
 **From source** (requires Rust 1.85+):
 
 ```bash
-cargo install --locked --git https://github.com/raymondj99/openmemory.git openmemory
+cargo install --locked --git https://github.com/raymondj99/openmemory.git openmemory-cli
 openmemory setup
 ```
 

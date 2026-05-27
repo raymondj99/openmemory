@@ -2,8 +2,8 @@
 //!
 //! Runs `init` if needed, detects which MCP clients are installed,
 //! registers openmemory with each, and prints a final summary plus a
-//! "try this" snippet. Designed so a fresh `curl | bash` install can
-//! chain straight into a working agent setup without follow-up steps.
+//! "try this" snippet. Intended to be run explicitly after installing
+//! the binary, and safely re-run after installing new clients.
 
 use std::collections::BTreeSet;
 use std::io::{BufRead, IsTerminal, Write};
@@ -19,6 +19,8 @@ use crate::cli::{
 };
 
 use super::{init, integrate};
+
+const MCP_VERIFY_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Known clients. Order is stable so the summary is deterministic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -360,11 +362,14 @@ fn verify_mcp_starts() -> Result<()> {
     })();
 
     let result = match write_result {
-        Ok(()) => match rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(()) => match rx.recv_timeout(MCP_VERIFY_TIMEOUT) {
             Ok(Ok(Some(line))) => validate_initialize_response(&line),
             Ok(Ok(None)) => anyhow::bail!("mcp exited before returning initialize response"),
             Ok(Err(e)) => Err(e).context("reading initialize response"),
-            Err(_) => anyhow::bail!("timed out waiting for initialize response"),
+            Err(_) => anyhow::bail!(
+                "timed out after {}s waiting for initialize response",
+                MCP_VERIFY_TIMEOUT.as_secs()
+            ),
         },
         Err(e) => Err(e),
     };

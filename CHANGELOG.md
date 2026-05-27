@@ -9,6 +9,20 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-27
+
+### Changed
+
+- **Installer no longer runs setup automatically.** `scripts/install.sh`
+  now only installs the binary and prints `openmemory setup` as the
+  explicit next step. MCP client detection and registration happen
+  when users run `openmemory setup` or a per-client
+  `openmemory integrate <client>` command.
+- **`openmemory setup` verification allows slow cold starts.** The
+  post-registration MCP initialize check now waits up to 15 seconds
+  before failing, so profiles using large cached ONNX embedding models
+  do not spuriously fail setup while the model is first loaded.
+
 ## [0.4.1] - 2026-05-25
 
 ### Added
@@ -420,7 +434,14 @@ into OpenClaw with one command.
   `$OPENCLAW_CONFIG_PATH`). The legacy `~/.openclaw/mcp.json`
   filename is intentionally not probed.
 
-[Unreleased]: https://github.com/raymondj99/openmemory/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/raymondj99/openmemory/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/raymondj99/openmemory/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/raymondj99/openmemory/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/raymondj99/openmemory/compare/v0.3.3...v0.4.0
+[0.3.3]: https://github.com/raymondj99/openmemory/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/raymondj99/openmemory/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/raymondj99/openmemory/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/raymondj99/openmemory/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/raymondj99/openmemory/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/raymondj99/openmemory/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/raymondj99/openmemory/releases/tag/v0.1.0

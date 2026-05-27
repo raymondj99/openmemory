@@ -21,7 +21,7 @@ main() {
     download_and_install
     verify_path
     printf "\nopenmemory %s installed to %s/openmemory\n" "$VERSION" "$INSTALL_DIR"
-    run_setup_or_hint
+    print_setup_hint
 }
 
 check_dependencies() {
@@ -84,7 +84,6 @@ download_and_install() {
     local url="https://github.com/${REPO}/releases/download/${VERSION}/${archive}"
     local checksum_url="${url}.sha256"
 
-    local tmpdir
     tmpdir="$(mktemp -d)"
     trap 'rm -rf "$tmpdir"' EXIT
 
@@ -148,19 +147,16 @@ verify_path() {
         printf "\nNote: %s is not on your PATH.\n" "$INSTALL_DIR"
         printf "Add this to your shell rc file:\n  %s\n" "$line"
     fi
-
-    # Make the binary resolvable in *this* shell so run_setup_or_hint
-    # can chain directly into `openmemory setup`.
-    export PATH="${INSTALL_DIR}:${PATH}"
 }
 
-run_setup_or_hint() {
-    if command -v openmemory >/dev/null 2>&1; then
-        printf "\nRunning 'openmemory setup'...\n"
-        openmemory setup
+print_setup_hint() {
+    printf "\nopenmemory did not modify any MCP client configuration during install.\n"
+    if [ "${PATH_ALREADY_OK:-0}" -eq 1 ]; then
+        printf "Run setup when you're ready to detect and register clients:\n"
     else
-        printf "\nOnce %s is on your PATH, run:\n  openmemory setup\n" "$INSTALL_DIR"
+        printf "After %s is on your PATH, run setup to detect and register clients:\n" "$INSTALL_DIR"
     fi
+    printf "  openmemory setup\n"
 }
 
 main
