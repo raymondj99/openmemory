@@ -9,16 +9,21 @@ use std::collections::BTreeSet;
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
 use crate::cli::{
-    InitArgs, IntegrateClaudeCodeArgs, IntegrateClaudeDesktopArgs, IntegrateCodexArgs,
-    IntegrateOpenclawArgs, SetupArgs,
+    IntegrateClaudeCodeArgs, IntegrateClaudeDesktopArgs, IntegrateCodexArgs, IntegrateOpenclawArgs,
+    SetupArgs,
 };
+use crate::ui::banner::{Banner, Line};
+use crate::ui::glyph::Glyph;
+use crate::ui::stdout_stream;
+use crate::ui::steps::Steps;
 
-use super::{init, integrate};
+use super::integrate;
+use super::integrate::IntegrationReport;
 
 const MCP_VERIFY_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -50,13 +55,6 @@ impl Client {
         }
     }
 
-    /// Does this client need a manual restart for the new server to
-    /// take effect? Claude Code's `claude mcp add-json` hot-applies;
-    /// the other three write a config file the client reads at boot.
-    fn needs_restart(self) -> bool {
-        !matches!(self, Client::ClaudeCode)
-    }
-
     fn all() -> [Client; 4] {
         [
             Client::ClaudeCode,
@@ -70,13 +68,31 @@ impl Client {
 /// Output of one per-client integration attempt.
 struct ClientResult {
     client: Client,
-    outcome: Result<()>,
+    outcome: Result<IntegrationReport>,
 }
 
 pub fn run(profile: &str, args: SetupArgs) -> Result<()> {
-    // 1. Initialise the data root. Idempotent without `--force`.
-    println!("openmemory: initialising data root...");
-    init::run(profile, InitArgs { force: false })?;
+    let openmemory_home = openmemory_core::config::Config::home_dir().ok();
+    let mut stream = stdout_stream();
+
+    // ── Welcome banner ──
+    let version = env!("CARGO_PKG_VERSION");
+    let home_display = openmemory_home
+        .as_ref()
+        .map_or_else(|| "~/.openmemory".to_string(), |p| p.display().to_string());
+    Banner::new("openmemory")
+        .subtitle(format!("v{version}"))
+        .line(Line::Body("persistent memory for AI agents.".into()))
+        .line(Line::Pair {
+            label: "home   ".into(),
+            value: home_display.clone(),
+        })
+        .line(Line::Pair {
+            label: "profile".into(),
+            value: profile.to_string(),
+        })
+        .render(&mut stream);
+    let _ = writeln!(&mut stream);
 
     // 2. Decide which clients to register with.
     let requested = parse_client_filter(args.client.as_deref())?;
@@ -89,113 +105,218 @@ pub fn run(profile: &str, args: SetupArgs) -> Result<()> {
         Client::all().to_vec()
     };
 
-    println!("openmemory: detecting MCP clients...");
+    // Phases 1 through 5 all share the same `Steps` renderer, which
+    // borrows `stream`. The block scope ends the borrow so the
+    // closing banner below can write to `stream` again.
     let mut targets: Vec<Client> = Vec::new();
-    for client in &candidates {
-        let detected = detect(*client);
-        let status = if detected {
-            "found"
-        } else if args.all {
-            "not detected (forced via --all)"
+    let mut results: Vec<ClientResult> = Vec::new();
+    let mut verify_result: Result<()> = Ok(());
+    let mut bail_no_clients = false;
+    {
+        let mut steps = Steps::new(&mut stream);
+
+        // 1. Initialise the data root. Idempotent without `--force`.
+        let step = steps.step("initialising data root");
+        match init_silent(profile) {
+            Ok(()) => step.finish_ok(home_display.clone()),
+            Err(e) => {
+                step.finish_fail(&format!("{e:#}"));
+                return Err(e);
+            }
+        }
+
+        // 2. Detect MCP clients.
+        let step = steps.step("detecting MCP clients");
+        let mut detection_labels: Vec<String> = Vec::new();
+        for client in &candidates {
+            let detected = detect(*client);
+            if detected {
+                detection_labels.push(client.label().to_string());
+                targets.push(*client);
+            } else if args.all {
+                detection_labels.push(format!("{} (forced)", client.label()));
+                targets.push(*client);
+            }
+        }
+        if detection_labels.is_empty() {
+            step.finish_skip("no clients found");
+            bail_no_clients = true;
         } else {
-            "not detected, skipping"
-        };
-        println!("  - {:<16} {status}", client.label());
-        if detected || args.all {
-            targets.push(*client);
+            step.finish_ok(detection_labels.join(", "));
+        }
+
+        if !bail_no_clients {
+            // 3. Register with each target. We aggregate results first,
+            // then render one nested step group, so a per-client failure
+            // doesn't tear the visual layout.
+            let step = steps.step("registering with detected clients");
+            for client in &targets {
+                let outcome = integrate_one(profile, *client);
+                results.push(ClientResult {
+                    client: *client,
+                    outcome,
+                });
+            }
+            let ok_count = results.iter().filter(|r| r.outcome.is_ok()).count();
+            let total = results.len();
+            if ok_count == total {
+                step.finish_ok(format!("{ok_count}/{total}"));
+            } else if ok_count == 0 {
+                step.finish_fail(&format!("0/{total} succeeded"));
+            } else {
+                step.finish_skip(format!("{ok_count}/{total} succeeded"));
+            }
+            // Detail rows underneath the group bullet.
+            for r in &results {
+                match &r.outcome {
+                    Ok(report) => steps.detail_ok(r.client.label(), &report.suffix()),
+                    Err(e) => steps.detail_fail(r.client.label(), &format!("{e:#}")),
+                }
+            }
+
+            // 4. Optional model download.
+            #[cfg(feature = "embeddings")]
+            if args.with_model {
+                let step = steps.step("downloading default embedding model");
+                match super::model::run(crate::cli::ModelCommand::Download(
+                    crate::cli::ModelDownloadArgs { model: None },
+                )) {
+                    Ok(()) => step.finish_ok(""),
+                    Err(e) => step.finish_fail(&format!("{e:#}")),
+                }
+            }
+
+            // 5. Verification. Skippable via env so the test harness
+            // (which sees the test binary as `current_exe`) doesn't
+            // print noise.
+            if std::env::var("OPENMEMORY_SETUP_SKIP_VERIFY")
+                .ok()
+                .as_deref()
+                != Some("1")
+            {
+                let step = steps.step("verifying openmemory mcp starts");
+                let started = Instant::now();
+                let verify = verify_mcp_starts();
+                let elapsed_ms = started.elapsed().as_millis();
+                match &verify {
+                    Ok(()) => step.finish_ok(format!("{elapsed_ms} ms")),
+                    Err(e) => step.finish_fail(&format!("{e:#}")),
+                }
+                verify_result = verify;
+            }
         }
     }
 
-    if targets.is_empty() {
-        println!(
-            "openmemory: no MCP clients detected. Pass --all to register with every \
-             supported client anyway, or run `openmemory integrate <client>` directly."
-        );
-        print_try_snippet();
+    if bail_no_clients {
+        let _ = writeln!(&mut stream);
+        Banner::new("no clients found")
+            .subtitle("nothing to register")
+            .line(Line::Body(
+                "no MCP clients were detected on this machine.".into(),
+            ))
+            .line(Line::Blank)
+            .line(Line::Body(
+                "pass --all to register with every supported client anyway,".into(),
+            ))
+            .line(Line::Body(
+                "or run `openmemory integrate <client>` directly.".into(),
+            ))
+            .render(&mut stream);
+        let _ = writeln!(&mut stream);
+        render_try_snippet(&mut stream);
         return Ok(());
     }
 
-    // 3. Register with each target.
-    println!("openmemory: registering...");
-    let results: Vec<ClientResult> = targets
-        .into_iter()
-        .map(|client| {
-            let outcome = integrate_one(profile, client);
-            ClientResult { client, outcome }
-        })
-        .collect();
-
-    // 4. Optional model download.
-    #[cfg(feature = "embeddings")]
-    if args.with_model {
-        println!("openmemory: downloading default embedding model...");
-        if let Err(e) = super::model::run(crate::cli::ModelCommand::Download(
-            crate::cli::ModelDownloadArgs { model: None },
-        )) {
-            eprintln!("openmemory: model download failed: {e:#}");
-        }
-    }
-
-    // 5. Verification. Skippable via env so the test harness (which
-    // sees the test binary as `current_exe`) doesn't print noise.
-    let verify_result = if std::env::var("OPENMEMORY_SETUP_SKIP_VERIFY")
-        .ok()
-        .as_deref()
-        == Some("1")
-    {
-        Ok(())
-    } else {
-        print!("openmemory: verifying `openmemory mcp` starts... ");
-        let _ = std::io::stdout().flush();
-        let verify = verify_mcp_starts();
-        match &verify {
-            Ok(()) => println!("ok"),
-            Err(e) => println!("FAILED ({e})"),
-        }
-        verify
-    };
-
-    // 6. Final summary.
+    // 6. Closing card with next steps. Only render the ready state
+    // after all fatal setup gates have passed.
     let any_success = results.iter().any(|r| r.outcome.is_ok());
     let all_failed = !any_success;
-
-    println!();
-    println!("Setup summary:");
-    for r in &results {
-        match &r.outcome {
-            Ok(()) => println!("  - {:<16} ok", r.client.label()),
-            Err(e) => println!("  - {:<16} FAILED: {e:#}", r.client.label()),
-        }
-    }
-
     let restart_needed: Vec<&'static str> = results
         .iter()
-        .filter(|r| r.outcome.is_ok() && r.client.needs_restart())
+        .filter(|r| {
+            r.outcome
+                .as_ref()
+                .map(|rep| {
+                    rep.needs_restart && rep.outcome != integrate::IntegrationOutcome::Unchanged
+                })
+                .unwrap_or(false)
+        })
         .map(|r| r.client.label())
         .collect();
-    if !restart_needed.is_empty() {
-        println!();
-        println!(
-            "Restart these clients to pick up the new server: {}.",
-            restart_needed.join(", ")
-        );
+
+    if all_failed {
+        let _ = writeln!(&mut stream);
+        Banner::new("setup incomplete")
+            .subtitle("no clients registered")
+            .line(Line::Body(
+                "every client registration attempt failed.".into(),
+            ))
+            .line(Line::Muted(
+                "see the failed client rows above for details.".into(),
+            ))
+            .render(&mut stream);
+        anyhow::bail!("setup: every client registration failed");
     }
 
-    print_try_snippet();
+    if let Err(e) = &verify_result {
+        let _ = writeln!(&mut stream);
+        Banner::new("setup incomplete")
+            .subtitle("verification failed")
+            .line(Line::Body(
+                "client registration completed, but `openmemory mcp` did not start cleanly.".into(),
+            ))
+            .line(Line::Muted(format!("{e:#}")))
+            .render(&mut stream);
+        verify_result.context("setup verification failed")?;
+    }
+
+    let _ = writeln!(&mut stream);
+    let mut next = Banner::new("next").subtitle("you're ready");
+    if !restart_needed.is_empty() {
+        next = next
+            .line(Line::Body(format!(
+                "restart {} to pick up the new server.",
+                restart_needed.join(", ")
+            )))
+            .line(Line::Blank);
+    }
+    next = next
+        .line(Line::Body("try it in your next agent session:".into()))
+        .line(Line::Muted(format!(
+            "{}  remember that I prefer Rust over Python",
+            Glyph::Arrow.as_str()
+        )))
+        .line(Line::Muted(format!(
+            "{}  what do you remember about my preferences?",
+            Glyph::Arrow.as_str()
+        )));
+    next.render(&mut stream);
 
     // Suppress unused-warning when stdin is a TTY (we currently only
     // check non-interactivity for future prompt skipping).
     let _ = std::io::stdin().is_terminal();
     let _ = args.yes;
 
-    if all_failed {
-        anyhow::bail!("setup: every client registration failed");
-    }
-    verify_result.context("setup verification failed")?;
     Ok(())
 }
 
-fn integrate_one(profile: &str, client: Client) -> Result<()> {
+/// Run init without printing. Errors propagate; the caller renders.
+fn init_silent(profile: &str) -> Result<()> {
+    use openmemory_core::config::Config;
+    let home = Config::home_dir().context("resolving openmemory home")?;
+    let config_path = home.join("config.toml");
+    let data_dir = Config::data_dir(profile).context("resolving data directory")?;
+    std::fs::create_dir_all(&home).context("creating home directory")?;
+    std::fs::create_dir_all(&data_dir).context("creating profile data directory")?;
+    if !config_path.exists() {
+        Config::default()
+            .save(&config_path)
+            .context("writing default config.toml")?;
+    }
+    Ok(())
+}
+
+fn integrate_one(profile: &str, client: Client) -> Result<IntegrationReport> {
     match client {
         Client::ClaudeCode => integrate::claude_code::run(
             profile,
@@ -231,6 +352,20 @@ fn integrate_one(profile: &str, client: Client) -> Result<()> {
             },
         ),
     }
+}
+
+fn render_try_snippet<W: std::io::Write>(w: &mut W) {
+    Banner::new("next")
+        .subtitle("try it in your next agent session")
+        .line(Line::Muted(format!(
+            "{}  remember that I prefer Rust over Python",
+            Glyph::Arrow.as_str()
+        )))
+        .line(Line::Muted(format!(
+            "{}  what do you remember about my preferences?",
+            Glyph::Arrow.as_str()
+        )))
+        .render(w);
 }
 
 fn parse_client_filter(s: Option<&str>) -> Result<Option<BTreeSet<Client>>> {
@@ -394,13 +529,6 @@ fn validate_initialize_response(line: &str) -> Result<()> {
         anyhow::bail!("initialize response missing result");
     }
     Ok(())
-}
-
-fn print_try_snippet() {
-    println!();
-    println!("Try this in your next Claude Code / Codex / Claude Desktop session:");
-    println!("  > remember that I prefer Rust over Python");
-    println!("  > what do you remember about my language preferences?");
 }
 
 /// Helper for `setup` tests to seed a config file. Lives outside the

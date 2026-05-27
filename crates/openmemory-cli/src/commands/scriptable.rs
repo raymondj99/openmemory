@@ -3,6 +3,8 @@
 //! interactive use — every command opens the store, performs one
 //! transaction, prints the result, and exits.
 
+use std::io::Write;
+
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
 use openmemory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput};
@@ -10,6 +12,8 @@ use openmemory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters,
 use std::sync::Arc;
 
 use crate::cli::{ForgetEntityArgs, ListEntitiesArgs, RecallArgs, RememberArgs};
+use crate::ui::glyph::Glyph;
+use crate::ui::{card, paint, stdout_stream, style};
 
 fn open(profile: &str, attach_embedder: bool) -> Result<MemoryStore> {
     let config = Config::load().unwrap_or_default();
@@ -85,11 +89,19 @@ pub fn remember(profile: &str, args: RememberArgs) -> Result<()> {
         });
         println!("{}", serde_json::to_string(&payload)?);
     } else {
-        println!(
-            "remembered {} observation(s) for {} (entity_id={})",
-            outcome.observation_ids.len(),
-            args.entity,
-            outcome.entity_id
+        let mut stream = stdout_stream();
+        let glyph = paint(style::SUCCESS, Glyph::Ok.as_str());
+        let count = outcome.observation_ids.len();
+        let noun = if count == 1 {
+            "observation"
+        } else {
+            "observations"
+        };
+        let entity = paint(style::ACCENT_DIM, &args.entity);
+        let etype = paint(style::MUTED, &format!("({})", entity_type.as_str()));
+        let _ = writeln!(
+            &mut stream,
+            "  {glyph} remembered {count} {noun} for {entity}  {etype}"
         );
     }
     Ok(())
@@ -146,17 +158,25 @@ pub fn recall(profile: &str, args: RecallArgs) -> Result<()> {
             })
             .collect();
         println!("{}", serde_json::to_string(&json)?);
-    } else if hits.is_empty() {
-        println!("(no results)");
     } else {
-        for h in &hits {
-            println!(
-                "{:.3}  [{}/{}]  {}",
-                h.score,
-                h.entity_name,
-                h.entity_type.as_str(),
-                h.observation.content
-            );
+        let mut stream = stdout_stream();
+        if hits.is_empty() {
+            let muted = paint(style::MUTED, "no results.");
+            let _ = writeln!(&mut stream, "  {muted}");
+        } else {
+            for (i, h) in hits.iter().enumerate() {
+                if i > 0 {
+                    card::separator(&mut stream);
+                }
+                let header = format!(
+                    "{} {} {}",
+                    h.entity_name,
+                    Glyph::Separator.as_str(),
+                    h.entity_type.as_str()
+                );
+                let suffix = format!("{:.3}", h.score);
+                card::render(&mut stream, &header, &suffix, &h.observation.content);
+            }
         }
     }
     Ok(())
@@ -190,16 +210,51 @@ pub fn list_entities(profile: &str, args: ListEntitiesArgs) -> Result<()> {
             })
             .collect();
         println!("{}", serde_json::to_string(&json)?);
-    } else if rows.is_empty() {
-        println!("(no entities)");
     } else {
-        for r in &rows {
-            println!(
-                "{:>3}  {:>14}  {}",
-                r.observation_count,
-                r.entity.entity_type.as_str(),
-                r.entity.name
+        let mut stream = stdout_stream();
+        if rows.is_empty() {
+            let muted = paint(style::MUTED, "no entities.");
+            let _ = writeln!(&mut stream, "  {muted}");
+        } else {
+            let name_w = rows
+                .iter()
+                .map(|r| r.entity.name.chars().count())
+                .max()
+                .unwrap_or(0)
+                .max(4);
+            let type_w = rows
+                .iter()
+                .map(|r| r.entity.entity_type.as_str().len())
+                .max()
+                .unwrap_or(0)
+                .max(4);
+            let header = format!(
+                "  {:name_w$}  {:type_w$}  {:>12}",
+                "name",
+                "type",
+                "observations",
+                name_w = name_w,
+                type_w = type_w,
             );
+            let _ = writeln!(&mut stream, "{}", paint(style::ACCENT_DIM, &header));
+            let rule = format!(
+                "  {} ",
+                Glyph::EdgeHorizontal
+                    .as_str()
+                    .repeat(name_w + type_w + 12 + 4)
+            );
+            let _ = writeln!(&mut stream, "{}", paint(style::MUTED, rule.trim_end()));
+            for r in &rows {
+                let line = format!(
+                    "  {:name_w$}  {:type_w$}  {:>12}",
+                    r.entity.name,
+                    r.entity.entity_type.as_str(),
+                    r.observation_count,
+                    name_w = name_w,
+                    type_w = type_w,
+                );
+                let _ = writeln!(&mut stream, "{line}");
+            }
         }
     }
     Ok(())
@@ -210,8 +265,8 @@ pub fn list_entities(profile: &str, args: ListEntitiesArgs) -> Result<()> {
 pub fn forget_entity(profile: &str, args: ForgetEntityArgs) -> Result<()> {
     if !args.yes {
         anyhow::bail!(
-            "this command hard-deletes {:?} and all of its observations / relations. \
-             Re-run with --yes to confirm.",
+            "refusing to hard-delete {:?}: re-run with --yes to confirm. \
+             this removes the entity and every observation and relation attached to it.",
             args.entity
         );
     }
@@ -219,10 +274,11 @@ pub fn forget_entity(profile: &str, args: ForgetEntityArgs) -> Result<()> {
     let removed = store
         .forget_entity(&args.entity)
         .context("forget_entity failed")?;
-    println!(
-        "removed entity {:?} ({removed} observation(s) cascaded)",
-        args.entity
-    );
+    let mut stream = stdout_stream();
+    let glyph = paint(style::SUCCESS, Glyph::Ok.as_str());
+    let entity = paint(style::ACCENT_DIM, &args.entity);
+    let suffix = paint(style::MUTED, &format!("{removed} observation(s) cascaded"));
+    let _ = writeln!(&mut stream, "  {glyph} removed {entity}  {suffix}");
     Ok(())
 }
 

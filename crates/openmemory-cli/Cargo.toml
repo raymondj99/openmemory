@@ -45,6 +45,9 @@ openmemory-eval = { workspace = true, default-features = false, optional = true 
 
 clap = { workspace = true }
 clap_complete = { workspace = true, optional = true }
+anstyle = { workspace = true }
+anstream = { workspace = true }
+terminal_size = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

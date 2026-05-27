@@ -14,11 +14,12 @@ use crate::cli::IntegrateClaudeDesktopArgs;
 
 use super::{
     apply, build_http_entry, build_stdio_entry, entry_name, write_atomic, IntegrationOutcome,
+    IntegrationReport,
 };
 
 const SERVER_PATH: &[&str] = &["mcpServers"];
 
-pub fn run(profile: &str, args: IntegrateClaudeDesktopArgs) -> Result<()> {
+pub fn run(profile: &str, args: IntegrateClaudeDesktopArgs) -> Result<IntegrationReport> {
     let config_path = resolve_path(args.config.as_deref())?;
     let name = entry_name(profile);
     let entry = if let Some(addr) = args.http.as_deref() {
@@ -28,19 +29,15 @@ pub fn run(profile: &str, args: IntegrateClaudeDesktopArgs) -> Result<()> {
     };
 
     let (outcome, new_value) = apply(&config_path, &name, &entry, SERVER_PATH)?;
-
-    if matches!(outcome, IntegrationOutcome::Unchanged) {
-        println!(
-            "openmemory: claude-desktop config at {} already has matching `{name}` entry — no changes",
-            config_path.display()
-        );
-        return Ok(());
+    if !matches!(outcome, IntegrationOutcome::Unchanged) {
+        write_atomic(&config_path, &new_value)?;
     }
-
-    write_atomic(&config_path, &new_value)?;
-    print_outcome(&outcome, &name, &config_path);
-    println!("openmemory: claude-desktop integration ready. Restart Claude Desktop to pick it up.");
-    Ok(())
+    Ok(IntegrationReport {
+        outcome,
+        path: config_path,
+        note: None,
+        needs_restart: true,
+    })
 }
 
 fn resolve_path(override_arg: Option<&Path>) -> Result<PathBuf> {
@@ -80,30 +77,6 @@ fn platform_default_path() -> Result<PathBuf> {
         anyhow::bail!(
             "unsupported platform; pass --config to specify the Claude Desktop config path"
         )
-    }
-}
-
-fn print_outcome(outcome: &IntegrationOutcome, name: &str, path: &Path) {
-    match outcome {
-        IntegrationOutcome::Created => {
-            println!(
-                "openmemory: created claude-desktop config at {}",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Added => {
-            println!(
-                "openmemory: added `{name}` to {} (mcpServers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Updated => {
-            println!(
-                "openmemory: updated `{name}` in {} (mcpServers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Unchanged => {}
     }
 }
 

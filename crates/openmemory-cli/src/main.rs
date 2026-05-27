@@ -4,6 +4,7 @@
 
 mod cli;
 mod commands;
+mod ui;
 
 fn main() -> std::process::ExitCode {
     init_tracing();
@@ -13,10 +14,8 @@ fn main() -> std::process::ExitCode {
     match cli::run(args) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("error: {e}");
-            for cause in e.chain().skip(1) {
-                eprintln!("  caused by: {cause}");
-            }
+            let mut stream = ui::stderr_stream();
+            ui::error::render(&mut stream, &e);
             std::process::ExitCode::FAILURE
         }
     }

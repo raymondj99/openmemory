@@ -5,6 +5,9 @@ use openmemory_core::config::Config;
 use openmemory_graph::{ConsolidateConfig, MemoryStore};
 
 use crate::cli::ConsolidateArgs;
+use crate::ui::banner::Banner;
+use crate::ui::stdout_stream;
+use crate::ui::table::KvTable;
 
 pub fn run(profile: &str, args: ConsolidateArgs) -> Result<()> {
     let config = Config::load().unwrap_or_default();
@@ -30,14 +33,29 @@ pub fn run(profile: &str, args: ConsolidateArgs) -> Result<()> {
     }
 
     let report = store.consolidate(&cfg).context("consolidate run failed")?;
-    println!("openmemory consolidate report");
-    println!("  duplicates merged    : {}", report.duplicates_merged);
-    println!("  observations pruned  : {}", report.observations_pruned);
-    println!("  entities pruned      : {}", report.entities_pruned);
-    println!(
-        "  config: dedup_threshold={} prune_floor={} min_age_secs={}",
-        cfg.dedup_text_threshold, cfg.prune_floor, cfg.min_age_secs
-    );
+
+    let mut stream = stdout_stream();
+    Banner::new("consolidate")
+        .subtitle(format!("profile: {profile}"))
+        .render_header(&mut stream);
+    let _ = std::io::Write::write_all(&mut stream, b"\n");
+
+    KvTable::new()
+        .row("duplicates merged", report.duplicates_merged.to_string())
+        .row(
+            "observations pruned",
+            report.observations_pruned.to_string(),
+        )
+        .row("entities pruned", report.entities_pruned.to_string())
+        .blank()
+        .heading("config")
+        .row(
+            "dedup threshold",
+            format!("{:.2}", cfg.dedup_text_threshold),
+        )
+        .row("prune floor", format!("{:.2}", cfg.prune_floor))
+        .row("min age secs", cfg.min_age_secs.to_string())
+        .render(&mut stream);
     Ok(())
 }
 

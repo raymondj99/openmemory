@@ -10,12 +10,13 @@ use crate::cli::IntegrateOpenclawArgs;
 
 use super::{
     apply, build_http_entry, build_stdio_entry, entry_name, write_atomic, IntegrationOutcome,
+    IntegrationReport,
 };
 
 const DEFAULT_CONFIG: &str = ".openclaw/openclaw.json";
 const SERVER_PATH: &[&str] = &["mcp", "servers"];
 
-pub fn run(profile: &str, args: IntegrateOpenclawArgs) -> Result<()> {
+pub fn run(profile: &str, args: IntegrateOpenclawArgs) -> Result<IntegrationReport> {
     let config_path = resolve_path(args.config.as_deref())?;
     let name = entry_name(profile);
     let entry = if let Some(addr) = args.http.as_deref() {
@@ -25,19 +26,15 @@ pub fn run(profile: &str, args: IntegrateOpenclawArgs) -> Result<()> {
     };
 
     let (outcome, new_value) = apply(&config_path, &name, &entry, SERVER_PATH)?;
-
-    if matches!(outcome, IntegrationOutcome::Unchanged) {
-        println!(
-            "openmemory: openclaw config at {} already has matching `{name}` entry — no changes",
-            config_path.display()
-        );
-        return Ok(());
+    if !matches!(outcome, IntegrationOutcome::Unchanged) {
+        write_atomic(&config_path, &new_value)?;
     }
-
-    write_atomic(&config_path, &new_value)?;
-    print_outcome(&outcome, &name, &config_path);
-    println!("openmemory: openclaw integration ready. Restart OpenClaw to pick it up.");
-    Ok(())
+    Ok(IntegrationReport {
+        outcome,
+        path: config_path,
+        note: None,
+        needs_restart: true,
+    })
 }
 
 fn resolve_path(override_arg: Option<&Path>) -> Result<PathBuf> {
@@ -53,27 +50,6 @@ fn resolve_path(override_arg: Option<&Path>) -> Result<PathBuf> {
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| anyhow::anyhow!("could not resolve home directory"))?;
     Ok(PathBuf::from(home).join(DEFAULT_CONFIG))
-}
-
-fn print_outcome(outcome: &IntegrationOutcome, name: &str, path: &Path) {
-    match outcome {
-        IntegrationOutcome::Created => {
-            println!("openmemory: created openclaw config at {}", path.display());
-        }
-        IntegrationOutcome::Added => {
-            println!(
-                "openmemory: added `{name}` to {} (mcp.servers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Updated => {
-            println!(
-                "openmemory: updated `{name}` in {} (mcp.servers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Unchanged => {}
-    }
 }
 
 #[cfg(test)]

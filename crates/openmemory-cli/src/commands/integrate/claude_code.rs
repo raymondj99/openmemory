@@ -15,12 +15,13 @@ use crate::cli::IntegrateClaudeCodeArgs;
 
 use super::{
     apply, build_http_entry, build_stdio_entry, entry_name, write_atomic, IntegrationOutcome,
+    IntegrationReport,
 };
 
 const DEFAULT_CONFIG: &str = ".claude.json";
 const SERVER_PATH: &[&str] = &["mcpServers"];
 
-pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<()> {
+pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<IntegrationReport> {
     let name = entry_name(profile);
     let entry = if let Some(addr) = args.http.as_deref() {
         build_http_entry(addr)
@@ -31,9 +32,13 @@ pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<()> {
     if !args.no_cli {
         match try_cli_add(&name, &entry)? {
             CliAddOutcome::Registered => {
-                println!("openmemory: registered `{name}` via `claude mcp add-json`.");
-                println!("openmemory: claude-code integration ready.");
-                return Ok(());
+                let config_path = resolve_path(args.config.as_deref())?;
+                return Ok(IntegrationReport {
+                    outcome: IntegrationOutcome::Added,
+                    path: config_path,
+                    note: Some("via claude mcp add-json".to_string()),
+                    needs_restart: false,
+                });
             }
             CliAddOutcome::AlreadyExists => {
                 // Claude Code's CLI treats an existing server as an
@@ -47,18 +52,15 @@ pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<()> {
     let config_path = resolve_path(args.config.as_deref())?;
     let (outcome, new_value) = apply(&config_path, &name, &entry, SERVER_PATH)?;
 
-    if matches!(outcome, IntegrationOutcome::Unchanged) {
-        println!(
-            "openmemory: claude-code config at {} already has matching `{name}` entry — no changes",
-            config_path.display()
-        );
-        return Ok(());
+    if !matches!(outcome, IntegrationOutcome::Unchanged) {
+        write_atomic(&config_path, &new_value)?;
     }
-
-    write_atomic(&config_path, &new_value)?;
-    print_outcome(&outcome, &name, &config_path);
-    println!("openmemory: claude-code integration ready.");
-    Ok(())
+    Ok(IntegrationReport {
+        outcome,
+        path: config_path,
+        note: None,
+        needs_restart: false,
+    })
 }
 
 enum CliAddOutcome {
@@ -144,30 +146,6 @@ fn resolve_path(override_arg: Option<&Path>) -> Result<PathBuf> {
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| anyhow::anyhow!("could not resolve home directory"))?;
     Ok(PathBuf::from(home).join(DEFAULT_CONFIG))
-}
-
-fn print_outcome(outcome: &IntegrationOutcome, name: &str, path: &Path) {
-    match outcome {
-        IntegrationOutcome::Created => {
-            println!(
-                "openmemory: created claude-code config at {}",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Added => {
-            println!(
-                "openmemory: added `{name}` to {} (mcpServers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Updated => {
-            println!(
-                "openmemory: updated `{name}` in {} (mcpServers)",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Unchanged => {}
-    }
 }
 
 #[cfg(test)]

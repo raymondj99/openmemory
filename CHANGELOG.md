@@ -9,6 +9,42 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+### Added
+
+- **CLI visual refresh.** Primary one-shot human-facing commands now
+  render through a shared `ui` module (rounded banner, stepped
+  progress list, aligned key/value table, result cards) for a calm,
+  single-accent look. `openmemory setup` opens with a welcome banner,
+  runs through a live `●`→`✓`/`✗`/`○` step list with nested
+  per-client detail rows, and closes with a "next" card. `status`,
+  `init`, `consolidate`,
+  `recall`, `list-entities`, `remember`, `forget-entity`, `model`, and
+  every `integrate <client>` command were rewritten to use the same
+  primitives.
+- **`--color` and `--no-color` global flags.** `--color` accepts
+  `auto` (default), `always`, or `never`. `NO_COLOR` and
+  `CLICOLOR_FORCE` env vars are also honoured. Glyphs fall back to
+  ASCII (`*`, `v`, `-`, `x`) when color is off or stdout is not a TTY,
+  so piped output and CI logs stay readable.
+- **End-to-end CLI output tests.** New
+  `tests/cli_output.rs` integration suite spawns the real binary
+  against a tempdir home and asserts layout invariants for `init`,
+  `setup`, `status`, `recall`, `list-entities`, `remember`, and
+  the `forget-entity` danger path.
+
+### Changed
+
+- **`integrate::*::run` now returns a structured `IntegrationReport`**
+  instead of printing directly. The standalone CLI dispatch and the
+  `setup` orchestrator both render through the new `ui` module, so the
+  visual style is consistent across both entry points.
+- **Status timestamps are explicitly UTC** (`2024-01-15 12:34 UTC`)
+  so users don't read a UTC-rendered observation timestamp as their
+  local wall clock.
+- **Top-level error renderer** uses a danger-styled `✗` glyph with a
+  muted, depth-capped cause chain instead of the prior `error:` /
+  `caused by:` line dump.
+
 ## [0.4.3] - 2026-05-27
 
 ### Fixed

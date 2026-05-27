@@ -4,11 +4,16 @@
 //! into `~/.openmemory/models/<name>/`; `list` shows every model in
 //! the registry and whether its files are cached locally.
 
+use std::io::Write;
+
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
 use openmemory_embed::{ModelManager, ModelRegistry, RuntimeManager};
 
 use crate::cli::ModelCommand;
+use crate::ui::glyph::Glyph;
+use crate::ui::steps::Steps;
+use crate::ui::{card, paint, stdout_stream, style};
 
 pub fn run(command: ModelCommand) -> Result<()> {
     match command {
@@ -31,51 +36,58 @@ fn download(name: Option<&str>) -> Result<()> {
     };
 
     let manager = ModelManager::new(models_dir);
+    let mut stream = stdout_stream();
+    let mut steps = Steps::new(&mut stream);
 
     let model_ready = manager.downloaded_model_dir(model).is_some();
     if model_ready {
-        println!(
-            "Model '{}' already downloaded at {}",
-            model.name,
-            manager
-                .downloaded_model_dir(model)
-                .expect("model present")
-                .display()
-        );
+        let path = manager
+            .downloaded_model_dir(model)
+            .expect("model present")
+            .display()
+            .to_string();
+        steps
+            .step(format!("model {}", model.name))
+            .finish_ok(format!("already at {path}"));
     }
 
-    // Install the platform-matched ONNX Runtime alongside the model so
-    // `openmemory recall --mode vector` works on a clean machine
-    // without manual `LD_LIBRARY_PATH` / `ORT_DYLIB_PATH` plumbing.
-    install_runtime()?;
+    install_runtime(&mut steps)?;
 
     if model_ready {
         return Ok(());
     }
 
-    println!("Downloading '{}'...", model.name);
-    manager
-        .download(model)
-        .with_context(|| format!("downloading model '{}'", model.name))?;
-    println!("Model '{}' ready.", model.name);
+    let step = steps.step(format!("downloading model {}", model.name));
+    match manager.download(model) {
+        Ok(()) => step.finish_ok("ready"),
+        Err(e) => {
+            step.finish_fail(&format!("{e:#}"));
+            return Err(e).with_context(|| format!("downloading model '{}'", model.name));
+        }
+    }
     Ok(())
 }
 
-fn install_runtime() -> Result<()> {
+fn install_runtime<W: Write>(steps: &mut Steps<'_, W>) -> Result<()> {
     let runtime = RuntimeManager::from_config().context("resolving runtime directory")?;
     if runtime.is_installed() {
         return Ok(());
     }
-    println!(
-        "Installing ONNX Runtime {}...",
+    let label = format!(
+        "installing ONNX Runtime {}",
         openmemory_embed::ONNX_RUNTIME_VERSION
     );
-    runtime.install().context("installing ONNX Runtime")?;
-    println!(
-        "ONNX Runtime {} ready.",
-        openmemory_embed::ONNX_RUNTIME_VERSION
-    );
-    Ok(())
+    let step = steps.step(label);
+    match runtime.install() {
+        Ok(_) => {
+            step.finish_ok("ready");
+            Ok(())
+        }
+        Err(e) => {
+            step.finish_fail(&format!("{e:#}"));
+            Err(e).context("installing ONNX Runtime")
+        }
+    }
 }
 
 fn list() -> Result<()> {
@@ -84,26 +96,40 @@ fn list() -> Result<()> {
     let manager = ModelManager::new(models_dir);
 
     let default = registry.default_model();
-    println!("Available embedding models:\n");
-    for model in registry.all() {
+    let mut stream = stdout_stream();
+    let heading = paint(style::ACCENT_DIM, "available embedding models");
+    let _ = writeln!(&mut stream, "  {heading}");
+    card::separator(&mut stream);
+
+    for (i, model) in registry.all().iter().copied().enumerate() {
+        if i > 0 {
+            card::separator(&mut stream);
+        }
         let is_default = model.name == default.name;
         let downloaded = manager.downloaded_model_dir(model).is_some();
-
         let status = if downloaded {
             "downloaded"
         } else {
             "not downloaded"
         };
-        let tag = if is_default { " (default)" } else { "" };
-
-        println!("  {}{tag}", model.name);
-        println!("    dimensions : {}", model.dimensions);
-        println!("    pooling    : {:?}", model.pooling);
-        println!("    status     : {status}");
-        if !model.aliases.is_empty() {
-            println!("    aliases    : {}", model.aliases.join(", "));
-        }
-        println!();
+        let sep = Glyph::Separator.as_str();
+        let suffix = if is_default {
+            format!("default {sep} {status}")
+        } else {
+            status.to_string()
+        };
+        let header = model.name.to_string();
+        let body = if model.aliases.is_empty() {
+            format!("{} dim {sep} pooling {:?}", model.dimensions, model.pooling)
+        } else {
+            format!(
+                "{} dim {sep} pooling {:?} {sep} aliases {}",
+                model.dimensions,
+                model.pooling,
+                model.aliases.join(", ")
+            )
+        };
+        card::render(&mut stream, &header, &suffix, &body);
     }
     Ok(())
 }
@@ -126,14 +152,23 @@ fn use_model(name: &str) -> Result<()> {
             .is_some()
     });
 
-    println!("Active model set to '{}'.", model.name);
+    let mut stream = stdout_stream();
+    let glyph = paint(style::SUCCESS, Glyph::Ok.as_str());
+    let name_painted = paint(style::ACCENT_DIM, model.name);
+    let _ = writeln!(&mut stream, "  {glyph} active model set to {name_painted}");
+    let arrow = paint(style::ACCENT_DIM, Glyph::Arrow.as_str());
     if !downloaded {
-        println!(
-            "Note: model not yet downloaded. Run `openmemory model download {}` first.",
-            name
+        let hint = paint(
+            style::MUTED,
+            &format!("not yet downloaded; run `openmemory model download {name}` first."),
         );
+        let _ = writeln!(&mut stream, "  {arrow} {hint}");
     }
-    println!("Takes effect on the next `openmemory mcp`, `remember`, or `recall` invocation.");
+    let next = paint(
+        style::MUTED,
+        "takes effect on the next mcp / remember / recall invocation.",
+    );
+    let _ = writeln!(&mut stream, "  {arrow} {next}");
     Ok(())
 }
 

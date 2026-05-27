@@ -9,7 +9,7 @@ pub mod claude_desktop;
 pub mod codex;
 pub mod openclaw;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
@@ -26,6 +26,69 @@ pub enum IntegrationOutcome {
     Updated,
     /// Existing entry already matched what we'd write; no file changes.
     Unchanged,
+}
+
+/// Structured result of a per-client integration. Each `integrate::*::run`
+/// returns this so callers (the standalone CLI dispatch *and* the setup
+/// orchestrator) can render in their own house style.
+#[derive(Debug, Clone)]
+pub struct IntegrationReport {
+    /// What changed on disk (or didn't).
+    pub outcome: IntegrationOutcome,
+    /// Resolved config path. For any non-`Unchanged` outcome this
+    /// points at the file we wrote; for `Unchanged` it's the path we
+    /// inspected.
+    pub path: PathBuf,
+    /// Free-form note appended to the success line. Used by
+    /// `claude-code` to surface the `claude mcp add-json` path.
+    pub note: Option<String>,
+    /// Does the client need a manual restart for the new server to
+    /// take effect? Claude Code's `claude mcp add-json` hot-applies;
+    /// the other three write a config file the client reads at boot.
+    pub needs_restart: bool,
+}
+
+impl IntegrationReport {
+    /// Compact one-line summary used as a suffix on the step / detail
+    /// line that announced this client. Format: `<action> · <path>`
+    /// in Unicode terminals, with an ASCII separator in plain output.
+    pub fn suffix(&self) -> String {
+        let sep = crate::ui::glyph::Glyph::Separator.as_str();
+        let action = match self.outcome {
+            IntegrationOutcome::Created => "created",
+            IntegrationOutcome::Added => "added",
+            IntegrationOutcome::Updated => "updated",
+            IntegrationOutcome::Unchanged => "already current",
+        };
+        if let Some(note) = &self.note {
+            format!("{action} {sep} {note}")
+        } else {
+            format!("{action} {sep} {}", self.path.display())
+        }
+    }
+}
+
+/// Render a single-client integration result for the standalone
+/// `openmemory integrate <client>` paths. Uses the same Steps look as
+/// `setup`, plus a one-line restart hint when applicable.
+pub fn render_standalone(client_label: &str, report: &IntegrationReport) {
+    use crate::ui::{glyph::Glyph, paint, stdout_stream, steps::Steps, style};
+
+    let mut stream = stdout_stream();
+    {
+        let mut steps = Steps::new(&mut stream).opener(false);
+        steps
+            .step(format!("registering with {client_label}"))
+            .finish_ok(report.suffix());
+    }
+    if report.needs_restart && !matches!(report.outcome, IntegrationOutcome::Unchanged) {
+        let arrow = paint(style::ACCENT_DIM, Glyph::Arrow.as_str());
+        let hint = paint(
+            style::MUTED,
+            &format!("restart {client_label} to pick up the new server."),
+        );
+        let _ = std::io::Write::write_all(&mut stream, format!("  {arrow} {hint}\n").as_bytes());
+    }
 }
 
 /// Build the canonical stdio MCP entry. Shared across all integration

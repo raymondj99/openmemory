@@ -13,29 +13,25 @@ use toml_edit::{value, Array, DocumentMut, Item, Table, Value as TomlValue};
 
 use crate::cli::IntegrateCodexArgs;
 
-use super::{entry_name, IntegrationOutcome};
+use super::{entry_name, IntegrationOutcome, IntegrationReport};
 
 const DEFAULT_CONFIG: &str = ".codex/config.toml";
 
-pub fn run(profile: &str, args: IntegrateCodexArgs) -> Result<()> {
+pub fn run(profile: &str, args: IntegrateCodexArgs) -> Result<IntegrationReport> {
     let config_path = resolve_path(args.config.as_deref())?;
     let name = entry_name(profile);
     let desired = build_entry_table(profile, &args.binary, args.http.as_deref())?;
 
     let (outcome, doc) = apply(&config_path, &name, &desired)?;
-
-    if matches!(outcome, IntegrationOutcome::Unchanged) {
-        println!(
-            "openmemory: codex config at {} already has matching `{name}` entry, no changes",
-            config_path.display()
-        );
-        return Ok(());
+    if !matches!(outcome, IntegrationOutcome::Unchanged) {
+        write_atomic(&config_path, &doc.to_string())?;
     }
-
-    write_atomic(&config_path, &doc.to_string())?;
-    print_outcome(&outcome, &name, &config_path);
-    println!("openmemory: codex integration ready. Restart `codex` to pick it up.");
-    Ok(())
+    Ok(IntegrationReport {
+        outcome,
+        path: config_path,
+        note: None,
+        needs_restart: true,
+    })
 }
 
 /// Resolve the codex config path, honouring `$CODEX_HOME` and
@@ -204,27 +200,6 @@ fn write_atomic(path: &Path, body: &str) -> Result<()> {
     std::fs::rename(&tmp, path)
         .with_context(|| format!("renaming into place: {}", path.display()))?;
     Ok(())
-}
-
-fn print_outcome(outcome: &IntegrationOutcome, name: &str, path: &Path) {
-    match outcome {
-        IntegrationOutcome::Created => {
-            println!("openmemory: created codex config at {}", path.display());
-        }
-        IntegrationOutcome::Added => {
-            println!(
-                "openmemory: added `[mcp_servers.{name}]` to {}",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Updated => {
-            println!(
-                "openmemory: updated `[mcp_servers.{name}]` in {}",
-                path.display()
-            );
-        }
-        IntegrationOutcome::Unchanged => {}
-    }
 }
 
 #[cfg(test)]

@@ -35,8 +35,25 @@ pub struct Cli {
     #[arg(long, global = true, value_name = "NAME", default_value = "default")]
     pub profile: String,
 
+    /// Color output policy: auto (default), always, never. `NO_COLOR`
+    /// and `CLICOLOR_FORCE` env vars are also honoured.
+    #[arg(long, global = true, value_name = "WHEN", value_enum, default_value_t = ColorWhen::Auto)]
+    pub color: ColorWhen,
+
+    /// Shorthand for `--color=never`.
+    #[arg(long, global = true)]
+    pub no_color: bool,
+
     #[command(subcommand)]
     pub command: Command,
+}
+
+/// `--color` choices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ColorWhen {
+    Auto,
+    Always,
+    Never,
 }
 
 /// Top-level subcommands.
@@ -397,6 +414,17 @@ where
         std::env::set_var("OPENMEMORY_HOME", home);
     }
 
+    let color = if cli.no_color {
+        crate::ui::ColorMode::Never
+    } else {
+        match cli.color {
+            ColorWhen::Auto => crate::ui::ColorMode::Auto,
+            ColorWhen::Always => crate::ui::ColorMode::Always,
+            ColorWhen::Never => crate::ui::ColorMode::Never,
+        }
+    };
+    crate::ui::set_color_override(color);
+
     match cli.command {
         Command::Init(args) => commands::init::run(&cli.profile, args),
         Command::Setup(args) => commands::setup::run(&cli.profile, args),
@@ -404,16 +432,24 @@ where
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {
-            commands::integrate::openclaw::run(&cli.profile, args)
+            let report = commands::integrate::openclaw::run(&cli.profile, args)?;
+            commands::integrate::render_standalone("OpenClaw", &report);
+            Ok(())
         }
         Command::Integrate(IntegrateTarget::ClaudeCode(args)) => {
-            commands::integrate::claude_code::run(&cli.profile, args)
+            let report = commands::integrate::claude_code::run(&cli.profile, args)?;
+            commands::integrate::render_standalone("Claude Code", &report);
+            Ok(())
         }
         Command::Integrate(IntegrateTarget::ClaudeDesktop(args)) => {
-            commands::integrate::claude_desktop::run(&cli.profile, args)
+            let report = commands::integrate::claude_desktop::run(&cli.profile, args)?;
+            commands::integrate::render_standalone("Claude Desktop", &report);
+            Ok(())
         }
         Command::Integrate(IntegrateTarget::Codex(args)) => {
-            commands::integrate::codex::run(&cli.profile, args)
+            let report = commands::integrate::codex::run(&cli.profile, args)?;
+            commands::integrate::render_standalone("Codex CLI", &report);
+            Ok(())
         }
         Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
@@ -520,5 +556,32 @@ mod tests {
     fn parse_home_override() {
         let cli = Cli::parse_from(["openmemory", "--home", "/tmp/x", "status"]);
         assert_eq!(cli.home.unwrap().to_str().unwrap(), "/tmp/x");
+    }
+
+    #[test]
+    fn parse_color_flag_accepts_always_auto_never() {
+        for value in ["always", "auto", "never"] {
+            let cli = Cli::parse_from(["openmemory", "--color", value, "status"]);
+            assert_eq!(
+                cli.color,
+                match value {
+                    "always" => ColorWhen::Always,
+                    "auto" => ColorWhen::Auto,
+                    "never" => ColorWhen::Never,
+                    _ => unreachable!(),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn parse_color_flag_rejects_unknown_value() {
+        assert!(Cli::try_parse_from(["openmemory", "--color", "rainbow", "status"]).is_err());
+    }
+
+    #[test]
+    fn no_color_flag_is_recognised() {
+        let cli = Cli::parse_from(["openmemory", "--no-color", "status"]);
+        assert!(cli.no_color);
     }
 }
