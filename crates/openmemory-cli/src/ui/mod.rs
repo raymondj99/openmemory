@@ -6,10 +6,12 @@
 //! * **Honour the user's terminal.** [`color_choice`] folds together
 //!   `NO_COLOR`, `CLICOLOR_FORCE`, an explicit `--no-color` flag, and
 //!   the destination's TTY-ness so callers never have to.
-//! * **Render to any writer.** Every primitive takes an
-//!   [`anstream::adapter::WriteStripped`]-style writer (we use
-//!   [`anstream::AutoStream`] in production, [`anstream::adapter::strip_str`]
-//!   in tests). This keeps output snapshot-testable without ANSI noise.
+//! * **Render to any writer.** Every primitive takes a generic
+//!   `io::Write`. Production callers wrap stdout/stderr in
+//!   `anstream::AutoStream` (see [`stdout_stream`] / [`stderr_stream`])
+//!   so ANSI escapes are auto-stripped when color is off. Tests write
+//!   to a `Vec<u8>` and run `anstream::adapter::strip_str` over the
+//!   captured bytes to keep snapshots stable without ANSI noise.
 //! * **Degrade gracefully.** When the terminal is too narrow to host a
 //!   banner, or color is off, the same primitives still emit clean,
 //!   aligned plain text.
