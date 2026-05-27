@@ -9,6 +9,8 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-05-27
+
 ### Added
 
 - **CLI visual refresh.** Primary one-shot human-facing commands now
