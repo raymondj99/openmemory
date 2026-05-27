@@ -9,6 +9,16 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-27
+
+### Fixed
+
+- **Claude Code setup is idempotent when the server already exists.**
+  `claude mcp add-json` exits non-zero for an existing user-scoped MCP
+  server, so `openmemory setup` now recognizes that specific response
+  and falls back to the direct config writer instead of reporting a
+  failed Claude Code registration.
+
 ## [0.4.2] - 2026-05-27
 
 ### Changed
@@ -434,7 +444,8 @@ into OpenClaw with one command.
   `$OPENCLAW_CONFIG_PATH`). The legacy `~/.openclaw/mcp.json`
   filename is intentionally not probed.
 
-[Unreleased]: https://github.com/raymondj99/openmemory/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/raymondj99/openmemory/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/raymondj99/openmemory/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/raymondj99/openmemory/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/raymondj99/openmemory/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/raymondj99/openmemory/compare/v0.3.3...v0.4.0

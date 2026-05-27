@@ -28,10 +28,20 @@ pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<()> {
         build_stdio_entry(profile, &args.binary)?
     };
 
-    if !args.no_cli && try_cli_add(&name, &entry)? {
-        println!("openmemory: registered `{name}` via `claude mcp add-json`.");
-        println!("openmemory: claude-code integration ready.");
-        return Ok(());
+    if !args.no_cli {
+        match try_cli_add(&name, &entry)? {
+            CliAddOutcome::Registered => {
+                println!("openmemory: registered `{name}` via `claude mcp add-json`.");
+                println!("openmemory: claude-code integration ready.");
+                return Ok(());
+            }
+            CliAddOutcome::AlreadyExists => {
+                // Claude Code's CLI treats an existing server as an
+                // error. Fall through to the file writer so setup stays
+                // idempotent and stale entries can still be updated.
+            }
+            CliAddOutcome::Unavailable => {}
+        }
     }
 
     let config_path = resolve_path(args.config.as_deref())?;
@@ -51,28 +61,68 @@ pub fn run(profile: &str, args: IntegrateClaudeCodeArgs) -> Result<()> {
     Ok(())
 }
 
-/// Try to register via `claude mcp add-json`. Returns `Ok(true)` if
-/// the CLI succeeded, `Ok(false)` if `claude` is not on PATH.
-fn try_cli_add(name: &str, entry: &serde_json::Value) -> Result<bool> {
+enum CliAddOutcome {
+    Registered,
+    AlreadyExists,
+    Unavailable,
+}
+
+/// Try to register via `claude mcp add-json`.
+fn try_cli_add(name: &str, entry: &serde_json::Value) -> Result<CliAddOutcome> {
     let claude = match which_claude() {
         Some(p) => p,
-        None => return Ok(false),
+        None => return Ok(CliAddOutcome::Unavailable),
     };
 
     let json = serde_json::to_string(entry).context("serialising entry for claude CLI")?;
-    let status = Command::new(&claude)
+    let output = Command::new(&claude)
         .args(["mcp", "add-json", name, &json, "-s", "user"])
-        .status()
+        .output()
         .with_context(|| format!("running {}", claude.display()))?;
 
-    if !status.success() {
+    if output.status.success() {
+        return Ok(CliAddOutcome::Registered);
+    }
+
+    let details = command_output(&output);
+    if is_already_exists_message(&details) {
+        return Ok(CliAddOutcome::AlreadyExists);
+    }
+
+    if details.is_empty() {
         anyhow::bail!(
             "`claude mcp add-json` exited with status {}; \
              re-run with --no-cli to write the config file directly",
-            status
+            output.status
         );
     }
-    Ok(true)
+
+    anyhow::bail!(
+        "`claude mcp add-json` exited with status {}: {}; \
+         re-run with --no-cli to write the config file directly",
+        output.status,
+        details
+    );
+}
+
+fn command_output(output: &std::process::Output) -> String {
+    let mut parts = Vec::new();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = stdout.trim();
+    if !stdout.is_empty() {
+        parts.push(stdout);
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    if !stderr.is_empty() {
+        parts.push(stderr);
+    }
+    parts.join("; ")
+}
+
+fn is_already_exists_message(s: &str) -> bool {
+    let s = s.to_ascii_lowercase();
+    s.contains("mcp server") && s.contains("already exists")
 }
 
 fn which_claude() -> Option<PathBuf> {
@@ -212,5 +262,19 @@ mod tests {
             assert_eq!(entry["transport"], "streamable-http");
             assert!(entry.get("command").is_none());
         });
+    }
+
+    #[test]
+    fn claude_cli_duplicate_message_is_idempotent() {
+        assert!(is_already_exists_message(
+            "MCP server openmemory already exists in user config"
+        ));
+    }
+
+    #[test]
+    fn claude_cli_duplicate_message_does_not_match_unrelated_errors() {
+        assert!(!is_already_exists_message(
+            "failed to parse MCP server JSON"
+        ));
     }
 }
