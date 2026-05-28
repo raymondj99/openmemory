@@ -82,7 +82,7 @@ pub fn render_standalone(client_label: &str, report: &IntegrationReport) {
             .finish_ok(report.suffix());
     }
     if report.needs_restart && !matches!(report.outcome, IntegrationOutcome::Unchanged) {
-        let arrow = paint(style::ACCENT_DIM, Glyph::Arrow.as_str());
+        let arrow = paint(style::MUTED, Glyph::Arrow.as_str());
         let hint = paint(
             style::MUTED,
             &format!("restart {client_label} to pick up the new server."),

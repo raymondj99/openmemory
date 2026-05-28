@@ -226,6 +226,94 @@ fn json_flag_emits_plain_json_not_ui() {
 }
 
 #[test]
+fn model_list_marks_active_model_and_persists_across_use() {
+    let home = tempfile::tempdir().expect("tempdir");
+    let home_path = home.path().to_path_buf();
+    run(&home_path, &["init"]);
+
+    // Baseline listing: exactly one row should be tagged `active`, and
+    // that row's status line must mention the registry default
+    // (nomic-embed-text-v1.5 today, but we don't pin the name here).
+    let baseline = stdout(&run(&home_path, &["model", "list"]));
+    let active_lines: Vec<&str> = baseline
+        .lines()
+        .filter(|l| l.contains("active"))
+        .collect();
+    assert_eq!(
+        active_lines.len(),
+        1,
+        "exactly one row should be active, got {active_lines:?} in:\n{baseline}"
+    );
+    let baseline_active = active_lines[0].to_string();
+    assert!(
+        baseline_active.contains("nomic-embed-text-v1.5") || baseline_active.contains("nomic"),
+        "default-active row should reference nomic-* model: {baseline_active:?}"
+    );
+
+    // Flip the active model to arctic via its alias; this exercises
+    // both the alias resolver in `model use` and the listing's
+    // alias-aware lookup in `resolve_active`.
+    let use_out = run(&home_path, &["model", "use", "arctic"]);
+    let use_body = stdout(&use_out);
+    assert!(
+        use_body.contains("snowflake-arctic-embed-l-v2.0"),
+        "model use should resolve the alias and confirm canonical name: {use_body}"
+    );
+
+    // After the flip the active row must be the arctic model, and the
+    // previously-active nomic row must lose its `active` tag.
+    let after = stdout(&run(&home_path, &["model", "list"]));
+    let after_active: Vec<&str> = after.lines().filter(|l| l.contains("active")).collect();
+    assert_eq!(
+        after_active.len(),
+        1,
+        "exactly one row should be active after use, got {after_active:?} in:\n{after}"
+    );
+    assert!(
+        after_active[0].contains("snowflake-arctic-embed-l-v2.0"),
+        "active row should now be arctic, got {:?}",
+        after_active[0]
+    );
+    assert!(
+        !after.lines().any(|l| {
+            l.contains("nomic-embed-text-v1.5") && l.contains("active") && !l.contains("snowflake")
+        }),
+        "nomic row must no longer be tagged active: {after}"
+    );
+}
+
+#[test]
+fn model_list_warns_when_configured_model_is_unknown() {
+    let home = tempfile::tempdir().expect("tempdir");
+    let home_path = home.path().to_path_buf();
+    run(&home_path, &["init"]);
+
+    // Write a config that pins a model the registry has never heard
+    // of. Mirrors a real failure mode: a binary upgrade dropped the
+    // model, or the user hand-edited config.toml.
+    let config_path = home_path.join("config.toml");
+    std::fs::write(
+        &config_path,
+        "[default]\nmodel = \"ghost-model-v9\"\n[memory]\n[index]\n[search]\n[watch]\n",
+    )
+    .expect("write config");
+
+    let body = stdout(&run(&home_path, &["model", "list"]));
+    assert!(
+        body.contains("ghost-model-v9") && body.contains("no longer registered"),
+        "should surface a notice about the unknown configured model: {body}"
+    );
+    // Fallback: the registry default must still appear as active so
+    // the user can see what's actually in use.
+    let active_lines: Vec<&str> = body.lines().filter(|l| l.contains("active")).collect();
+    assert_eq!(
+        active_lines.len(),
+        1,
+        "fallback should produce exactly one active row: {body}"
+    );
+}
+
+#[test]
 fn no_color_setup_uses_ascii_next_step_arrows() {
     let home = tempfile::tempdir().expect("tempdir");
     let out = Command::new(binary_path())

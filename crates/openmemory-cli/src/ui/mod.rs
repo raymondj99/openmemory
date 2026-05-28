@@ -1,7 +1,10 @@
 //! Shared visual primitives for `openmemory`'s human-facing output.
 //!
-//! The module aims for a calm, single-accent aesthetic on the same shelf
-//! as Claude Code. Three rules hold across every primitive:
+//! The module aims for a calm, Braun-inspired aesthetic: a near-neutral
+//! hull (dim border chrome) with a single warm accent on the banner
+//! title and a cool counterpoint on section headings inside it. See
+//! [`style`] for the resolved palette. Three rules hold across every
+//! primitive:
 //!
 //! * **Honour the user's terminal.** [`color_choice`] folds together
 //!   `NO_COLOR`, `CLICOLOR_FORCE`, an explicit `--no-color` flag, and

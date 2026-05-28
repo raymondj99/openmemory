@@ -7,12 +7,13 @@
 //! ```
 //!
 //! Key column is right-aligned to a common width, then two spaces of
-//! gutter, then the value (left-aligned, muted). Section headings are
-//! accent-colored and sit flush-left in the parent indent.
+//! gutter, then the value (left-aligned, muted). Section headings use
+//! the cool [`super::style::SECTION`] accent and sit flush-left in the
+//! parent indent.
 
 use std::io::Write;
 
-use super::style::{ACCENT_DIM, FG, MUTED};
+use super::style::{FG, MUTED, SECTION};
 use super::{paint, writeln_swallow};
 
 /// Left margin for every row, heading, and blank line. Fixed because
@@ -81,7 +82,7 @@ impl KvTable {
             match el {
                 Element::Blank => writeln_swallow(w, ""),
                 Element::Heading(label) => {
-                    writeln_swallow(w, &format!("{INDENT}{}", paint(ACCENT_DIM, label)));
+                    writeln_swallow(w, &format!("{INDENT}{}", paint(SECTION, label)));
                 }
                 Element::Row(r) => {
                     let pad = key_width.saturating_sub(r.key.chars().count());

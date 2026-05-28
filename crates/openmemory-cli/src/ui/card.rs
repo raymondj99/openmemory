@@ -12,7 +12,9 @@
 
 use std::io::Write;
 
-use super::style::{ACCENT_DIM, MUTED};
+use anstyle::Style;
+
+use super::style::{MUTED, SECTION, SUCCESS};
 use super::{paint, term_width, writeln_swallow};
 
 /// Cap on the first card line including the suffix. Calls to
@@ -24,22 +26,59 @@ const CARD_HEADER_TARGET: usize = 64;
 /// width. Below this we'd just be writing into the gutter.
 const CARD_HEADER_MIN: usize = 24;
 
+/// Header emphasis. `Default` is the cool section accent used for
+/// neutral list rows; `Active` swaps in the green success color so
+/// the eye lands on the currently-selected item in a list of peers
+/// (e.g. the active embedding model in `model list`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeaderEmphasis {
+    Default,
+    Active,
+}
+
+impl HeaderEmphasis {
+    fn style(self) -> Style {
+        match self {
+            Self::Default => SECTION,
+            Self::Active => SUCCESS,
+        }
+    }
+}
+
 /// Print a single card. `header` is the entity/type label; `suffix`
-/// (typically a score) is rendered dim and right-aligned within the
-/// per-call header budget. `body` is rendered on the second line,
-/// indented four spaces.
+/// (typically a score or status) is rendered dim and right-aligned
+/// within the per-call header budget. `body` is rendered on the second
+/// line, indented four spaces.
 pub fn render<W: Write>(w: &mut W, header: &str, suffix: &str, body: &str) {
+    render_with(w, header, suffix, body, HeaderEmphasis::Default);
+}
+
+/// Print a single card whose header reads as the active/selected item
+/// in a peer list. Identical layout to [`render`], but the header is
+/// painted with the success accent so it pops in a stack of muted peers.
+pub fn render_active<W: Write>(w: &mut W, header: &str, suffix: &str, body: &str) {
+    render_with(w, header, suffix, body, HeaderEmphasis::Active);
+}
+
+fn render_with<W: Write>(
+    w: &mut W,
+    header: &str,
+    suffix: &str,
+    body: &str,
+    emphasis: HeaderEmphasis,
+) {
     let header_budget = header_budget();
     let header_width = header.chars().count();
     let suffix_width = suffix.chars().count();
     let used = header_width + suffix_width;
     let pad = header_budget.saturating_sub(used).max(2);
+    let header_style = emphasis.style();
     let line1 = if suffix.is_empty() {
-        format!("  {}", paint(ACCENT_DIM, header))
+        format!("  {}", paint(header_style, header))
     } else {
         format!(
             "  {}{}{}",
-            paint(ACCENT_DIM, header),
+            paint(header_style, header),
             " ".repeat(pad),
             paint(MUTED, suffix)
         )
@@ -95,5 +134,60 @@ mod tests {
         let b = header_budget();
         assert!(b >= CARD_HEADER_MIN);
         assert!(b <= CARD_HEADER_TARGET);
+    }
+
+    /// `render` and `render_active` must produce the same layout when
+    /// ANSI is stripped: same header text, suffix, body, padding. Only
+    /// the color of the header byte sequence may differ, which is
+    /// invisible after `strip_str`.
+    #[test]
+    fn active_variant_matches_default_layout_when_ansi_stripped() {
+        let mut a = Vec::new();
+        render(&mut a, "model-x", "downloaded", "768 dim");
+        let plain = strip(a);
+
+        let mut b = Vec::new();
+        render_active(&mut b, "model-x", "active - downloaded", "768 dim");
+        let active = strip(b);
+
+        // Active suffix is longer, so we don't compare byte-equal — but
+        // both must place the header at the same column and end with
+        // the same body line.
+        let plain_lines: Vec<&str> = plain.lines().collect();
+        let active_lines: Vec<&str> = active.lines().collect();
+        assert_eq!(plain_lines.len(), 2);
+        assert_eq!(active_lines.len(), 2);
+        assert!(plain_lines[0].starts_with("  model-x"));
+        assert!(active_lines[0].starts_with("  model-x"));
+        assert!(active_lines[0].contains("active - downloaded"));
+        assert_eq!(plain_lines[1], active_lines[1]);
+    }
+
+    /// Active header carries the SUCCESS (green) escape; default
+    /// header carries the SECTION (cyan) escape. We pin the bytes so
+    /// a regression in emphasis routing doesn't silently demote the
+    /// active row back to neutral cyan.
+    #[test]
+    fn active_variant_emits_success_escape_in_header() {
+        let mut buf = Vec::new();
+        render_active(&mut buf, "model-x", "", "768 dim");
+        let raw = String::from_utf8(buf).unwrap();
+        // ANSI 32 = green foreground; SUCCESS uses AnsiColor::Green.
+        assert!(
+            raw.contains("\x1b[32m"),
+            "expected green SGR in active header: {raw:?}"
+        );
+    }
+
+    #[test]
+    fn default_variant_emits_section_escape_in_header() {
+        let mut buf = Vec::new();
+        render(&mut buf, "model-x", "", "768 dim");
+        let raw = String::from_utf8(buf).unwrap();
+        // ANSI 36 = cyan foreground; SECTION uses AnsiColor::Cyan.
+        assert!(
+            raw.contains("\x1b[36m"),
+            "expected cyan SGR in default header: {raw:?}"
+        );
     }
 }

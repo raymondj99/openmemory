@@ -97,7 +97,7 @@ pub fn remember(profile: &str, args: RememberArgs) -> Result<()> {
         } else {
             "observations"
         };
-        let entity = paint(style::ACCENT_DIM, &args.entity);
+        let entity = paint(style::SECTION, &args.entity);
         let etype = paint(style::MUTED, &format!("({})", entity_type.as_str()));
         let _ = writeln!(
             &mut stream,
@@ -236,7 +236,7 @@ pub fn list_entities(profile: &str, args: ListEntitiesArgs) -> Result<()> {
                 name_w = name_w,
                 type_w = type_w,
             );
-            let _ = writeln!(&mut stream, "{}", paint(style::ACCENT_DIM, &header));
+            let _ = writeln!(&mut stream, "{}", paint(style::SECTION, &header));
             let rule = format!(
                 "  {} ",
                 Glyph::EdgeHorizontal
@@ -276,7 +276,7 @@ pub fn forget_entity(profile: &str, args: ForgetEntityArgs) -> Result<()> {
         .context("forget_entity failed")?;
     let mut stream = stdout_stream();
     let glyph = paint(style::SUCCESS, Glyph::Ok.as_str());
-    let entity = paint(style::ACCENT_DIM, &args.entity);
+    let entity = paint(style::SECTION, &args.entity);
     let suffix = paint(style::MUTED, &format!("{removed} observation(s) cascaded"));
     let _ = writeln!(&mut stream, "  {glyph} removed {entity}  {suffix}");
     Ok(())

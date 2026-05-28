@@ -18,8 +18,13 @@
 use std::io::Write;
 
 use super::glyph::Glyph;
-use super::style::{ACCENT, ACCENT_DIM, MUTED};
+use super::style::{ACCENT, ACCENT_DIM, BORDER, MUTED};
 use super::{paint, term_width, writeln_swallow};
+
+/// Blank rows of padding above the first body line and below the last,
+/// inside the box. Two rows gives the Braun "museum label" breathing
+/// room without looking like a forgotten draft.
+const BODY_PADDING_ROWS: usize = 2;
 
 /// Internal default. Banner is meant to feel intimate; we don't grow
 /// it to the full width of a 200-column terminal.
@@ -105,7 +110,11 @@ impl Banner {
             .unwrap_or_else(|| term_width().min(PREFERRED_WIDTH));
         if width < MIN_BOX_WIDTH {
             let edge = Glyph::EdgeHorizontal.as_str().repeat(2);
-            writeln_swallow(w, &format!("{edge} {} {edge}", paint(ACCENT, &self.title)));
+            let painted_edge = paint(BORDER, &edge);
+            writeln_swallow(
+                w,
+                &format!("{painted_edge} {} {painted_edge}", paint(ACCENT, &self.title)),
+            );
             return;
         }
         let inner = (width as usize).saturating_sub(2);
@@ -115,7 +124,11 @@ impl Banner {
     fn render_flat<W: Write>(&self, w: &mut W, _width: u16) {
         // Tiny terminal: render a flat heading. Better than a broken box.
         let edge = Glyph::EdgeHorizontal.as_str().repeat(2);
-        writeln_swallow(w, &format!("{edge} {} {edge}", paint(ACCENT, &self.title)));
+        let painted_edge = paint(BORDER, &edge);
+        writeln_swallow(
+            w,
+            &format!("{painted_edge} {} {painted_edge}", paint(ACCENT, &self.title)),
+        );
         for line in &self.lines {
             match line {
                 Line::Blank => writeln_swallow(w, ""),
@@ -135,17 +148,22 @@ impl Banner {
         writeln_swallow(w, &self.top_edge(inner));
 
         // ── Body ──
-        // Always pad with a blank line above the first body line and
-        // below the last for that Claude-Code "breathing room" feel.
+        // Pad with `BODY_PADDING_ROWS` blank lines above the first body
+        // line and below the last so the box reads as a calm, Braun-style
+        // enclosure rather than a tight bezel.
         let has_body = !self.lines.is_empty();
         if has_body {
-            writeln_swallow(w, &Self::blank_row(inner));
+            for _ in 0..BODY_PADDING_ROWS {
+                writeln_swallow(w, &Self::blank_row(inner));
+            }
         }
         for line in &self.lines {
             writeln_swallow(w, &Self::body_row(line, inner));
         }
         if has_body {
-            writeln_swallow(w, &Self::blank_row(inner));
+            for _ in 0..BODY_PADDING_ROWS {
+                writeln_swallow(w, &Self::blank_row(inner));
+            }
         }
 
         // ── Bottom edge ──
@@ -157,47 +175,51 @@ impl Banner {
         let tl = Glyph::CornerTopLeft.as_str();
         let tr = Glyph::CornerTopRight.as_str();
 
-        // `inner` is the cell count between the two corners. Build a
-        // " title " segment near the left and an optional " subtitle "
-        // near the right, filling the rest with edge glyphs. Long
-        // titles/subtitles are truncated so the top row never exceeds
-        // the requested width.
+        // `inner` is the cell count between the two corners. Reserve a
+        // leading `─ ` run, the title, a trailing space, then the fill;
+        // an optional ` subtitle ─` segment sits flush against the
+        // right corner. Long titles/subtitles are truncated so the top
+        // row never exceeds the requested width.
         let title_budget = inner.saturating_sub(3).max(1);
-        let (title, _) = truncate_plain(&self.title, title_budget);
-        let title_seg = format!("{edge} {title} ");
-        let title_visible = visible_width(&title_seg);
+        let (title, title_w) = truncate_plain(&self.title, title_budget);
+        // Visible cells consumed by the entire left segment:
+        // `─ ` (2) + title + ` ` (1).
+        let title_visible = title_w + 3;
 
-        let (sub_seg, sub_visible) = match self.subtitle.as_deref() {
+        let (subtitle, sub_text_w, sub_visible) = match self.subtitle.as_deref() {
             Some(s) if !s.is_empty() => {
                 let remaining = inner.saturating_sub(title_visible);
                 if remaining >= 4 {
-                    let (subtitle, _) = truncate_plain(s, remaining - 3);
-                    let seg = format!(" {subtitle} {edge}");
-                    let vis = visible_width(&seg);
-                    (seg, vis)
+                    let (subtitle, w) = truncate_plain(s, remaining - 3);
+                    // ` subtitle ─` consumes w + 3 cells.
+                    (subtitle, w, w + 3)
                 } else {
-                    (String::new(), 0)
+                    (String::new(), 0, 0)
                 }
             }
-            _ => (String::new(), 0),
+            _ => (String::new(), 0, 0),
         };
 
         let fill_cols = inner.saturating_sub(title_visible + sub_visible);
         let fill: String = edge.repeat(fill_cols);
 
-        // Paint accent on title and edge so the border reads as one
-        // continuous line; subtitle is the dim variant.
-        let painted_sub = if sub_seg.is_empty() {
+        // Chrome (corners, edges) recedes via BORDER; the title carries
+        // the single warm accent; the subtitle is the dim variant of
+        // that same accent so it reads as a discreet watermark.
+        let painted_subtitle_tail = if sub_text_w == 0 {
             String::new()
         } else {
-            paint(ACCENT_DIM, &sub_seg)
+            format!(" {} {}", paint(ACCENT_DIM, &subtitle), paint(BORDER, edge))
         };
         format!(
-            "{}{}{}{painted_sub}{}",
-            paint(ACCENT, tl),
-            paint(ACCENT, &title_seg),
-            paint(ACCENT, &fill),
-            paint(ACCENT, tr),
+            "{}{}{}{}{}{}{}",
+            paint(BORDER, tl),
+            paint(BORDER, &format!("{edge} ")),
+            paint(ACCENT, &title),
+            paint(BORDER, " "),
+            paint(BORDER, &fill),
+            painted_subtitle_tail,
+            paint(BORDER, tr),
         )
     }
 
@@ -208,9 +230,9 @@ impl Banner {
         let fill: String = edge.repeat(inner);
         format!(
             "{}{}{}",
-            paint(ACCENT, bl),
-            paint(ACCENT, &fill),
-            paint(ACCENT, br)
+            paint(BORDER, bl),
+            paint(BORDER, &fill),
+            paint(BORDER, br)
         )
     }
 
@@ -218,9 +240,9 @@ impl Banner {
         let v = Glyph::EdgeVertical.as_str();
         format!(
             "{}{}{}",
-            paint(ACCENT, v),
+            paint(BORDER, v),
             " ".repeat(inner),
-            paint(ACCENT, v)
+            paint(BORDER, v)
         )
     }
 
@@ -256,9 +278,9 @@ impl Banner {
         let pad = usable.saturating_sub(visible);
         format!(
             "{}  {painted}{}  {}",
-            paint(ACCENT, v),
+            paint(BORDER, v),
             " ".repeat(pad),
-            paint(ACCENT, v),
+            paint(BORDER, v),
         )
     }
 }

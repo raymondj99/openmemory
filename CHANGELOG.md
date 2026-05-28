@@ -9,6 +9,34 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ## [Unreleased]
 
+### Added
+
+- **Active embedding model is now visible in `openmemory model list`.**
+  The active model resolves from `config.default.model` through the
+  registry (alias-aware, so `model use arctic` is matched to its
+  canonical entry), falling back to the registry default when nothing
+  is configured. The active row is painted green to stand out in the
+  stack, and a muted notice surfaces when the configured model is no
+  longer registered (binary upgrade, typo in config) so users don't
+  silently end up on a fallback.
+- **`card::render_active`** sibling to `card::render` for marking the
+  selected item in a peer list; layout is identical, only the header
+  emphasis changes.
+
+### Changed
+
+- **Braun-inspired palette refresh.** The CLI accent is no longer
+  magenta. Box chrome (corners, edges, vertical rules) renders in
+  `BORDER` (dim) so the frame recedes; the banner title carries the
+  single warm yellow `ACCENT` pop; section headings inside tables,
+  cards, and entity names use the new cool cyan `SECTION` accent.
+  Semantic colors (`SUCCESS`, `WARN`, `DANGER`) are unchanged. Banner
+  interior padding doubled from 1 to 2 blank rows top and bottom so
+  the container reads as a calm Braun-style enclosure rather than a
+  tight bezel. Hint arrows (`›`) in `integrate` restart prompts and
+  `model use` follow-ups demote to `MUTED` so the warm accent stays
+  reserved for the one place it belongs.
+
 ## [0.4.4] - 2026-05-27
 
 ### Added
