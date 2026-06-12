@@ -281,7 +281,10 @@ pub fn run(profile: &str, args: SetupArgs) -> Result<()> {
             .line(Line::Blank);
     }
     next = next
-        .line(Line::Body("try it in your next agent session:".into()))
+        .line(Line::Body("browse your memory in the dashboard:".into()))
+        .line(Line::Muted(format!("{}  openmemory", Glyph::Arrow.as_str())))
+        .line(Line::Blank)
+        .line(Line::Body("or try it in your next agent session:".into()))
         .line(Line::Muted(format!(
             "{}  remember that I prefer Rust over Python",
             Glyph::Arrow.as_str()

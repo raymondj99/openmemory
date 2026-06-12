@@ -37,6 +37,116 @@ SQLite schema, or public Rust API; patch bumps for fixes).
   `model use` follow-ups demote to `MUTED` so the warm accent stays
   reserved for the one place it belongs.
 
+## [Unreleased]
+
+### Added
+
+- **TUI second-brain polish pass.** The TUI is now positioned as the
+  primary human surface for browsing openmemory's contents (we treat
+  the human, not the agent, as the user).
+  - *Graph radial layout.* The Graph panel now ships the long-
+    deferred shell-mode visualization: the focused entity sits at the
+    centre of a Braille-marker Canvas, neighbours are placed across
+    eight compass sectors (round-robin by relation kind), and edges
+    fan out from the origin. Arrow keys are compass-aware in shell
+    mode (`Up` picks the closest north-of-cursor neighbour, etc.);
+    `Tab`/`Shift-Tab` cycle clockwise/counter-clockwise through the
+    flat sector order. Falls back to the previous adjacency-list
+    view when neighbour count exceeds `LIST_FALLBACK_THRESHOLD`,
+    depth is set to 2, or the viewport is too short to host a
+    legible radial layout.
+  - *Live Search with debounced auto-submit.* Queries fire
+    automatically 250 ms after the user pauses typing — no more
+    explicit `Enter` (still works as a force-submit). The hits list
+    inline-highlights matching substrings via case-insensitive
+    search. A new filter-chip strip above the editor exposes an
+    `entity_type` filter (`tab` to focus, `←`/`→` to cycle through
+    `any / person / project / concept / tool / preference / fact /
+    event / location / organization`); the chip layout is structured
+    so future `source` / `memory_tier` / `min_confidence` chips drop
+    in without rearrangement.
+  - *Entity detail overlay.* `d` from a selected entity (in Search
+    hits or in the Graph panel) opens a centered modal that shows
+    the entity's type, a 14-day per-entity write sparkline, total
+    observation + relation counts, a paginated observation timeline
+    (`j`/`k`), and a relations list. `Tab` switches focus between
+    observations and relations; `Enter` on a relation refocuses the
+    Graph panel onto that neighbour and closes the overlay; `Esc`
+    closes.
+- **Interactive terminal UI as the marquee front door.** Bare
+  `openmemory` (no subcommand) now auto-launches the TUI when stdout
+  is a TTY and the profile is initialised; `openmemory tui` keeps
+  working as the explicit form. Non-TTY runs and uninitialised
+  profiles fall through to the long-form help text so scripts and
+  fresh installs still get useful output. The TUI is a four-panel
+  full-screen interface — Stats, Search, Graph, Models — backed by
+  the same local store every other subcommand reads. Built on
+  ratatui + crossterm behind the new `tui` cargo feature
+  (default-on). Single-threaded event loop with a 2 s tick driver
+  for live counters; recall queries run on a background worker so
+  the UI stays responsive even when vector mode is cold.
+  - *Stats* mirrors `openmemory status` (KV summary, entity-type
+    BarChart, recent-activity list) and refreshes every tick.
+  - *Search* offers a line editor with full Unicode + standard
+    Ctrl-W / Ctrl-U bindings, history persisted to
+    `<data_dir>/tui/history.jsonl` (capped at 500 entries),
+    `Ctrl-R` substring filter over history, `e` to expand the
+    selected hit, and `Esc` to discard an in-flight query.
+  - *Graph* renders the focused entity's neighbors grouped by
+    relation kind; arrow keys navigate, Enter pushes a focus
+    frame, Esc pops, `+`/`-` toggle depth, `/` opens a substring
+    jump-to overlay over `list_entities`.
+  - *Models* matches `openmemory model list` rendering (active
+    row painted green, peer rows cyan, undownloaded entries in
+    warn yellow). Enter opens a confirm dialog and, on yes,
+    writes the new active model into the config via the same
+    code path as `openmemory model use`; the dialog explicitly
+    tells the user to run `openmemory consolidate` to re-embed.
+    `i` shows registry metadata; `w` shows the on-disk weights
+    path.
+  - `?` opens a help overlay listing every binding;
+    `1`-`4`/`Tab`/`Shift-Tab` switch panels; `q` or `Ctrl-C`
+    quits. A `Drop`-safe `TerminalGuard` and a panic hook
+    cooperate to restore raw mode + alt-screen state even on
+    unexpected exits.
+  - `--no-default-features --features fts5,embeddings` builds
+    cleanly without ratatui/crossterm, so the feature is
+    genuinely optional for downstream packagers and minimal
+    builds.
+- **Active embedding model is now visible in `openmemory model list`.**
+  The active model resolves from `config.default.model` through the
+  registry (alias-aware, so `model use arctic` is matched to its
+  canonical entry), falling back to the registry default when nothing
+  is configured. The active row is painted green to stand out in the
+  stack, and a muted notice surfaces when the configured model is no
+  longer registered (binary upgrade, typo in config) so users don't
+  silently end up on a fallback.
+- **`card::render_active`** sibling to `card::render` for marking the
+  selected item in a peer list; layout is identical, only the header
+  emphasis changes.
+
+### Changed
+
+- **Tracing during TUI sessions.** `main::init_tracing` now detects
+  TUI invocations from argv (bare `openmemory` or `openmemory tui`)
+  and routes the global tracing subscriber's writer to
+  `<home>/tui/log.jsonl` instead of stderr. Removes the previous
+  known limitation where embed-bootstrap log lines would corrupt the
+  alt-screen. `tail -f` that file to watch live traces while the TUI
+  is open. Non-TUI subcommands keep the existing stderr behaviour.
+- **Braun-inspired palette refresh.** The CLI accent is no longer
+  magenta. Box chrome (corners, edges, vertical rules) renders in
+  `BORDER` (dim) so the frame recedes; the banner title carries the
+  single warm yellow `ACCENT` pop; section headings inside tables,
+  cards, and entity names use the new cool cyan `SECTION` accent.
+  Semantic colors (`SUCCESS`, `WARN`, `DANGER`) are unchanged. Banner
+  interior padding doubled from 1 to 2 blank rows top and bottom so
+  the container reads as a calm Braun-style enclosure rather than a
+  tight bezel. Hint arrows (`›`) in `integrate` restart prompts and
+  `model use` follow-ups demote to `MUTED` so the warm accent stays
+  reserved for the one place it belongs.
+
+
 ## [0.4.4] - 2026-05-27
 
 ### Added

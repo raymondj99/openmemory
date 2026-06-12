@@ -103,12 +103,15 @@ fn install_runtime<W: Write>(steps: &mut Steps<'_, W>) -> Result<()> {
 /// the config may hold a typo. Silent fallback would let users believe
 /// a pinned model is still in use when it isn't, so we keep the name
 /// so the renderer can surface a muted notice.
-struct ActiveResolution {
-    active: &'static openmemory_embed::Model,
-    unresolved: Option<String>,
+pub(crate) struct ActiveResolution {
+    pub active: &'static openmemory_embed::Model,
+    pub unresolved: Option<String>,
 }
 
-fn resolve_active(configured: Option<&str>, registry: &ModelRegistry) -> ActiveResolution {
+pub(crate) fn resolve_active(
+    configured: Option<&str>,
+    registry: &ModelRegistry,
+) -> ActiveResolution {
     match configured {
         Some(name) => match registry.get(name) {
             Some(m) => ActiveResolution {

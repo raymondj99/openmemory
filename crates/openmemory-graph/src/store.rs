@@ -79,6 +79,29 @@ pub struct EntityListRow {
     pub observation_count: u64,
 }
 
+/// One row of [`MemoryStore::entity_index`]. Pre-aggregated for the
+/// TUI's "INDEX" section (a Robinhood-style ticker over entity
+/// relevance). All fields derive from the entity's bucketed write
+/// history in the configured time window; nothing here is stored
+/// persistently, so the row is cheap to recompute on every tick.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EntityIndexRow {
+    pub entity_id: String,
+    pub entity_name: String,
+    pub entity_type: EntityType,
+    /// Observations written per day across the window, oldest-first.
+    /// Length equals the `days` argument to [`MemoryStore::entity_index`].
+    pub daily_writes: Vec<u64>,
+    /// Convenience: same as `daily_writes.last()` — observations
+    /// recorded against this entity since UTC midnight.
+    pub today_observations: u64,
+    /// Sum of `daily_writes`.
+    pub total_in_window: u64,
+    /// Composite score used for sorting. Higher = more relevant right
+    /// now. See [`MemoryStore::entity_index`] for the formula.
+    pub relevance_score: f64,
+}
+
 /// Persistent knowledge-graph memory store.
 pub struct MemoryStore {
     db: Arc<Mutex<Connection>>,
@@ -669,6 +692,156 @@ impl MemoryStore {
             tier_counts,
             vector_count,
             reader_pool_size: pool_size,
+        })
+    }
+    /// Top-K entities sorted by a relevance score derived from their
+    /// per-day write activity in the last `days` days, returned
+    /// highest-score-first. Used by the TUI's `INDEX` section (a
+    /// Robinhood-style memory ticker tape).
+    ///
+    /// The score is computed entirely from the bucketed write history:
+    ///
+    /// * `recency_factor` — sum over each bucket of
+    ///   `count * exp(-age_days / 7)`, so a write 7 days ago contributes
+    ///   ~37% of a write today.
+    /// * `size_factor` — `ln(1 + total_in_window) * 1.5`, giving
+    ///   higher-volume entities a bounded boost over rare ones.
+    ///
+    /// The delta column shown next to each row is computed by the
+    /// caller from `daily_writes`; we surface the raw vector so the
+    /// renderer can also draw a 14-day sparkline per row.
+    ///
+    /// Tombstoned and expired observations are excluded so the index
+    /// matches what `recall` would actually pull.
+    pub fn entity_index(&self, limit: usize, days: u32) -> MemoryResult<Vec<EntityIndexRow>> {
+        let days = days.max(1) as usize;
+        let now = self.clock.now_secs();
+        let today_bucket: i64 = now.div_euclid(86_400);
+        let oldest_bucket: i64 = today_bucket - days as i64 + 1;
+        let cutoff = oldest_bucket * 86_400;
+
+        // Per-(entity, day) bucketed counts, joined with the entity
+        // metadata so we have the display name + type without a second
+        // query. Each entity contributes at most `days` rows.
+        let rows: Vec<(String, String, String, i64, i64)> = self.with_reader(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT o.entity_id, e.name, e.entity_type,
+                        CAST(o.observed_at / 86400 AS INTEGER) AS bucket,
+                        COUNT(*)
+                 FROM observations o
+                 JOIN entities e ON e.id = o.entity_id
+                 WHERE o.tombstoned = 0
+                   AND o.observed_at >= ?1
+                   AND (o.valid_until IS NULL OR o.valid_until > ?2)
+                 GROUP BY o.entity_id, bucket",
+            )?;
+            let mut rows = stmt.query(params![cutoff, now])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows.next()? {
+                out.push((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                ));
+            }
+            Ok(out)
+        })?;
+
+        let mut by_entity: HashMap<String, EntityIndexRow> = HashMap::new();
+        for (entity_id, name, entity_type_str, bucket, count) in rows {
+            let row = by_entity.entry(entity_id.clone()).or_insert_with(|| {
+                EntityIndexRow {
+                    entity_id,
+                    entity_name: name.clone(),
+                    entity_type: EntityType::parse(&entity_type_str)
+                        .unwrap_or(EntityType::Concept),
+                    daily_writes: vec![0; days],
+                    today_observations: 0,
+                    total_in_window: 0,
+                    relevance_score: 0.0,
+                }
+            });
+            if bucket >= oldest_bucket {
+                let idx = (bucket - oldest_bucket) as usize;
+                if idx < days {
+                    row.daily_writes[idx] = count as u64;
+                    row.total_in_window += count as u64;
+                    if idx == days - 1 {
+                        row.today_observations = count as u64;
+                    }
+                }
+            }
+        }
+
+        // Compute the relevance score from the per-day series. Newer
+        // writes weigh exponentially heavier (TAU = 7 days), so an
+        // entity that wrote nothing in the last week stays low even
+        // if it has lots of historic activity in this 14-day window.
+        const TAU_DAYS: f64 = 7.0;
+        for row in by_entity.values_mut() {
+            let mut recency = 0.0_f64;
+            for (i, n) in row.daily_writes.iter().enumerate() {
+                let age = (days - 1 - i) as f64;
+                recency += (*n as f64) * (-age / TAU_DAYS).exp();
+            }
+            let size = (1.0_f64 + row.total_in_window as f64).ln() * 1.5;
+            row.relevance_score = recency + size;
+        }
+
+        // Highest-score first; deterministic tiebreakers so the list
+        // doesn't shuffle across refreshes when scores collide.
+        let mut out: Vec<EntityIndexRow> = by_entity.into_values().collect();
+        out.sort_by(|a, b| {
+            b.relevance_score
+                .partial_cmp(&a.relevance_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| b.today_observations.cmp(&a.today_observations))
+                .then_with(|| a.entity_name.cmp(&b.entity_name))
+        });
+        out.truncate(limit);
+        Ok(out)
+    }
+
+    /// Count live observations grouped into per-day buckets for the
+    /// most recent `days` days, returned oldest-first. `out[0]` is the
+    /// count for the day that started `days - 1` UTC midnights ago;
+    /// `out[days - 1]` is today's running count.
+    ///
+    /// Days are computed by integer-dividing `observed_at` by 86 400 —
+    /// the same bucketing the TUI's sparkline uses. Tombstoned and
+    /// expired (`valid_until < now`) observations are excluded so the
+    /// rendered momentum matches what `recall` would actually return.
+    pub fn observations_per_day(&self, days: u32) -> MemoryResult<Vec<u64>> {
+        let days = days.max(1) as usize;
+        let now = self.clock.now_secs();
+        let today_bucket: i64 = now.div_euclid(86_400);
+        let oldest_bucket: i64 = today_bucket - days as i64 + 1;
+        let cutoff = oldest_bucket * 86_400;
+
+        let mut counts = vec![0_u64; days];
+        self.with_reader(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT CAST(observed_at / 86400 AS INTEGER) AS bucket, COUNT(*)
+                 FROM observations
+                 WHERE tombstoned = 0
+                   AND observed_at >= ?1
+                   AND (valid_until IS NULL OR valid_until > ?2)
+                 GROUP BY bucket",
+            )?;
+            let mut rows = stmt.query(params![cutoff, now])?;
+            while let Some(row) = rows.next()? {
+                let bucket: i64 = row.get(0)?;
+                let count: i64 = row.get(1)?;
+                if bucket >= oldest_bucket {
+                    let idx = (bucket - oldest_bucket) as usize;
+                    if idx < days {
+                        counts[idx] = count as u64;
+                    }
+                }
+            }
+            Ok(counts)
         })
     }
 }

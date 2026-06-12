@@ -99,5 +99,5 @@ pub use recall::{
 };
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
 pub use schema::MEMORY_SCHEMA_VERSION;
-pub use store::{EntityListRow, MemoryStatus, MemoryStore, MEMORY_DB_FILE};
+pub use store::{EntityIndexRow, EntityListRow, MemoryStatus, MemoryStore, MEMORY_DB_FILE};
 pub use types::{new_id, Entity, EntityType, MemoryTier, Observation, Relation};

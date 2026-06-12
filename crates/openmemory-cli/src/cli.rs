@@ -23,7 +23,10 @@ use crate::commands;
     long_about = "Persistent agent memory + hybrid text search, behind a Model \
                   Context Protocol server. Stores entities, observations, and \
                   relations in SQLite; recalls them via hybrid (vector + keyword) \
-                  search with Ebbinghaus decay scoring."
+                  search with Ebbinghaus decay scoring.\n\n\
+                  Running `openmemory` with no subcommand opens the interactive \
+                  TUI when stdout is a TTY and the profile is initialised. Use \
+                  `openmemory <subcommand>` for the scriptable surface."
 )]
 pub struct Cli {
     /// Override the data root. Defaults to $OPENMEMORY_HOME or
@@ -44,8 +47,11 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_color: bool,
 
+    /// Subcommand to run. When omitted the CLI dispatches to the
+    /// interactive TUI (if stdout is a TTY and the profile is
+    /// initialised) or prints the long help text otherwise.
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 /// `--color` choices.
@@ -99,6 +105,13 @@ pub enum Command {
     /// Requires the `eval` build feature.
     #[cfg(feature = "eval")]
     Eval(EvalArgs),
+    /// Launch the interactive terminal UI (Stats / Search / Graph /
+    /// Models). Reads the same profile as every other subcommand.
+    /// Bare `openmemory` (no subcommand) also opens the TUI when
+    /// stdout is a TTY and the profile is initialised. Requires the
+    /// `tui` build feature (default-on).
+    #[cfg(feature = "tui")]
+    Tui,
 }
 
 /// Subcommands for `openmemory integrate <target>`.
@@ -425,7 +438,11 @@ where
     };
     crate::ui::set_color_override(color);
 
-    match cli.command {
+    let Some(command) = cli.command else {
+        return run_default(&cli.profile);
+    };
+
+    match command {
         Command::Init(args) => commands::init::run(&cli.profile, args),
         Command::Setup(args) => commands::setup::run(&cli.profile, args),
         Command::Status => commands::status::run(&cli.profile),
@@ -463,7 +480,38 @@ where
         Command::Watch(args) => commands::watch::run(&cli.profile, args),
         #[cfg(feature = "eval")]
         Command::Eval(args) => commands::eval::run(args),
+        #[cfg(feature = "tui")]
+        Command::Tui => commands::tui::run(&cli.profile),
     }
+}
+
+/// Dispatch for bare `openmemory` (no subcommand). When the TUI feature
+/// is compiled in, stdout is a TTY, and the profile is initialised on
+/// disk, launch the interactive UI — that's the marquee front door
+/// for the binary. Anything else (pipe, missing profile, non-TUI
+/// build) falls back to the long-form help text so scripts and fresh
+/// installs still get useful output.
+fn run_default(profile: &str) -> Result<()> {
+    #[cfg(feature = "tui")]
+    {
+        use std::io::IsTerminal;
+        if std::io::stdout().is_terminal() && tui_profile_ready(profile) {
+            return commands::tui::run(profile);
+        }
+    }
+    let _ = profile;
+    let mut cmd = <Cli as clap::CommandFactory>::command();
+    cmd.print_long_help().ok();
+    // print_long_help omits the trailing newline.
+    println!();
+    Ok(())
+}
+
+#[cfg(feature = "tui")]
+fn tui_profile_ready(profile: &str) -> bool {
+    openmemory_core::config::Config::data_dir(profile)
+        .map(|p| p.exists())
+        .unwrap_or(false)
 }
 
 /// Shared mutex serialising tests that mutate `OPENMEMORY_HOME`. Multiple
@@ -503,7 +551,7 @@ mod tests {
     #[test]
     fn parse_init() {
         let cli = Cli::parse_from(["openmemory", "init"]);
-        assert!(matches!(cli.command, Command::Init(_)));
+        assert!(matches!(cli.command, Some(Command::Init(_))));
         assert_eq!(cli.profile, "default");
     }
 
@@ -511,14 +559,14 @@ mod tests {
     fn parse_status_with_profile_override() {
         let cli = Cli::parse_from(["openmemory", "--profile", "alt", "status"]);
         assert_eq!(cli.profile, "alt");
-        assert!(matches!(cli.command, Command::Status));
+        assert!(matches!(cli.command, Some(Command::Status)));
     }
 
     #[test]
     fn parse_init_with_force() {
         let cli = Cli::parse_from(["openmemory", "init", "--force"]);
         match cli.command {
-            Command::Init(args) => assert!(args.force),
+            Some(Command::Init(args)) => assert!(args.force),
             other => panic!("expected init, got {other:?}"),
         }
     }
@@ -527,7 +575,7 @@ mod tests {
     fn parse_mcp_default_is_stdio() {
         let cli = Cli::parse_from(["openmemory", "mcp"]);
         match cli.command {
-            Command::Mcp(args) => assert!(args.http.is_none()),
+            Some(Command::Mcp(args)) => assert!(args.http.is_none()),
             other => panic!("expected mcp, got {other:?}"),
         }
     }
@@ -536,7 +584,7 @@ mod tests {
     fn parse_mcp_with_http() {
         let cli = Cli::parse_from(["openmemory", "mcp", "--http", "127.0.0.1:7800"]);
         match cli.command {
-            Command::Mcp(args) => assert!(args.http.is_some()),
+            Some(Command::Mcp(args)) => assert!(args.http.is_some()),
             other => panic!("expected mcp, got {other:?}"),
         }
     }
@@ -545,11 +593,21 @@ mod tests {
     fn parse_consolidate() {
         let cli = Cli::parse_from(["openmemory", "consolidate", "--dedup-threshold", "0.9"]);
         match cli.command {
-            Command::Consolidate(args) => {
+            Some(Command::Consolidate(args)) => {
                 assert_eq!(args.dedup_threshold, Some(0.9));
             }
             other => panic!("expected consolidate, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_bare_yields_no_subcommand() {
+        // Bare `openmemory` parses cleanly and leaves `command` as
+        // None; `run_default` then decides whether to launch the TUI
+        // or print help based on the runtime environment.
+        let cli = Cli::parse_from(["openmemory"]);
+        assert!(cli.command.is_none(), "bare cli should produce no subcommand");
+        assert_eq!(cli.profile, "default");
     }
 
     #[test]

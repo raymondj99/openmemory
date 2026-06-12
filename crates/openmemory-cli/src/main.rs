@@ -1,10 +1,13 @@
 //! `openmemory` command-line entry point.
+//!
+//! Thin shell over the library crate (`src/lib.rs`). All real work
+//! lives in `openmemory_cli::cli` / `commands` / `ui`; keeping this
+//! file tiny means integration tests can hit the same code paths
+//! without spawning the binary.
 
 #![forbid(unsafe_code)]
 
-mod cli;
-mod commands;
-mod ui;
+use openmemory_cli::{cli, ui};
 
 fn main() -> std::process::ExitCode {
     init_tracing();
@@ -80,8 +83,83 @@ fn parse_home_arg() -> Option<std::path::PathBuf> {
     None
 }
 
+/// Initialise the global tracing subscriber.
+///
+/// For most subcommands this is a stderr fmt subscriber (the existing
+/// behavior). When the user is launching the TUI — either explicitly
+/// with `openmemory tui` or implicitly with a bare `openmemory` —
+/// stderr will be hidden under the alt-screen and any log line would
+/// corrupt the rendered frame. We detect that case via a cheap argv
+/// scan and route logs to `<home>/tui/log.jsonl` instead so they're
+/// still captured but don't break the UI. If the file can't be opened
+/// (read-only home, permission error) we install a sink writer rather
+/// than fall back to stderr — corrupting the frame is the worse user
+/// outcome.
 fn init_tracing() {
-    let _ = tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .try_init();
+    if is_tui_invocation() {
+        match open_tui_log_file() {
+            Some(file) => {
+                let writer = std::sync::Mutex::new(file);
+                let _ = tracing_subscriber::fmt()
+                    .with_writer(writer)
+                    .with_ansi(false)
+                    .try_init();
+            }
+            None => {
+                let _ = tracing_subscriber::fmt()
+                    .with_writer(std::io::sink)
+                    .try_init();
+            }
+        }
+    } else {
+        let _ = tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .try_init();
+    }
+}
+
+/// Does the user-supplied argv look like a TUI launch? Returns `true`
+/// for `openmemory` (no subcommand) and `openmemory tui`. Conservative
+/// on purpose: we'd rather miss a true positive and keep logs on
+/// stderr than misclassify a scriptable subcommand as a TUI launch.
+fn is_tui_invocation() -> bool {
+    let mut args = std::env::args_os().skip(1);
+    let Some(first) = args.next() else {
+        // Bare `openmemory`.
+        return true;
+    };
+    let first = first.to_string_lossy();
+    // Skip past leading global flags before the subcommand.
+    let mut remaining = if first.starts_with("--") {
+        // Could be `--home X tui` or similar; peek past one or two.
+        let mut peeked = vec![first.to_string()];
+        for _ in 0..4 {
+            if let Some(arg) = args.next() {
+                peeked.push(arg.to_string_lossy().to_string());
+            }
+        }
+        peeked
+    } else {
+        vec![first.to_string()]
+    };
+    remaining.retain(|a| !a.starts_with("--") && !a.is_empty());
+    // First non-flag token is the subcommand.
+    let subcommand = remaining.into_iter().find(|a| !a.is_empty());
+    match subcommand {
+        Some(s) if s == "tui" => true,
+        Some(_) => false,
+        None => true,
+    }
+}
+
+fn open_tui_log_file() -> Option<std::fs::File> {
+    let home = openmemory_core::config::Config::home_dir().ok()?;
+    let dir = home.join("tui");
+    std::fs::create_dir_all(&dir).ok()?;
+    let path = dir.join("log.jsonl");
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .ok()
 }
