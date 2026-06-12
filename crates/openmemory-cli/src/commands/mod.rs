@@ -16,5 +16,7 @@ pub mod model;
 pub mod scriptable;
 pub mod setup;
 pub mod status;
+#[cfg(feature = "tui")]
+pub mod tui;
 #[cfg(feature = "watch")]
 pub mod watch;

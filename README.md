@@ -35,6 +35,17 @@ Try it:
 > what do you remember about my language preferences?
 ```
 
+**Open the dashboard** to browse what your agents have remembered:
+
+```bash
+openmemory
+```
+
+The bare command launches an interactive TUI (Stats / Search / Graph /
+Models) over the same local store. It auto-launches when stdout is a
+TTY; `openmemory mcp`, `openmemory recall`, and every other
+subcommand still work non-interactively.
+
 **Already have the binary?** Run the same setup flow with:
 
 ```bash
@@ -103,6 +114,14 @@ yourself) lives in [docs/integrations.md](docs/integrations.md).
   parallel recall calls scale on multi-agent deployments.
 - **Single binary.** ~8 MB default, ~18 MB with all features. SQLite
   under the hood; no external services.
+- **Interactive TUI.** Bare `openmemory` (or explicit `openmemory tui`)
+  opens a four-panel viewer (Stats, Search, Graph, Models) over the
+  same local store. Recall runs on a background worker so the UI
+  stays responsive; query history persists to
+  `<data_dir>/tui/history.jsonl`; switching the active embedding model
+  uses the same write path as `openmemory model use`. Behind the
+  default-on `tui` cargo feature; disable with `--no-default-features`
+  for minimal builds.
 
 ## MCP tools
 
