@@ -26,10 +26,66 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
+use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
+
 use crate::error::{IndexError, IndexResult};
 use crate::traits::{ExportEntry, IndexEntry, SearchResult, VectorIndex, VectorStore};
 
 const MAGIC: &[u8; 4] = b"OMV1";
+
+// v0.4.4-lb1: when a cipher key is present, the whole serialized file is sealed in an `LBV1`
+// XChaCha20-Poly1305 container (vectors.bin stores uri + raw text, so it must be encrypted too).
+const SEAL_MAGIC: &[u8; 4] = b"LBV1";
+const SEAL_NONCE_LEN: usize = 24;
+
+fn copy_key(cipher_key: Option<&[u8]>) -> Option<[u8; 32]> {
+    match cipher_key {
+        Some(k) if k.len() == 32 => {
+            let mut out = [0u8; 32];
+            out.copy_from_slice(k);
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+fn seal(key: &[u8; 32], plaintext: &[u8], path: &Path) -> IndexResult<Vec<u8>> {
+    let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
+    let mut nonce = [0u8; SEAL_NONCE_LEN];
+    getrandom::getrandom(&mut nonce).map_err(|e| IndexError::Corrupt {
+        path: path.to_path_buf(),
+        detail: format!("csprng: {e}"),
+    })?;
+    let ct = cipher
+        .encrypt(XNonce::from_slice(&nonce), plaintext)
+        .map_err(|_| IndexError::Corrupt {
+            path: path.to_path_buf(),
+            detail: "vector seal failed".into(),
+        })?;
+    let mut out = Vec::with_capacity(4 + SEAL_NONCE_LEN + ct.len());
+    out.extend_from_slice(SEAL_MAGIC);
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&ct);
+    Ok(out)
+}
+
+fn unseal(key: &[u8; 32], data: &[u8], path: &Path) -> IndexResult<Vec<u8>> {
+    if data.len() < 4 + SEAL_NONCE_LEN || &data[0..4] != SEAL_MAGIC {
+        return Err(IndexError::Corrupt {
+            path: path.to_path_buf(),
+            detail: "vectors.bin not sealed (missing LBV1 header)".into(),
+        });
+    }
+    let nonce = &data[4..4 + SEAL_NONCE_LEN];
+    let ct = &data[4 + SEAL_NONCE_LEN..];
+    XChaCha20Poly1305::new(Key::from_slice(key))
+        .decrypt(XNonce::from_slice(nonce), ct)
+        .map_err(|_| IndexError::Corrupt {
+            path: path.to_path_buf(),
+            detail: "vector decrypt failed (wrong key?)".into(),
+        })
+}
 
 #[derive(Debug)]
 struct StoredEntry {
@@ -47,20 +103,34 @@ pub struct FlatVectorIndex {
     /// touched while `entries` is locked, so `Relaxed` ordering is
     /// sufficient — the mutex provides the happens-before edges.
     dirty: AtomicBool,
+    /// v0.4.4-lb1: when set, the on-disk file is sealed under this key. Carried across `save`.
+    cipher_key: Option<[u8; 32]>,
 }
 
 impl FlatVectorIndex {
     #[must_use]
     pub fn new() -> Self {
+        Self::new_with_key(None)
+    }
+
+    /// An empty index whose persisted file will be sealed under `cipher_key` (v0.4.4-lb1).
+    #[must_use]
+    pub fn new_with_key(cipher_key: Option<[u8; 32]>) -> Self {
         Self {
             entries: Mutex::new(Vec::new()),
             dirty: AtomicBool::new(false),
+            cipher_key,
         }
     }
 
-    /// Load an index from a binary file.
-    pub fn load(path: &Path) -> IndexResult<Self> {
-        let data = std::fs::read(path)?;
+    /// Load an index from a binary file. When `cipher_key` is `Some`, the file is unsealed first.
+    pub fn load(path: &Path, cipher_key: Option<&[u8]>) -> IndexResult<Self> {
+        let raw = std::fs::read(path)?;
+        let key = copy_key(cipher_key);
+        let data = match &key {
+            Some(k) => unseal(k, &raw, path)?,
+            None => raw,
+        };
         let mut cursor = &data[..];
 
         let mut magic = [0u8; 4];
@@ -78,7 +148,7 @@ impl FlatVectorIndex {
             // Older keyword-only runs persisted empty vectors. Treat that
             // legacy vector file as an empty vector index; the keyword store
             // remains authoritative for those rows.
-            return Ok(Self::new());
+            return Ok(Self::new_with_key(key));
         }
 
         let mut entries = Vec::with_capacity(count);
@@ -105,15 +175,17 @@ impl FlatVectorIndex {
         Ok(Self {
             entries: Mutex::new(entries),
             dirty: AtomicBool::new(false),
+            cipher_key: key,
         })
     }
 
-    /// Open the index from `path` if it exists, otherwise return an empty one.
-    pub fn open(path: &Path) -> IndexResult<Self> {
+    /// Open the index from `path` if it exists, otherwise return an empty one. When `cipher_key`
+    /// is `Some`, the file is sealed/unsealed under it (v0.4.4-lb1).
+    pub fn open(path: &Path, cipher_key: Option<&[u8]>) -> IndexResult<Self> {
         if path.exists() {
-            Self::load(path)
+            Self::load(path, cipher_key)
         } else {
-            Ok(Self::new())
+            Ok(Self::new_with_key(copy_key(cipher_key)))
         }
     }
 
@@ -242,12 +314,18 @@ impl VectorIndex for FlatVectorIndex {
             }
         }
 
+        // v0.4.4-lb1: seal the whole serialized buffer under the cipher key (it holds uri + text).
+        let out = match &self.cipher_key {
+            Some(key) => seal(key, &buf, path)?,
+            None => buf,
+        };
+
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent)?;
             }
         }
-        atomic_write(path, &buf)?;
+        atomic_write(path, &out)?;
         // `guard` is still held: no mutation can interleave between the
         // write above and clearing the flag.
         self.dirty.store(false, Ordering::Relaxed);
@@ -519,7 +597,7 @@ mod tests {
             .unwrap();
         store.save(&path).unwrap();
 
-        let loaded = FlatVectorIndex::load(&path).unwrap();
+        let loaded = FlatVectorIndex::load(&path, None).unwrap();
         assert!(!loaded.is_dirty(), "freshly loaded index matches disk");
     }
 
@@ -537,7 +615,7 @@ mod tests {
             .unwrap();
         store.save(&path).unwrap();
 
-        let loaded = FlatVectorIndex::load(&path).unwrap();
+        let loaded = FlatVectorIndex::load(&path, None).unwrap();
         assert_eq!(loaded.count().unwrap(), 2);
 
         let exported = loaded.export_all().unwrap();
@@ -558,14 +636,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("vectors.bin");
         FlatVectorIndex::new().save(&path).unwrap();
-        let loaded = FlatVectorIndex::load(&path).unwrap();
+        let loaded = FlatVectorIndex::load(&path, None).unwrap();
         assert_eq!(loaded.count().unwrap(), 0);
     }
 
     #[test]
     fn open_creates_empty_when_absent() {
         let dir = tempfile::tempdir().unwrap();
-        let store = FlatVectorIndex::open(&dir.path().join("missing.bin")).unwrap();
+        let store = FlatVectorIndex::open(&dir.path().join("missing.bin"), None).unwrap();
         assert_eq!(store.count().unwrap(), 0);
     }
 
@@ -574,7 +652,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("bad.bin");
         std::fs::write(&path, b"BADMAGIC0000000000000").unwrap();
-        let err = FlatVectorIndex::load(&path).unwrap_err();
+        let err = FlatVectorIndex::load(&path, None).unwrap_err();
         match err {
             IndexError::Corrupt { detail, .. } => {
                 assert!(detail.contains("bad magic"));
@@ -588,7 +666,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("trunc.bin");
         std::fs::write(&path, b"OMV1").unwrap();
-        assert!(FlatVectorIndex::load(&path).is_err());
+        assert!(FlatVectorIndex::load(&path, None).is_err());
     }
 
     #[test]
@@ -707,7 +785,7 @@ mod tests {
                 store.insert(&entries).unwrap();
                 store.save(&path).unwrap();
 
-                let loaded = FlatVectorIndex::load(&path).unwrap();
+                let loaded = FlatVectorIndex::load(&path, None).unwrap();
                 prop_assert_eq!(loaded.count().unwrap(), n as u64);
                 let exported = loaded.export_all().unwrap();
                 prop_assert_eq!(exported.len(), n);

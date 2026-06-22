@@ -25,6 +25,9 @@ serde_json.workspace = true
 # v0.4.4-lb1: SQLCipher (page-level AES-256 encryption at rest) with vendored OpenSSL so the
 # build is self-contained. A no-key connection behaves as plain SQLite, keeping stock callers green.
 rusqlite = { workspace = true, features = ["bundled-sqlcipher-vendored-openssl"] }
+# v0.4.4-lb1: seal the flat vector index file (vectors.bin holds uri + raw text) under the same key.
+chacha20poly1305 = "0.10"
+getrandom = "0.2"
 lru.workspace = true
 usearch = { workspace = true, optional = true }
 tracing.workspace = true

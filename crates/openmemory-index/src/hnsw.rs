@@ -106,7 +106,9 @@ impl HnswIndex {
         let flat_path = dir.join(FLAT_BIN_FILE);
         if flat_path.exists() {
             tracing::info!("migrating flat vector index -> HNSW");
-            let flat = FlatVectorIndex::load(&flat_path)?;
+            // NOTE (v0.4.4-lb1): HNSW on-disk sealing is a follow-up; lawyerBrain uses the flat
+            // index (default), which is sealed. Legacy flat migration reads plaintext here.
+            let flat = FlatVectorIndex::load(&flat_path, None)?;
             let hnsw = Self::migrate_from_flat(&flat)?;
             hnsw.save_to(dir)?;
             return Ok(hnsw);

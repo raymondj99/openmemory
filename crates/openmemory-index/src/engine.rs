@@ -70,7 +70,7 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
     #[cfg(feature = "hnsw")]
     let vector_store = HnswIndex::load_or_create(data_dir)?;
     #[cfg(not(feature = "hnsw"))]
-    let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
+    let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE), config.cipher_key())?;
 
     #[cfg(feature = "fts5")]
     let fulltext_store = Fts5Store::open_with_field_weights_keyed(
