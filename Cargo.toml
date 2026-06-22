@@ -10,6 +10,7 @@ members = [
     "crates/openmemory-watch",
     "crates/openmemory-bench",
     "crates/openmemory-eval",
+    "crates/openmemory-engine",
 ]
 
 [workspace.package]
@@ -27,6 +28,7 @@ openmemory-core = { path = "crates/openmemory-core", version = "0.4.4" }
 openmemory-index = { path = "crates/openmemory-index", version = "0.4.4", default-features = false }
 openmemory-embed = { path = "crates/openmemory-embed", version = "0.4.4", default-features = false }
 openmemory-graph = { path = "crates/openmemory-graph", version = "0.4.4", default-features = false }
+openmemory-engine = { path = "crates/openmemory-engine", version = "0.4.4", default-features = false }
 openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.4.4", default-features = false }
 openmemory-watch = { path = "crates/openmemory-watch", version = "0.4.4", default-features = false }
 openmemory-eval = { path = "crates/openmemory-eval", version = "0.4.4", default-features = false }

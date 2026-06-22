@@ -85,6 +85,11 @@ pub struct RememberInput {
     /// Memory tier for the new observations. Defaults to `episodic`.
     #[serde(default)]
     pub memory_tier: Option<MemoryTierParam>,
+    /// Only meaningful when the write-behind context engine is enabled
+    /// (`[engine]` in config.toml): wait for the write to commit before
+    /// returning. Defaults to the configured `engine.durable_ack`.
+    #[serde(default)]
+    pub durable: Option<bool>,
 }
 
 /// One observation on the remember API. Either a bare string (the
@@ -160,7 +165,12 @@ const REMEMBER_DESC: &str =
      `{\"relation_type\": \"<verb>\", \"to_entity\": \"<name>\", \"to_entity_type\": \"<type>\"}`. \
      Example: `[{\"relation_type\": \"uses\", \"to_entity\": \"toml_edit\", \"to_entity_type\": \"tool\"}]`. \
      Field names match `openmemory_add_relation`; older keys (`type`, `to`, `to_type`, \
-     `target_name`, `target_entity_type`) are accepted as aliases for backward compatibility.";
+     `target_name`, `target_entity_type`) are accepted as aliases for backward compatibility. \
+     \n\nWrite-behind mode: when the context engine is enabled (`[engine]` in config.toml), \
+     this tool enqueues the write into a sharded, journaled ingestion lane and returns a \
+     receipt `{accepted, durable, entity, shard, seq}` instead of ids. By default it waits \
+     for the write to commit (read-your-writes); pass `durable: false` for a fire-and-forget \
+     acknowledgement in microseconds.";
 
 /// Handler for the `openmemory_remember` MCP tool. Stores or updates
 /// an entity and appends observations + optional relations atomically.
@@ -258,6 +268,30 @@ impl Tool for OpenMemoryRememberTool {
                 RelationInput::new(r.relation_type, r.to_entity, target_type)
             })
             .collect();
+
+        // Write-behind path: when the context engine is enabled, submit
+        // to its sharded queue instead of paying a per-call transaction.
+        // The response is an ingestion receipt; ids are not minted until
+        // the epoch flush commits the batch.
+        if let Some(engine) = server.engine() {
+            let wait = req.durable.unwrap_or(server.config().engine.durable_ack);
+            let ticket = engine.submit(
+                openmemory_graph::RememberRequest::new(req.entity.clone(), entity_type)
+                    .with_observations(observations)
+                    .with_relations(relations)
+                    .with_source(source),
+            );
+            if wait {
+                engine.wait_durable(ticket);
+            }
+            return json_text_result(&json!({
+                "accepted": true,
+                "durable": wait,
+                "entity": req.entity,
+                "shard": ticket.shard,
+                "seq": ticket.seq,
+            }));
+        }
 
         let outcome = server
             .memory()
@@ -962,6 +996,115 @@ mod tests {
         // importance is serialised as a JSON number; tolerate the f32
         // rendering as either 0.7 or 0.699...
         assert!(body.contains("\"importance\""));
+    }
+
+    /// Server fixture with the write-behind context engine enabled. Uses
+    /// an on-disk store: the engine's flushers live on other threads and
+    /// `:memory:` SQLite is private to the opening handle.
+    fn engine_server() -> OpenMemoryMcpServer {
+        let dir = tempfile::tempdir().unwrap().keep();
+        let mut config = Config::default();
+        config.engine.enabled = true;
+        config.engine.shards = 4;
+        let store = openmemory_graph::MemoryStore::open(&config, &dir).unwrap();
+        OpenMemoryMcpServer::from_memory_with_engine(config, Arc::new(store)).unwrap()
+    }
+
+    /// Server fixture over a 2-domain partitioned store with the engine
+    /// enabled: the full scale-out configuration.
+    fn partitioned_server() -> OpenMemoryMcpServer {
+        let dir = tempfile::tempdir().unwrap().keep();
+        let mut config = Config::default();
+        config.engine.enabled = true;
+        config.engine.domains = 2;
+        config.engine.shards = 4;
+        let domains = openmemory_engine::partition::DomainStore::open(&config, &dir, 2).unwrap();
+        OpenMemoryMcpServer::from_domain_store(config, Arc::new(domains)).unwrap()
+    }
+
+    #[test]
+    fn partitioned_remember_recall_status_round_trip() {
+        let s = partitioned_server();
+        // Write enough entities to populate both domains.
+        for i in 0..20 {
+            OpenMemoryRememberTool::call(
+                &s,
+                json!({
+                    "entity": format!("entity-{i}"),
+                    "observations": [format!("partitioned observation number {i}")],
+                }),
+            )
+            .unwrap();
+        }
+
+        // durable_ack default: read-your-writes through the fan-out.
+        let r =
+            OpenMemoryRecallTool::call(&s, json!({"query": "partitioned observation", "limit": 5}))
+                .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("partitioned observation"), "got: {body}");
+
+        let st = OpenMemoryStatusTool::call(&s, json!({})).unwrap();
+        let body = match &st.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"total_observations\": 20"), "got: {body}");
+
+        // Entity lookup routes by name across domains.
+        let g = OpenMemoryGetEntityTool::call(&s, json!({"entity": "entity-7"})).unwrap();
+        let body = match &g.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("partitioned observation number 7"));
+    }
+
+    #[test]
+    fn remember_via_engine_returns_receipt_and_persists() {
+        let s = engine_server();
+        let r = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "EngineWrite",
+                "observations": ["routed through the write-behind lane"],
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"accepted\": true"), "got: {body}");
+        assert!(body.contains("\"durable\": true"), "durable_ack default on");
+
+        // durable_ack waited for the commit: read-your-writes holds.
+        let g = OpenMemoryGetEntityTool::call(&s, json!({"entity": "EngineWrite"})).unwrap();
+        let body = match &g.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("write-behind lane"));
+    }
+
+    #[test]
+    fn remember_via_engine_durable_false_is_fire_and_forget() {
+        let s = engine_server();
+        let r = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "FastAck",
+                "observations": ["ack before commit"],
+                "durable": false,
+            }),
+        )
+        .unwrap();
+        let body = match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        assert!(body.contains("\"durable\": false"), "got: {body}");
+        // The write still lands after the engine drains.
+        s.engine().unwrap().quiesce();
+        let status = s.memory().status().unwrap();
+        assert_eq!(status.total_observations, 1);
     }
 
     #[test]

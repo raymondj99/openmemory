@@ -37,10 +37,13 @@
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use openmemory_core::config::Config;
+use openmemory_engine::partition::DomainStore;
+use openmemory_engine::{ContextEngine, EngineOptions};
 use openmemory_graph::MemoryStore;
 
 pub mod params;
@@ -71,7 +74,13 @@ pub const PROTOCOL_VERSION: &str = "2024-11-05";
 pub struct OpenMemoryMcpServer {
     router: ToolRouter,
     pub(crate) config: Config,
-    pub(crate) memory: Arc<MemoryStore>,
+    /// Domain-partitioned memory facade. One domain (a zero-cost
+    /// passthrough) unless `[engine] domains > 1` partitioned the
+    /// profile.
+    pub(crate) memory: Arc<DomainStore>,
+    /// Write-behind context engine, present when `[engine] enabled` is
+    /// set in the config. `openmemory_remember` routes through it.
+    pub(crate) engine: Option<Arc<ContextEngine>>,
 }
 
 impl Clone for OpenMemoryMcpServer {
@@ -80,6 +89,7 @@ impl Clone for OpenMemoryMcpServer {
             router: self.router.clone(),
             config: self.config.clone(),
             memory: self.memory.clone(),
+            engine: self.engine.clone(),
         }
     }
 }
@@ -105,20 +115,67 @@ pub struct InitializeResult {
 impl OpenMemoryMcpServer {
     /// Build a server from an already-opened [`MemoryStore`]. Lets the CLI
     /// own the open ceremony and any embedder attachment, then pass the
-    /// configured store through.
+    /// configured store through. The write-behind engine is NOT started
+    /// on this path; use [`Self::from_domain_store`] to honour
+    /// `[engine] enabled`.
     pub fn from_memory(config: Config, memory: Arc<MemoryStore>) -> Self {
         Self {
             router: tools::build_router(),
             config,
-            memory,
+            memory: Arc::new(DomainStore::from_single(memory)),
+            engine: None,
         }
     }
 
-    /// Open a [`MemoryStore`] under the configured profile and wrap it.
+    /// Like [`Self::from_memory`], but starts the write-behind
+    /// [`ContextEngine`] when `[engine] enabled` is set, replaying any
+    /// crash-recovery journal under `<data_dir>/engine-journal/` first.
+    pub fn from_memory_with_engine(
+        config: Config,
+        memory: Arc<MemoryStore>,
+    ) -> anyhow::Result<Self> {
+        Self::from_domain_store(config, Arc::new(DomainStore::from_single(memory)))
+    }
+
+    /// Build a server over a domain-partitioned store, starting the
+    /// write-behind [`ContextEngine`] when `[engine] enabled` is set
+    /// (replaying any crash-recovery journal under
+    /// `<data_dir>/engine-journal/` first).
+    pub fn from_domain_store(config: Config, memory: Arc<DomainStore>) -> anyhow::Result<Self> {
+        let engine = if config.engine.enabled {
+            let opts = EngineOptions {
+                shards: config.engine.shards,
+                flush_interval: Duration::from_millis(config.engine.flush_interval_ms),
+                shard_capacity: config.engine.shard_capacity,
+                flush_threads: config.engine.flush_threads,
+                normalize: config.engine.normalize,
+                journal_dir: config
+                    .engine
+                    .journal
+                    .then(|| memory.data_dir().join("engine-journal")),
+                checkpoint_interval: Duration::from_millis(config.engine.checkpoint_interval_ms),
+            };
+            Some(Arc::new(ContextEngine::start_partitioned(
+                Arc::clone(&memory),
+                opts,
+            )?))
+        } else {
+            None
+        };
+        Ok(Self {
+            router: tools::build_router(),
+            config,
+            memory,
+            engine,
+        })
+    }
+
+    /// Open the configured profile (partitioned per `[engine] domains`)
+    /// and wrap it. Honours `[engine] enabled`.
     pub fn open(config: Config, profile: &str) -> anyhow::Result<Self> {
         let data_dir = Config::data_dir(profile)?;
-        let memory = MemoryStore::open(&config, &data_dir)?;
-        Ok(Self::from_memory(config, Arc::new(memory)))
+        let memory = DomainStore::open(&config, &data_dir, config.engine.domains)?;
+        Self::from_domain_store(config, Arc::new(memory))
     }
 
     /// Borrow the active config.
@@ -126,9 +183,14 @@ impl OpenMemoryMcpServer {
         &self.config
     }
 
-    /// Borrow the active memory store.
-    pub fn memory(&self) -> &Arc<MemoryStore> {
+    /// Borrow the active memory facade.
+    pub fn memory(&self) -> &Arc<DomainStore> {
         &self.memory
+    }
+
+    /// Borrow the write-behind context engine, if enabled.
+    pub fn engine(&self) -> Option<&Arc<ContextEngine>> {
+        self.engine.as_ref()
     }
 
     /// Borrow the tool router. Tests use this to verify the registered set.

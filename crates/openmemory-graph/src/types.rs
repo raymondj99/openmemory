@@ -22,6 +22,18 @@ pub fn new_id() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
+/// Reserved entity `source` tag for structural placeholder rows.
+///
+/// The partition layer (openmemory-engine) marks its cross-domain stub
+/// entities with this source. Placeholders are bookkeeping, not
+/// knowledge: they may be found by EXACT name match (mirror writes rely
+/// on that to stay idempotent), but fuzzy normalization must never
+/// auto-merge or flag a real entity against one — an observation
+/// attached to a placeholder is unreachable through listings and breaks
+/// partition accounting. `ensure_entity` excludes this source from its
+/// fuzzy candidate scan.
+pub const PARTITION_STUB_SOURCE: &str = "partition:stub";
+
 // ---------------------------------------------------------------------------
 // Entity
 // ---------------------------------------------------------------------------

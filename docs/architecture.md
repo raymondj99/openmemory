@@ -46,6 +46,7 @@ openmemory/
     ├── openmemory-index/      # hybrid search engine: vector + FTS5 + RRF
     ├── openmemory-embed/      # ONNX embeddings (optional)
     ├── openmemory-graph/      # entity/observation/relation knowledge graph
+    ├── openmemory-engine/     # concurrency bus: write-behind shards, journal, domains
     ├── openmemory-mcp/        # MCP server + tool router
     ├── openmemory-cli/        # binary `openmemory`
     ├── openmemory-watch/      # filesystem watcher with incremental re-indexing
@@ -85,6 +86,9 @@ other crate transitively. `openmemory-eval` (new in v0.3) sits
 above the graph crate and is reachable from the CLI behind the
 optional `eval` feature. `openmemory-bench` is dev-only and
 carries the criterion benchmarks; it is not published.
+`openmemory-engine` sits directly above the graph crate;
+`openmemory-mcp` and `openmemory-cli` route every write surface
+through it (see [context-engine.md](context-engine.md)).
 
 The `openmemory-mcp` crate intentionally does **not** depend on
 the upstream `rmcp` Rust SDK. Every published rmcp release uses
@@ -101,7 +105,8 @@ a mechanical change.
 | `openmemory-core` | Clock, Config, OmError/OmResult, schema-migration helper, retry helper, test doubles. | (no internal crates) |
 | `openmemory-index` | Vector + FTS5 backends, RRF hybrid engine, LRU cache, metadata store, `open_engine` factory. | `openmemory-core` |
 | `openmemory-embed` | ONNX Runtime wrapper, two-model registry, BLAKE3 embedding cache, SHA-256 integrity verification. | `openmemory-core` |
-| `openmemory-graph` | `MemoryStore`, entity/observation/relation types, atomic remember, hybrid recall with decay, forget/forget_entity/prune, consolidate (dedup + decay-prune). | `openmemory-core`, `openmemory-index`, `openmemory-embed` (optional) |
+| `openmemory-graph` | `MemoryStore`, entity/observation/relation types, atomic remember + `remember_batch`, raw export/import, hybrid recall with decay, forget/forget_entity/prune, consolidate (dedup + decay-prune). | `openmemory-core`, `openmemory-index`, `openmemory-embed` (optional) |
+| `openmemory-engine` | The concurrency bus (see [context-engine.md](context-engine.md)): `ContextEngine` write-behind shards + epoch drains + durability watermarks, crash-durable journals, `DomainStore` partitioning with the facade recall cache, domain-count migration, source adapters. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
 | `openmemory-mcp` | JSON-RPC 2.0 server, eleven `openmemory_*` tools, stdio transport, optional Streamable HTTP transport with bearer-token auth. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
 | `openmemory-cli` | The `openmemory` binary with the eleven subcommands. | every crate above |
 | `openmemory-watch` | Filesystem watcher: initial scan, debounced event loop, BLAKE3 dedup, ignore-file precedence. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |

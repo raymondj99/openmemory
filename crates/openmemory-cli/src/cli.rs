@@ -80,6 +80,13 @@ pub enum Command {
     /// Search memory by natural-language query. Use `--json` to emit one
     /// JSON line per result.
     Recall(RecallArgs),
+    /// Bulk-ingest a data source (meeting notes, chat exports) into
+    /// memory through the concurrent write-behind context engine.
+    Ingest(IngestArgs),
+    /// Re-home a profile to a different storage-domain count (offline;
+    /// builds the new layout in staging, verifies, then swaps, keeping
+    /// the old layout as a backup).
+    MigrateDomains(MigrateDomainsArgs),
     /// List entities, optionally filtered by type.
     ListEntities(ListEntitiesArgs),
     /// Hard-delete an entity. Requires `--yes` to confirm.
@@ -160,6 +167,47 @@ pub struct RecallArgs {
     /// Emit a JSON array instead of human text.
     #[arg(long)]
     pub json: bool,
+}
+
+/// `ingest` arguments.
+#[derive(Debug, Args)]
+pub struct IngestArgs {
+    /// Source to ingest: a directory of Markdown notes, or a `.jsonl`
+    /// chat export.
+    pub path: std::path::PathBuf,
+    /// Source format. `auto` picks `chat` for `.jsonl` files and
+    /// `markdown` for directories.
+    #[arg(long, value_enum, default_value_t = IngestFormat::Auto)]
+    pub format: IngestFormat,
+    /// Skip fuzzy entity-name normalization for this bulk load
+    /// (faster; offline consolidation still dedups).
+    #[arg(long)]
+    pub no_normalize: bool,
+    /// Emit a single-line JSON report instead of human text.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `--format` choices for `ingest`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum IngestFormat {
+    Auto,
+    /// Directory of Markdown meeting notes.
+    Markdown,
+    /// JSONL chat export (one `{channel, user, ts, text}` per line).
+    Chat,
+}
+
+/// `migrate-domains` arguments.
+#[derive(Debug, Args)]
+pub struct MigrateDomainsArgs {
+    /// Target domain count (1 restores the classic single-store layout).
+    #[arg(long, value_name = "N")]
+    pub domains: usize,
+    /// Confirm the migration. Required: the profile must be offline
+    /// (no MCP server, watcher, or TUI holding it open).
+    #[arg(long)]
+    pub yes: bool,
 }
 
 /// `list-entities` arguments.
@@ -453,6 +501,8 @@ where
         }
         Command::Remember(args) => commands::scriptable::remember(&cli.profile, args),
         Command::Recall(args) => commands::scriptable::recall(&cli.profile, args),
+        Command::Ingest(args) => commands::ingest::run(&cli.profile, args),
+        Command::MigrateDomains(args) => commands::migrate::run(&cli.profile, &args),
         Command::ListEntities(args) => commands::scriptable::list_entities(&cli.profile, args),
         Command::ForgetEntity(args) => commands::scriptable::forget_entity(&cli.profile, args),
         #[cfg(feature = "embeddings")]

@@ -94,11 +94,11 @@ impl Tool for OpenMemoryIndexTextTool {
         if !vector.is_empty() {
             entry = entry.with_vector(vector);
         }
+        // The facade routes by URI hash AND invalidates its recall
+        // cache; never write to a member store directly.
         server
             .memory()
-            .engine()
-            .engine
-            .insert(&[entry])
+            .index_insert(entry)
             .map_err(|e| JsonRpcError::internal_error(format!("index insert failed: {e}")))?;
         json_text_result(&json!({ "uri": req.uri, "indexed": true }))
     }
@@ -165,12 +165,9 @@ impl Tool for OpenMemorySearchTool {
         let has_min_score = req.min_score.is_some_and(|s| s > 0.0);
         let needs_overfetch = scoped_by_prefix || has_min_score;
         let fetch = if needs_overfetch {
-            let engine = &server.memory().engine().engine;
-            let vector_count = engine
-                .count()
-                .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
-            let keyword_count = engine
-                .keyword_count()
+            let (vector_count, keyword_count) = server
+                .memory()
+                .index_counts()
                 .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
             usize::try_from(vector_count.max(keyword_count)).unwrap_or(usize::MAX)
         } else {
@@ -179,9 +176,7 @@ impl Tool for OpenMemorySearchTool {
         .max(limit);
         let mut results = server
             .memory()
-            .engine()
-            .engine
-            .search(&vector, &req.query, fetch, mode, 0)
+            .index_search(&vector, &req.query, fetch, mode, 0)
             .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
 
         if let Some(prefix) = req.uri_prefix.as_deref().filter(|p| !p.is_empty()) {
@@ -248,9 +243,7 @@ impl Tool for OpenMemoryDeleteTool {
         }
         let removed = server
             .memory()
-            .engine()
-            .engine
-            .delete_by_uri(&req.uri)
+            .index_delete(&req.uri)
             .map_err(|e| JsonRpcError::internal_error(format!("delete failed: {e}")))?;
         json_text_result(&json!({
             "uri": req.uri,
@@ -425,7 +418,7 @@ mod tests {
         OpenMemoryIndexTextTool::call(&s, json!({"uri": "note://vec", "text": "lorem ipsum"}))
             .unwrap();
 
-        let vector_count = s.memory().engine().engine.count().unwrap();
+        let (vector_count, _) = s.memory().index_counts().unwrap();
         assert_eq!(vector_count, 1, "vector backend must see the new row");
     }
 

@@ -25,7 +25,7 @@ use std::sync::Mutex;
 use rusqlite::{params, Connection};
 
 use crate::error::{IndexError, IndexResult};
-use crate::traits::{FullTextStore, IndexEntry, SearchResult};
+use crate::traits::{ExportEntry, FullTextStore, IndexEntry, SearchResult};
 
 /// Per-field weights used by [`fielded_text`] to encode caller-supplied
 /// fielded `IndexEntry` content as a single FTS5-friendly string. Order:
@@ -117,6 +117,17 @@ impl Fts5Store {
         self.conn
             .lock()
             .map_err(|e| IndexError::Lock(e.to_string()))
+    }
+
+    /// Run a PASSIVE WAL checkpoint. FTS5 commits on every mutation, so
+    /// under sustained ingest its WAL grows just like the graph
+    /// database's; callers that move checkpointing to a background
+    /// cadence (the context engine) checkpoint this file on the same
+    /// tick. Best-effort: a busy checkpoint is not an error.
+    pub fn checkpoint(&self) -> IndexResult<()> {
+        let conn = self.lock()?;
+        let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
+        Ok(())
     }
 }
 
@@ -258,6 +269,23 @@ impl FullTextStore for Fts5Store {
         let n: i64 = conn.query_row("SELECT COUNT(*) FROM chunks_fts", [], |row| row.get(0))?;
         Ok(n as u64)
     }
+
+    fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("SELECT uri, text, chunk_index FROM chunks_fts")?;
+        let mut rows = stmt.query([])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            let chunk_index: i64 = row.get(2)?;
+            out.push(ExportEntry {
+                uri: row.get(0)?,
+                text: row.get(1)?,
+                chunk_index: chunk_index as u32,
+                vector: Vec::new(),
+            });
+        }
+        Ok(out)
+    }
 }
 
 fn entry_is_fielded(e: &IndexEntry) -> bool {
@@ -308,6 +336,25 @@ pub(crate) fn fts5_escape(query: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn export_all_returns_every_row_verbatim() {
+        use crate::traits::FullTextStore;
+        let store = Fts5Store::open_in_memory().unwrap();
+        store
+            .insert(&[
+                IndexEntry::new("u://a", "hello world"),
+                IndexEntry::new("u://b", "weighted payload").with_chunk_index(3),
+            ])
+            .unwrap();
+        let mut exported = store.export_all().unwrap();
+        exported.sort_by(|a, b| a.uri.cmp(&b.uri));
+        assert_eq!(exported.len(), 2);
+        assert_eq!(exported[0].uri, "u://a");
+        assert_eq!(exported[0].text, "hello world");
+        assert_eq!(exported[1].chunk_index, 3);
+        assert!(exported[1].vector.is_empty());
+    }
+
     use super::*;
 
     fn entry(uri: &str, text: &str, idx: u32) -> IndexEntry {

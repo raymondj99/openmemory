@@ -76,8 +76,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod batch;
 pub mod consolidate;
 pub mod error;
+pub mod export;
 pub mod forget;
 pub mod normalize;
 pub mod pool;
@@ -87,6 +89,7 @@ pub mod schema;
 pub mod store;
 pub mod types;
 
+pub use batch::{BatchOptions, RememberRequest};
 pub use consolidate::{ConsolidateConfig, ConsolidateReport};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
@@ -99,5 +102,7 @@ pub use recall::{
 };
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
 pub use schema::MEMORY_SCHEMA_VERSION;
-pub use store::{EntityListRow, MemoryStatus, MemoryStore, MEMORY_DB_FILE};
-pub use types::{new_id, Entity, EntityType, MemoryTier, Observation, Relation};
+pub use store::{EntityListRow, MemoryStatus, MemoryStore, WalCheckpointReport, MEMORY_DB_FILE};
+pub use types::{
+    new_id, Entity, EntityType, MemoryTier, Observation, Relation, PARTITION_STUB_SOURCE,
+};

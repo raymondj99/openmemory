@@ -225,6 +225,9 @@ fn json_flag_emits_plain_json_not_ui() {
     assert!(!body.contains("no entities"));
 }
 
+// The `model` subcommand only exists with the `embeddings` feature; in
+// `--no-default-features` builds it is compiled out entirely.
+#[cfg(feature = "embeddings")]
 #[test]
 fn model_list_marks_active_model_and_persists_across_use() {
     let home = tempfile::tempdir().expect("tempdir");
@@ -235,10 +238,7 @@ fn model_list_marks_active_model_and_persists_across_use() {
     // that row's status line must mention the registry default
     // (nomic-embed-text-v1.5 today, but we don't pin the name here).
     let baseline = stdout(&run(&home_path, &["model", "list"]));
-    let active_lines: Vec<&str> = baseline
-        .lines()
-        .filter(|l| l.contains("active"))
-        .collect();
+    let active_lines: Vec<&str> = baseline.lines().filter(|l| l.contains("active")).collect();
     assert_eq!(
         active_lines.len(),
         1,
@@ -282,6 +282,7 @@ fn model_list_marks_active_model_and_persists_across_use() {
     );
 }
 
+#[cfg(feature = "embeddings")]
 #[test]
 fn model_list_warns_when_configured_model_is_unknown() {
     let home = tempfile::tempdir().expect("tempdir");

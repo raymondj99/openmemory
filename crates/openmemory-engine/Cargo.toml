@@ -1,0 +1,34 @@
+[package]
+name = "openmemory-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: concurrent context-engine ingestion (sharded write-behind, crash-durable journal, flux-style epoch sync)"
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["fts5"]
+fts5 = ["openmemory-graph/fts5", "openmemory-index/fts5"]
+embeddings = ["openmemory-graph/embeddings"]
+testing = ["openmemory-graph/testing", "openmemory-core/testing"]
+
+[dependencies]
+openmemory-core = { workspace = true }
+openmemory-graph = { workspace = true }
+openmemory-index = { workspace = true, default-features = false }
+lru = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+clap = { workspace = true }
+tempfile = { workspace = true }
+
+[[example]]
+name = "stress"
+path = "examples/stress.rs"

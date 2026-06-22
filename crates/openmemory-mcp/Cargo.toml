@@ -12,7 +12,7 @@ workspace = true
 [features]
 default = ["fts5"]
 sqlite = ["openmemory-graph/sqlite", "openmemory-index/sqlite"]
-fts5 = ["sqlite", "openmemory-graph/fts5", "openmemory-index/fts5"]
+fts5 = ["sqlite", "openmemory-graph/fts5", "openmemory-index/fts5", "openmemory-engine/fts5"]
 hnsw = ["openmemory-graph/hnsw", "openmemory-index/hnsw"]
 embeddings = ["openmemory-graph/embeddings"]
 mcp-http = ["dep:axum", "dep:tower", "dep:tower-http"]
@@ -22,6 +22,7 @@ testing = ["openmemory-graph/testing", "openmemory-core/testing"]
 openmemory-core = { workspace = true }
 openmemory-index = { workspace = true, default-features = false }
 openmemory-graph = { workspace = true, default-features = false }
+openmemory-engine = { workspace = true }
 
 schemars = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "io-util", "io-std", "sync"] }
@@ -40,3 +41,15 @@ tempfile = { workspace = true }
 openmemory-graph = { workspace = true, default-features = false, features = ["testing"] }
 openmemory-core = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["macros", "rt", "io-util"] }
+clap = { workspace = true }
+ureq = { workspace = true }
+
+[[example]]
+name = "swarm"
+path = "examples/swarm.rs"
+required-features = ["mcp-http"]
+
+[[example]]
+name = "swmr"
+path = "examples/swmr.rs"
+required-features = ["mcp-http"]

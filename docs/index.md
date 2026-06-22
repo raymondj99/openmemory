@@ -53,6 +53,7 @@ its own; skip ahead if you only need one slice.
 |----------|---------|
 | [overview.md](overview.md) | What `openmemory` is, the problem it solves, the goals and non-goals that bound the project, and the high-level deliverables. Start here. |
 | [architecture.md](architecture.md) | Workspace layout, crate boundaries, the dependency graph, the writer-mutex + reader-pool + rebuild-barrier threading model, and the design philosophy that explains why several plausible abstractions are deliberately absent. |
+| [context-engine.md](context-engine.md) | The concurrency bus between agents and the stores: write-behind sharding, crash-durable journals, domain partitioning with TAO-style mirrored edges, the facade recall cache, domain-count migration, and the measured numbers behind every design decision. |
 | [crates.md](crates.md) | Per-crate reference: purpose, feature flags, public API surface, key types, and source-file map for each of the nine workspace crates (seven shipping crates plus `openmemory-bench` and v0.3's `openmemory-eval`). |
 | [mcp.md](mcp.md) | MCP server contract. Wire-level JSON-RPC 2.0 framing, the eleven `openmemory_*` tools, their input schemas and annotations, error shapes, and the stdio + Streamable HTTP transports including bearer-token auth. |
 | [openclaw.md](openclaw.md) | The OpenClaw integration contract. Config-file resolution rules, the JSON entry written by `openmemory integrate openclaw`, the stdio vs. HTTP entry shapes, multi-profile coexistence, and the verification path. |

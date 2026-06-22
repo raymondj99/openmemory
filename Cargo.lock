@@ -1649,6 +1649,7 @@ dependencies = [
  "json5",
  "openmemory-core",
  "openmemory-embed",
+ "openmemory-engine",
  "openmemory-eval",
  "openmemory-graph",
  "openmemory-index",
@@ -1695,6 +1696,22 @@ dependencies = [
  "tokenizers",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "openmemory-engine"
+version = "0.4.4"
+dependencies = [
+ "clap",
+ "lru",
+ "openmemory-core",
+ "openmemory-graph",
+ "openmemory-index",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -1754,7 +1771,9 @@ version = "0.4.4"
 dependencies = [
  "anyhow",
  "axum",
+ "clap",
  "openmemory-core",
+ "openmemory-engine",
  "openmemory-graph",
  "openmemory-index",
  "schemars",
@@ -1766,6 +1785,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "ureq",
 ]
 
 [[package]]
@@ -2796,9 +2816,9 @@ checksum = "9629274872b2bfaf8d66f5f15725007f635594914870f65218920345aa11aa8c"
 
 [[package]]
 name = "unicode-width"
-version = "0.2.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "unicode-xid"

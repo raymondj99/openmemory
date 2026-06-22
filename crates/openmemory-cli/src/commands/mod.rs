@@ -8,9 +8,11 @@ pub mod completions;
 pub mod consolidate;
 #[cfg(feature = "eval")]
 pub mod eval;
+pub mod ingest;
 pub mod init;
 pub mod integrate;
 pub mod mcp;
+pub mod migrate;
 #[cfg(feature = "embeddings")]
 pub mod model;
 pub mod scriptable;

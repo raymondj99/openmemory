@@ -23,6 +23,7 @@
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use crate::error::{IndexError, IndexResult};
@@ -42,6 +43,10 @@ struct StoredEntry {
 #[derive(Debug)]
 pub struct FlatVectorIndex {
     entries: Mutex<Vec<StoredEntry>>,
+    /// Set by mutations, cleared by [`VectorIndex::save`]. Only ever
+    /// touched while `entries` is locked, so `Relaxed` ordering is
+    /// sufficient — the mutex provides the happens-before edges.
+    dirty: AtomicBool,
 }
 
 impl FlatVectorIndex {
@@ -49,6 +54,7 @@ impl FlatVectorIndex {
     pub fn new() -> Self {
         Self {
             entries: Mutex::new(Vec::new()),
+            dirty: AtomicBool::new(false),
         }
     }
 
@@ -98,6 +104,7 @@ impl FlatVectorIndex {
 
         Ok(Self {
             entries: Mutex::new(entries),
+            dirty: AtomicBool::new(false),
         })
     }
 
@@ -162,6 +169,7 @@ impl VectorStore for FlatVectorIndex {
                 vector: entry.vector.clone(),
             });
         }
+        self.dirty.store(true, Ordering::Relaxed);
         Ok(())
     }
 
@@ -196,7 +204,11 @@ impl VectorStore for FlatVectorIndex {
         let mut guard = self.lock()?;
         let before = guard.len();
         guard.retain(|e| e.uri != uri);
-        Ok((before - guard.len()) as u64)
+        let removed = (before - guard.len()) as u64;
+        if removed > 0 {
+            self.dirty.store(true, Ordering::Relaxed);
+        }
+        Ok(removed)
     }
 
     fn count(&self) -> IndexResult<u64> {
@@ -236,7 +248,14 @@ impl VectorIndex for FlatVectorIndex {
             }
         }
         atomic_write(path, &buf)?;
+        // `guard` is still held: no mutation can interleave between the
+        // write above and clearing the flag.
+        self.dirty.store(false, Ordering::Relaxed);
         Ok(())
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.dirty.load(Ordering::Relaxed)
     }
 
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
@@ -462,6 +481,46 @@ mod tests {
                 actual: 3
             }
         ));
+    }
+
+    #[test]
+    fn dirty_tracks_mutations_and_clears_on_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vectors.bin");
+
+        let store = FlatVectorIndex::new();
+        assert!(!store.is_dirty(), "fresh index is clean");
+
+        store
+            .insert(&[entry("u://a", "x", 0, vec![1.0, 0.0])])
+            .unwrap();
+        assert!(store.is_dirty(), "insert dirties");
+
+        store.save(&path).unwrap();
+        assert!(!store.is_dirty(), "save cleans");
+
+        // No-op mutations stay clean.
+        store.insert(&[entry("u://b", "y", 0, vec![])]).unwrap();
+        assert!(!store.is_dirty(), "empty-vector insert is a no-op");
+        assert_eq!(store.delete_by_uri("u://nope").unwrap(), 0);
+        assert!(!store.is_dirty(), "no-op delete stays clean");
+
+        store.delete_by_uri("u://a").unwrap();
+        assert!(store.is_dirty(), "delete dirties");
+    }
+
+    #[test]
+    fn load_starts_clean() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vectors.bin");
+        let store = FlatVectorIndex::new();
+        store
+            .insert(&[entry("u://a", "x", 0, vec![1.0, 0.0])])
+            .unwrap();
+        store.save(&path).unwrap();
+
+        let loaded = FlatVectorIndex::load(&path).unwrap();
+        assert!(!loaded.is_dirty(), "freshly loaded index matches disk");
     }
 
     #[test]

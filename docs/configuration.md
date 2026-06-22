@@ -44,6 +44,18 @@ enabled              = true
 auto_merge_threshold = 0.95
 flag_threshold       = 0.85
 max_candidates       = 100
+
+[engine]
+enabled                = false
+domains                = 1
+shards                 = 32
+flush_interval_ms      = 20
+shard_capacity         = 4096
+flush_threads          = 2
+durable_ack            = true
+normalize              = true
+journal                = true
+checkpoint_interval_ms = 1000
 ```
 
 ### `[default]` section
@@ -127,6 +139,48 @@ a new entity with a `SAME_AS` relation; scores below
 | `auto_merge_threshold` | f64 | `0.95` | Minimum similarity to silently merge into an existing entity. |
 | `flag_threshold` | f64 | `0.85` | Minimum similarity to create a `SAME_AS` relation. Must be strictly less than `auto_merge_threshold`. |
 | `max_candidates` | usize | `100` | Maximum entities of the same type to compare against, ordered by `updated_at DESC`. |
+
+### `[engine]` section
+
+The write-behind context engine: a sharded ingestion lane in front of
+the store for high write concurrency (many agents writing at once).
+Submissions hash by entity name onto N shards; background flushers
+drain whole shards every epoch and commit each drain as one batched
+SQLite transaction. With the journal on, acknowledged writes survive a
+crash and replay exactly-once on the next start. Used by the MCP
+`openmemory_remember` tool when `enabled`, and always by
+`openmemory ingest`.
+
+| Key | Type | Default | Effect |
+|-----|------|---------|--------|
+| `enabled` | bool | `false` | Route MCP `remember` calls through the engine. The tool then returns an ingestion receipt instead of ids. |
+| `domains` | usize | `1` | Storage domains: independent SQLite store families with parallel writers, entities hash-routed by name. `1` keeps the classic single-store layout. Pinned per profile (in `domains.toml`) on first partitioned open; change it later with `openmemory migrate-domains --domains N --yes` (offline staging + verified swap). Must divide `shards`. |
+| `shards` | usize | `32` | Shard count. Contention divides by this. Must be a multiple of `domains`. |
+| `flush_interval_ms` | u64 | `20` | Epoch length: how often idle shards are drained and committed. |
+| `shard_capacity` | usize | `4096` | Per-shard queue bound; submission blocks (backpressure) when a shard is full. |
+| `flush_threads` | usize | `2` | Background flusher threads. Raise toward `domains` when partitioned so domain commits actually run in parallel. |
+| `durable_ack` | bool | `true` | MCP remember waits for the SQLite commit (read-your-writes; costs up to one epoch). Per-call `durable: false` opts out. |
+| `normalize` | bool | `true` | Run fuzzy entity-name normalization on drained batches. |
+| `journal` | bool | `true` | Keep per-shard crash-recovery journals under `<data_dir>/engine-journal/`. Journals are fsynced before each commit and reclaimed only after a WAL checkpoint makes the commit power-loss durable. |
+| `checkpoint_interval_ms` | u64 | `1000` | Maintenance cadence: WAL checkpoints, deferred search-index persistence, and journal reclamation. The engine disables SQLite's in-commit auto-checkpoint and runs it here instead. |
+
+Domain partitioning notes: writes route by entity-name hash, so each
+domain owns a disjoint slice of the graph and commits on its own SQLite
+writer. Relations whose endpoints live in different domains are
+double-written (a mirror edge plus marked stub entities) so both sides
+traverse locally; listings and status subtract the bookkeeping rows.
+Recall fans out to every domain, merges by score, and memoises merged
+results in a facade cache invalidated on every write (measured: ~1 us
+repeated-query hits vs ~300 us fanned out, and p99 under epoch-paced
+write load drops from ~1.4 ms to ~0.7 ms). Two trade-offs to know
+about: fuzzy entity-name normalization cannot merge near-duplicate
+names across domains (exact-name matches still route consistently),
+and cached recalls freeze decay scores and skip access-count bumps for
+up to 60 seconds. Partition when sustained ingest saturates the single
+writer (tens of thousands of observations per second); profiles are
+the tenant boundary and partition independently; re-home with
+`openmemory migrate-domains`. `openmemory watch` does not support
+partitioned profiles yet.
 
 ## Environment variables
 

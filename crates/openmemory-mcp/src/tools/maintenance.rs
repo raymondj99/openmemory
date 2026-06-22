@@ -60,7 +60,10 @@ impl Tool for OpenMemoryConsolidateTool {
         let req: ConsolidateInput = serde_json::from_value(args)
             .map_err(|e| JsonRpcError::invalid_params(format!("invalid arguments: {e}")))?;
 
-        let mut cfg = ConsolidateConfig::for_store(server.memory());
+        let mut cfg = ConsolidateConfig {
+            decay_rate: server.memory().decay_rate(),
+            ..ConsolidateConfig::default()
+        };
         if let Some(t) = req.dedup_threshold {
             cfg.dedup_text_threshold = t.clamp(0.0, 1.0);
         }

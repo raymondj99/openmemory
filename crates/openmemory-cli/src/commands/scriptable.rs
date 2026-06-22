@@ -7,7 +7,8 @@ use std::io::Write;
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_graph::{EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput};
+use openmemory_engine::partition::DomainStore;
+use openmemory_graph::{EntityType, ObservationInput, RecallFilters, RelationInput};
 #[cfg(feature = "embeddings")]
 use std::sync::Arc;
 
@@ -15,7 +16,12 @@ use crate::cli::{ForgetEntityArgs, ListEntitiesArgs, RecallArgs, RememberArgs};
 use crate::ui::glyph::Glyph;
 use crate::ui::{card, paint, stdout_stream, style};
 
-fn open(profile: &str, attach_embedder: bool) -> Result<MemoryStore> {
+/// Open the profile with whatever partitioning it already has (the
+/// manifest's domain count when present, single-store otherwise).
+/// Scriptable commands follow the on-disk layout; the `mcp` and
+/// `ingest` surfaces are the ones that materialise partitioning from
+/// the `[engine] domains` config.
+fn open(profile: &str, attach_embedder: bool) -> Result<DomainStore> {
     let config = Config::load().unwrap_or_default();
     let data_dir = Config::data_dir(profile).context("resolving data directory")?;
     if !data_dir.exists() {
@@ -25,25 +31,23 @@ fn open(profile: &str, attach_embedder: bool) -> Result<MemoryStore> {
             data_dir.display()
         );
     }
-    let memory = MemoryStore::open(&config, &data_dir)
-        .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let _ = attach_embedder;
 
     #[cfg(feature = "embeddings")]
-    let memory = {
-        if attach_embedder {
-            let models_dir = Config::models_dir().context("resolving models directory")?;
-            if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
-                memory.with_embedder(Arc::new(embedder))
-            } else {
-                memory
-            }
-        } else {
-            memory
+    if attach_embedder {
+        let models_dir = Config::models_dir().context("resolving models directory")?;
+        if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
+            return DomainStore::open_existing_with_embedder(
+                &config,
+                &data_dir,
+                Arc::new(embedder),
+            )
+            .with_context(|| format!("opening memory store at {}", data_dir.display()));
         }
-    };
+    }
 
-    Ok(memory)
+    DomainStore::open_existing(&config, &data_dir)
+        .with_context(|| format!("opening memory store at {}", data_dir.display()))
 }
 
 fn parse_entity_type(s: &str) -> Result<EntityType> {

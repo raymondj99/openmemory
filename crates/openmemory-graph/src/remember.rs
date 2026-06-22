@@ -15,6 +15,7 @@
 
 use openmemory_index::IndexEntry;
 use rusqlite::{params, OptionalExtension, Transaction};
+use serde::{Deserialize, Serialize};
 
 use crate::error::{MemoryError, MemoryResult};
 use crate::normalize::{find_best_match, NormalizeMatch};
@@ -22,8 +23,9 @@ use crate::store::MemoryStore;
 use crate::types::{new_id, Entity, EntityType, MemoryTier};
 
 /// One observation to append. Used by [`MemoryStore::remember`] to keep
-/// the call site declarative.
-#[derive(Debug, Clone, PartialEq)]
+/// the call site declarative. Serde derives exist so write-behind layers
+/// (openmemory-engine's shard journal) can round-trip pending writes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ObservationInput {
     pub content: String,
     /// Confidence in `[0.0, 1.0]`. Defaults to 1.0 via [`Self::new`].
@@ -150,7 +152,7 @@ impl ObservationInput {
 /// One relation to attach. The target is named by `(target_name, target_type)`;
 /// entities are looked up or created lazily, mirroring the way `remember`
 /// handles its primary entity.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelationInput {
     pub relation_type: String,
     pub target_name: String,
@@ -180,7 +182,7 @@ impl RelationInput {
 /// search-index sync step. Carries everything the FTS5 backend needs to
 /// build a fielded `IndexEntry` without re-reading the row from disk.
 #[derive(Debug, Clone)]
-struct SearchPayload {
+pub(crate) struct SearchPayload {
     id: String,
     content: String,
     title: Option<String>,
@@ -188,6 +190,223 @@ struct SearchPayload {
     concepts: Vec<String>,
     source_files: Vec<String>,
     source_kind: Option<String>,
+}
+
+/// Whether a write persists the vector index to disk before returning.
+/// Threaded into [`MemoryStore::sync_search_groups`] by the two write
+/// entry points.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PersistIndex {
+    /// Save now. Single-shot writes use this: a short-lived CLI process
+    /// may exit immediately after the call.
+    Now,
+    /// Leave persistence to the caller's cadence (the context engine's
+    /// maintenance tick) and the store's `Drop` backstop. Batched
+    /// ingestion uses this because the save is O(corpus).
+    Defer,
+}
+
+/// Normalization knobs threaded into [`write_group`]. Mirrors the store
+/// fields; `enabled` additionally folds in any per-call opt-out (bulk
+/// ingestion paths skip the fuzzy scan).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NormalizationParams {
+    pub(crate) enabled: bool,
+    pub(crate) auto_merge_threshold: f64,
+    pub(crate) flag_threshold: f64,
+    pub(crate) max_candidates: usize,
+}
+
+/// Result of one entity-group write inside a transaction: the public
+/// outcome plus the payload the search index needs after commit.
+pub(crate) struct GroupWrite {
+    pub(crate) outcome: RememberOutcome,
+    pub(crate) payload: Vec<SearchPayload>,
+}
+
+/// Input validation shared by `remember` and `remember_batch`. Rejects
+/// empty entity names, empty observation content, and empty relation
+/// fields before any transaction is opened.
+pub(crate) fn validate_group(
+    name: &str,
+    observations: &[ObservationInput],
+    relations: &[RelationInput],
+) -> MemoryResult<()> {
+    if name.trim().is_empty() {
+        return Err(MemoryError::InvalidInput(
+            "entity name must not be empty".into(),
+        ));
+    }
+    for obs in observations {
+        if obs.content.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "observation content must not be empty".into(),
+            ));
+        }
+    }
+    for rel in relations {
+        if rel.relation_type.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "relation_type must not be empty".into(),
+            ));
+        }
+        if rel.target_name.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "relation target name must not be empty".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Write one entity group (entity upsert + observations + relations)
+/// inside an open transaction. Factored out of `remember` so
+/// `remember_batch` can amortise one transaction over many groups.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_group(
+    tx: &Transaction<'_>,
+    name: &str,
+    entity_type: EntityType,
+    observations: &[ObservationInput],
+    relations: &[RelationInput],
+    source: &str,
+    now: i64,
+    norm: NormalizationParams,
+) -> MemoryResult<GroupWrite> {
+    let ent = ensure_entity(
+        tx,
+        name,
+        entity_type,
+        source,
+        now,
+        norm.enabled,
+        norm.auto_merge_threshold,
+        norm.flag_threshold,
+        norm.max_candidates,
+    )?;
+    let entity_id = ent.entity_id;
+    let entity_existed = ent.existed;
+    let normalized = ent.normalized;
+
+    let mut observation_ids = Vec::with_capacity(observations.len());
+    let mut payload: Vec<SearchPayload> = Vec::with_capacity(observations.len());
+    for input in observations {
+        let id = new_id();
+        let clamped_importance = input.importance.map(|v| v.clamp(0.0, 1.0));
+        tx.execute(
+            "INSERT INTO observations
+                (id, entity_id, content, observed_at, valid_from, valid_until,
+                 confidence, source, tombstoned, access_count, memory_tier,
+                 title, summary, importance, source_kind)
+             VALUES
+                (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9,
+                 ?10, ?11, ?12, ?13)",
+            params![
+                id,
+                entity_id,
+                input.content,
+                now,
+                input.valid_from.unwrap_or(now),
+                input.valid_until,
+                input.confidence,
+                if input.source.is_empty() {
+                    source.to_string()
+                } else {
+                    input.source.clone()
+                },
+                input.memory_tier.as_str(),
+                input.title,
+                input.summary,
+                clamped_importance,
+                input.source_kind,
+            ],
+        )?;
+
+        for concept in &input.concepts {
+            if concept.trim().is_empty() {
+                continue;
+            }
+            tx.execute(
+                "INSERT OR IGNORE INTO observation_concepts (observation_id, concept)
+                 VALUES (?1, ?2)",
+                params![id, concept],
+            )?;
+        }
+        for file in &input.source_files {
+            if file.trim().is_empty() {
+                continue;
+            }
+            tx.execute(
+                "INSERT OR IGNORE INTO observation_source_files (observation_id, file_path)
+                 VALUES (?1, ?2)",
+                params![id, file],
+            )?;
+        }
+
+        payload.push(SearchPayload {
+            id: id.clone(),
+            content: input.content.clone(),
+            title: input.title.clone(),
+            summary: input.summary.clone(),
+            concepts: input.concepts.clone(),
+            source_files: input.source_files.clone(),
+            source_kind: input.source_kind.clone(),
+        });
+        observation_ids.push(id);
+    }
+
+    let mut relation_ids = Vec::with_capacity(relations.len());
+    for rel in relations {
+        let target_result = ensure_entity(
+            tx,
+            &rel.target_name,
+            rel.target_type,
+            if rel.source.is_empty() {
+                source
+            } else {
+                &rel.source
+            },
+            now,
+            norm.enabled,
+            norm.auto_merge_threshold,
+            norm.flag_threshold,
+            norm.max_candidates,
+        )?;
+        let target_id = target_result.entity_id;
+        let id = new_id();
+        tx.execute(
+            "INSERT INTO relations
+                (id, from_entity, to_entity, relation_type, weight, created_at,
+                 valid_from, valid_until, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, ?8)",
+            params![
+                id,
+                entity_id,
+                target_id,
+                rel.relation_type,
+                rel.weight,
+                now,
+                now,
+                if rel.source.is_empty() {
+                    source.to_string()
+                } else {
+                    rel.source.clone()
+                },
+            ],
+        )?;
+        relation_ids.push(id);
+    }
+
+    Ok(GroupWrite {
+        outcome: RememberOutcome {
+            entity_id,
+            entity_existed,
+            observation_ids,
+            relation_ids,
+            normalized,
+        },
+        payload,
+    })
 }
 
 /// Result of a successful [`MemoryStore::remember`] call.
@@ -221,30 +440,15 @@ impl MemoryStore {
         relations: &[RelationInput],
         source: &str,
     ) -> MemoryResult<RememberOutcome> {
-        if name.trim().is_empty() {
-            return Err(MemoryError::InvalidInput(
-                "entity name must not be empty".into(),
-            ));
-        }
-        for obs in observations {
-            if obs.content.trim().is_empty() {
-                return Err(MemoryError::InvalidInput(
-                    "observation content must not be empty".into(),
-                ));
-            }
-        }
-        for rel in relations {
-            if rel.relation_type.trim().is_empty() {
-                return Err(MemoryError::InvalidInput(
-                    "relation_type must not be empty".into(),
-                ));
-            }
-            if rel.target_name.trim().is_empty() {
-                return Err(MemoryError::InvalidInput(
-                    "relation target name must not be empty".into(),
-                ));
-            }
-        }
+        validate_group(name, observations, relations)?;
+
+        // Embed before taking any lock: one batched embedder call for
+        // every observation, off the write-critical path.
+        let texts: Vec<String> = observations
+            .iter()
+            .map(|o| Self::search_body_text(name, &o.content))
+            .collect();
+        let vectors = self.embed_documents_batch(&texts);
 
         let now = self.clock().now_secs();
 
@@ -255,175 +459,126 @@ impl MemoryStore {
         let mut conn = self.lock_db();
         let tx = conn.transaction()?;
 
-        let ent = ensure_entity(
+        let group = write_group(
             &tx,
             name,
             entity_type,
+            observations,
+            relations,
             source,
             now,
-            self.normalization_enabled,
-            self.auto_merge_threshold,
-            self.flag_threshold,
-            self.max_candidates,
+            self.normalization_params(true),
         )?;
-        let entity_id = ent.entity_id;
-        let entity_existed = ent.existed;
-        let normalized = ent.normalized;
-
-        let mut observation_ids = Vec::with_capacity(observations.len());
-        let mut search_payload: Vec<SearchPayload> = Vec::with_capacity(observations.len());
-        for input in observations {
-            let id = new_id();
-            let clamped_importance = input.importance.map(|v| v.clamp(0.0, 1.0));
-            tx.execute(
-                "INSERT INTO observations
-                    (id, entity_id, content, observed_at, valid_from, valid_until,
-                     confidence, source, tombstoned, access_count, memory_tier,
-                     title, summary, importance, source_kind)
-                 VALUES
-                    (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9,
-                     ?10, ?11, ?12, ?13)",
-                params![
-                    id,
-                    entity_id,
-                    input.content,
-                    now,
-                    input.valid_from.unwrap_or(now),
-                    input.valid_until,
-                    input.confidence,
-                    if input.source.is_empty() {
-                        source.to_string()
-                    } else {
-                        input.source.clone()
-                    },
-                    input.memory_tier.as_str(),
-                    input.title,
-                    input.summary,
-                    clamped_importance,
-                    input.source_kind,
-                ],
-            )?;
-
-            for concept in &input.concepts {
-                if concept.trim().is_empty() {
-                    continue;
-                }
-                tx.execute(
-                    "INSERT OR IGNORE INTO observation_concepts (observation_id, concept)
-                     VALUES (?1, ?2)",
-                    params![id, concept],
-                )?;
-            }
-            for file in &input.source_files {
-                if file.trim().is_empty() {
-                    continue;
-                }
-                tx.execute(
-                    "INSERT OR IGNORE INTO observation_source_files (observation_id, file_path)
-                     VALUES (?1, ?2)",
-                    params![id, file],
-                )?;
-            }
-
-            search_payload.push(SearchPayload {
-                id: id.clone(),
-                content: input.content.clone(),
-                title: input.title.clone(),
-                summary: input.summary.clone(),
-                concepts: input.concepts.clone(),
-                source_files: input.source_files.clone(),
-                source_kind: input.source_kind.clone(),
-            });
-            observation_ids.push(id);
-        }
-
-        let mut relation_ids = Vec::with_capacity(relations.len());
-        for rel in relations {
-            let target_result = ensure_entity(
-                &tx,
-                &rel.target_name,
-                rel.target_type,
-                if rel.source.is_empty() {
-                    source
-                } else {
-                    &rel.source
-                },
-                now,
-                self.normalization_enabled,
-                self.auto_merge_threshold,
-                self.flag_threshold,
-                self.max_candidates,
-            )?;
-            let target_id = target_result.entity_id;
-            let id = new_id();
-            tx.execute(
-                "INSERT INTO relations
-                    (id, from_entity, to_entity, relation_type, weight, created_at,
-                     valid_from, valid_until, source)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, ?8)",
-                params![
-                    id,
-                    entity_id,
-                    target_id,
-                    rel.relation_type,
-                    rel.weight,
-                    now,
-                    now,
-                    if rel.source.is_empty() {
-                        source.to_string()
-                    } else {
-                        rel.source.clone()
-                    },
-                ],
-            )?;
-            relation_ids.push(id);
-        }
 
         tx.commit()?;
         drop(conn);
 
         // SQLite write succeeded; sync the search index.
-        if !search_payload.is_empty() {
-            self.apply_search_sync_ops_with_recovery(name, entity_type, &search_payload)?;
+        if !group.payload.is_empty() {
+            self.sync_search_groups(
+                &[(name.to_string(), group.payload)],
+                vectors,
+                PersistIndex::Now,
+            )?;
         }
 
-        Ok(RememberOutcome {
-            entity_id,
-            entity_existed,
-            observation_ids,
-            relation_ids,
-            normalized,
-        })
+        Ok(group.outcome)
     }
 
-    /// Index a freshly committed batch of observations into the hybrid
-    /// search engine. Called by `remember` after the SQLite write commits.
+    /// Normalization parameters for a write, folding the per-call
+    /// `normalize` opt-out into the store-level configuration.
+    pub(crate) fn normalization_params(&self, normalize: bool) -> NormalizationParams {
+        NormalizationParams {
+            enabled: self.normalization_enabled && normalize,
+            auto_merge_threshold: self.auto_merge_threshold,
+            flag_threshold: self.flag_threshold,
+            max_candidates: self.max_candidates,
+        }
+    }
+
+    /// Build the indexed body text for one observation: the entity name
+    /// as a prefix so the keyword backend can match queries against it
+    /// without a separate fielded entity_name column. Shared between the
+    /// pre-commit embedding pass and the post-commit index sync so the
+    /// two always agree on what was embedded.
+    pub(crate) fn search_body_text(entity_name: &str, content: &str) -> String {
+        format!("{entity_name}: {content}")
+    }
+
+    /// Embed every document in `texts` with ONE batched embedder call.
+    /// Returns one vector per text, all empty when no embedder is
+    /// attached (the hybrid engine then skips the vector arm).
     ///
-    /// "With recovery" reflects the strategy: if the search insert fails,
-    /// log a warning and return Ok; the SQLite row is still authoritative,
-    /// and a future `rebuild_if_stale` call will catch up. The keyword
-    /// backend's `fielded_text` helper concatenates the v2 caller fields
-    /// (title, summary, concepts, source_files, source_kind, entity_type,
+    /// Write paths call this BEFORE taking the rebuild write lock and
+    /// the writer mutex: embedding is the dominant CPU cost of a
+    /// vector-enabled write, batching lets the runtime parallelise it
+    /// internally, and front-loading it keeps the lock hold time down to
+    /// the SQLite + index work.
+    #[allow(clippy::unused_self)]
+    pub(crate) fn embed_documents_batch(&self, texts: &[String]) -> Vec<Vec<f32>> {
+        if texts.is_empty() {
+            return Vec::new();
+        }
+        #[cfg(any(feature = "testing", feature = "embeddings"))]
+        if let Some(emb) = self.embedder_ref() {
+            let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+            let vectors = emb.embed_documents(&refs);
+            debug_assert_eq!(vectors.len(), texts.len());
+            if vectors.len() == texts.len() {
+                return vectors;
+            }
+            // A misbehaving embedder must not break the write path:
+            // degrade to keyword-only for this batch.
+            tracing::warn!(
+                target: "openmemory_graph::remember",
+                expected = texts.len(),
+                actual = vectors.len(),
+                "embedder returned a mismatched batch; indexing keyword-only"
+            );
+        }
+        vec![Vec::new(); texts.len()]
+    }
+
+    /// Index freshly committed observation groups into the hybrid search
+    /// engine. Called by `remember` / `remember_batch` after the SQLite
+    /// write commits; one engine insert regardless of group count.
+    /// `vectors` carries the pre-computed embedding per observation in
+    /// the same flattened (group, observation) order the payloads were
+    /// built in — see [`MemoryStore::embed_documents_batch`].
+    ///
+    /// `persist` controls whether the vector index is saved to disk
+    /// before returning. Single-shot writes persist immediately so
+    /// short-lived CLI processes never lose vectors; batched ingestion
+    /// defers to its maintenance cadence (and the [`Drop`] backstop)
+    /// because the save is O(corpus).
+    ///
+    /// Recovery strategy: if the search insert fails, log a warning and
+    /// return Ok; the SQLite row is still authoritative, and a future
+    /// `rebuild_if_stale` call will catch up. The keyword backend's
+    /// `fielded_text` helper concatenates the v2 caller fields (title,
+    /// summary, concepts, source_files, source_kind, entity_type,
     /// entity_name) into a single FTS5 payload with high-weight fields
     /// repeated per their `Config::search.field_weights`.
-    fn apply_search_sync_ops_with_recovery(
+    pub(crate) fn sync_search_groups(
         &self,
-        entity_name: &str,
-        _entity_type: EntityType,
-        payload: &[SearchPayload],
+        groups: &[(String, Vec<SearchPayload>)],
+        vectors: Vec<Vec<f32>>,
+        persist: PersistIndex,
     ) -> MemoryResult<()> {
-        let entries: Vec<IndexEntry> = payload
+        let payload_count: usize = groups.iter().map(|(_, p)| p.len()).sum();
+        debug_assert_eq!(vectors.len(), payload_count);
+        let mut vectors = vectors.into_iter().chain(std::iter::repeat(Vec::new()));
+
+        let entries: Vec<IndexEntry> = groups
             .iter()
-            .map(|p| {
+            .flat_map(|(entity_name, payload)| payload.iter().map(move |p| (entity_name, p)))
+            .map(|(entity_name, p)| {
                 let uri = format!("memory://observation/{}", p.id);
-                // body_text already has the entity name as a prefix, so the
-                // keyword backend can match queries against it without a
-                // separate fielded entity_name column. Leaving entity_name
-                // and entity_type unset keeps the legacy (no caller title
-                // / concepts) write path on the v0.2 single-text indexed
-                // shape.
-                let body_text = format!("{entity_name}: {content}", content = p.content);
-                let vector = self.embed_document(&body_text);
+                // Leaving entity_name and entity_type unset keeps the
+                // legacy (no caller title / concepts) write path on the
+                // v0.2 single-text indexed shape.
+                let body_text = Self::search_body_text(entity_name, &p.content);
+                let vector = vectors.next().unwrap_or_default();
                 let mut entry = IndexEntry::new(uri, body_text)
                     .with_title(p.title.clone())
                     .with_summary(p.summary.clone())
@@ -436,6 +591,9 @@ impl MemoryStore {
                 entry
             })
             .collect();
+        if entries.is_empty() {
+            return Ok(());
+        }
 
         if let Err(e) = self.engine().engine.insert(&entries) {
             tracing::warn!(
@@ -445,7 +603,9 @@ impl MemoryStore {
                 "search-index insert failed; SQLite row remains authoritative"
             );
         }
-        self.flush_engine();
+        if persist == PersistIndex::Now {
+            self.flush_engine();
+        }
         Ok(())
     }
 
@@ -517,15 +677,24 @@ fn ensure_entity(
         });
     }
 
-    // Fuzzy match path.
+    // Fuzzy match path. Structural placeholders (partition stubs) are
+    // excluded: merging a real entity into bookkeeping would attach
+    // knowledge to a row that listings hide and partition accounting
+    // subtracts. Exact-match (above) still finds them, which mirror
+    // writes rely on.
     if normalization_enabled {
         let mut stmt = tx.prepare(
-            "SELECT id, name FROM entities WHERE entity_type = ?1
-             ORDER BY updated_at DESC LIMIT ?2",
+            "SELECT id, name FROM entities
+             WHERE entity_type = ?1 AND source <> ?2
+             ORDER BY updated_at DESC LIMIT ?3",
         )?;
         let candidates: Vec<(String, String)> = stmt
             .query_map(
-                params![entity_type.as_str(), max_candidates as i64],
+                params![
+                    entity_type.as_str(),
+                    crate::types::PARTITION_STUB_SOURCE,
+                    max_candidates as i64
+                ],
                 |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
             )?
             .collect::<Result<Vec<_>, _>>()?;
@@ -1330,6 +1499,70 @@ mod tests {
             "max_candidates leak: 'matchable' was reachable past the cap; got {n:?}",
             n = restrictive.normalized,
         );
+    }
+
+    /// Structural placeholder rows (partition stubs) must never be
+    /// fuzzy-merge targets: an observation attached to a stub is
+    /// unreachable through listings and breaks partition accounting.
+    /// Exact-name matches still find them (mirror writes depend on
+    /// that). Found by the LLM swarm test: a primary entity
+    /// auto-merged onto a near-identically named stub.
+    #[test]
+    fn normalize_never_merges_into_partition_stubs() {
+        let (store, _clock) = open_with_clock();
+        seed_entity_with_source(
+            &store,
+            "stub",
+            "Project Alpha",
+            EntityType::Project,
+            500,
+            crate::types::PARTITION_STUB_SOURCE,
+        );
+
+        // Near-identical name: without the exclusion this auto-merges
+        // onto the stub and the observation lands on bookkeeping.
+        let outcome = store
+            .remember(
+                "project alpha",
+                EntityType::Project,
+                &[ObservationInput::new("real knowledge")],
+                &[],
+                "agent",
+            )
+            .unwrap();
+        assert_ne!(outcome.entity_id, "stub", "must not merge into a stub");
+        assert!(!outcome.entity_existed);
+        assert!(
+            outcome.normalized.is_none(),
+            "stubs are not flag targets either"
+        );
+
+        // Exact-match still resolves the stub (mirror-write idempotence).
+        let exact = store
+            .remember("Project Alpha", EntityType::Project, &[], &[], "agent")
+            .unwrap();
+        assert_eq!(exact.entity_id, "stub");
+        assert!(exact.entity_existed);
+    }
+
+    /// Seed an entity with an explicit source tag, bypassing the write
+    /// path (same rationale as [`seed_entity`]).
+    fn seed_entity_with_source(
+        store: &MemoryStore,
+        id: &str,
+        name: &str,
+        entity_type: EntityType,
+        updated_at: i64,
+        source: &str,
+    ) {
+        let conn = store.lock_db();
+        conn.execute(
+            "INSERT INTO entities
+                (id, name, entity_type, created_at, updated_at, confidence, source)
+             VALUES (?1, ?2, ?3, ?4, ?4, 1.0, ?5)",
+            rusqlite::params![id, name, entity_type.as_str(), updated_at, source],
+        )
+        .expect("seed insert failed");
     }
 
     /// An entity whose only observations have been tombstoned remains a

@@ -101,12 +101,18 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
 
 /// Persist the current vector index (and BM25 store, when used) to disk.
 /// FTS5 / SQLite stores commit on every mutation and need no flushing.
+///
+/// The vector save is O(corpus) plus an fsync, so it is skipped when the
+/// index is unchanged since the last save
+/// ([`is_dirty`](crate::traits::VectorIndex::is_dirty)) — every
+/// keyword-only write hits that fast path, and a vector-bearing write
+/// pays it at most once per flush rather than once per call.
 pub fn flush(open: &OpenEngine) -> IndexResult<()> {
     use crate::traits::VectorIndex;
-    open.engine
-        .inner()
-        .vector_store()
-        .save(&open.data_dir.join(VECTORS_FILE))?;
+    let vectors = open.engine.inner().vector_store();
+    if vectors.is_dirty() {
+        vectors.save(&open.data_dir.join(VECTORS_FILE))?;
+    }
     #[cfg(not(feature = "fts5"))]
     {
         use crate::traits::FullTextStore;
@@ -114,6 +120,21 @@ pub fn flush(open: &OpenEngine) -> IndexResult<()> {
     }
     #[cfg(feature = "sqlite")]
     open.metadata.checkpoint()?;
+    Ok(())
+}
+
+/// Run a PASSIVE WAL checkpoint on the engine's SQLite-backed stores
+/// (fulltext.sqlite, metadata.sqlite). Companion to [`flush`] for
+/// callers that disable SQLite's auto-checkpoint and drive
+/// checkpointing on a background cadence instead of paying it inside
+/// commits.
+pub fn checkpoint(open: &OpenEngine) -> IndexResult<()> {
+    #[cfg(feature = "fts5")]
+    open.engine.inner().fulltext_store().checkpoint()?;
+    #[cfg(feature = "sqlite")]
+    open.metadata.checkpoint()?;
+    #[cfg(not(any(feature = "fts5", feature = "sqlite")))]
+    let _ = open;
     Ok(())
 }
 
@@ -125,6 +146,44 @@ mod tests {
 
     fn entry(uri: &str, text: &str, vec: Vec<f32>) -> IndexEntry {
         IndexEntry::new(uri, text).with_vector(vec)
+    }
+
+    #[test]
+    fn flush_skips_clean_vector_index() {
+        use crate::traits::VectorIndex;
+
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = Config::default();
+        let opened = open_engine(&cfg, dir.path()).unwrap();
+
+        // Vector-bearing insert dirties; flush saves and cleans.
+        opened
+            .engine
+            .insert(&[entry("u://a", "hello", vec![1.0, 0.0])])
+            .unwrap();
+        // The persisted file name depends on the vector backend: the
+        // default flat index writes VECTORS_FILE; the hnsw backend writes
+        // its multi-file layout next to it.
+        #[cfg(feature = "hnsw")]
+        let vector_file = dir.path().join("vectors.usearch");
+        #[cfg(not(feature = "hnsw"))]
+        let vector_file = dir.path().join(VECTORS_FILE);
+
+        assert!(opened.engine.inner().vector_store().is_dirty());
+        flush(&opened).unwrap();
+        assert!(!opened.engine.inner().vector_store().is_dirty());
+        let saved_at = std::fs::metadata(&vector_file).unwrap().modified().unwrap();
+
+        // Keyword-only insert (no vector) leaves the index clean, and the
+        // next flush must not rewrite the file.
+        opened
+            .engine
+            .insert(&[entry("u://b", "keyword only", vec![])])
+            .unwrap();
+        assert!(!opened.engine.inner().vector_store().is_dirty());
+        flush(&opened).unwrap();
+        let after = std::fs::metadata(&vector_file).unwrap().modified().unwrap();
+        assert_eq!(saved_at, after, "clean flush must not rewrite the index");
     }
 
     #[test]

@@ -11,31 +11,149 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ### Added
 
-- **Active embedding model is now visible in `openmemory model list`.**
-  The active model resolves from `config.default.model` through the
-  registry (alias-aware, so `model use arctic` is matched to its
-  canonical entry), falling back to the registry default when nothing
-  is configured. The active row is painted green to stand out in the
-  stack, and a muted notice surfaces when the configured model is no
-  longer registered (binary upgrade, typo in config) so users don't
-  silently end up on a fallback.
-- **`card::render_active`** sibling to `card::render` for marking the
-  selected item in a peer list; layout is identical, only the header
-  emphasis changes.
+- **`openmemory-engine`: the concurrent context engine.** New crate
+  putting a sharded write-behind ingestion lane in front of the store
+  so thousands of agents can write concurrently. Writes hash by entity
+  name onto N shards; background flushers drain whole shards per epoch
+  and commit each drain as ONE batched SQLite transaction; a
+  cacheline-aligned per-shard durability watermark (acquire/release,
+  borrowed from flux-rs's epoch counters) gives lock-free
+  `wait_durable(ticket)` read-your-writes. Measured at 4000 concurrent
+  writers: ~33,000 obs/s durable vs ~260/s direct (125x), microsecond
+  acks vs 67 s p99, reader worst case 74 ms vs 15.7 s. Stress harness:
+  `cargo run --release -p openmemory-engine --example stress`.
+- **Crash-durable shard journal with exactly-once replay.** With
+  `[engine] journal = true` (default), accepted writes append to a
+  per-shard JSONL journal before acknowledgement and fsync at each
+  epoch flush; the batch commit carries the shard checkpoint in the
+  same transaction, so a restart replays exactly the
+  journaled-but-uncommitted entries (torn trailing lines from a crash
+  mid-append are skipped). Costs ~15-20% durable throughput.
+- **`MemoryStore::remember_batch` (openmemory-graph).** Many entity
+  groups, one transaction, one search-index sync. `BatchOptions`
+  carries `normalize` (skip the fuzzy entity scan for trusted bulk
+  sources) and `checkpoint` (a monotonic `memory_meta` upsert used by
+  the engine's journal). `remember` is now a batch of one; behavior is
+  unchanged.
+- **MCP write-behind mode.** With `[engine] enabled = true`,
+  `openmemory_remember` enqueues into the engine and returns a receipt
+  `{accepted, durable, entity, shard, seq}`. Default waits for the
+  commit (`engine.durable_ack`, read-your-writes within one epoch);
+  per-call `durable: false` is a microsecond fire-and-forget.
+  `openmemory mcp` quiesces the engine on graceful exit.
+- **Source adapters + `openmemory ingest`.** `SourceAdapter` trait in
+  openmemory-engine with two reference adapters: Markdown meeting
+  notes (entity per file, observation per `##` section, `Attendees:`
+  become `has_participant` relations) and JSONL chat exports (entity
+  per channel, observation per message with its timestamp). New CLI
+  command `openmemory ingest <path> [--format markdown|chat]
+  [--no-normalize] [--json]` bulk-loads a source through the engine.
+- **`[engine]` config section** (domains, shards, flush_interval_ms,
+  shard_capacity, flush_threads, durable_ack, normalize, journal,
+  checkpoint_interval_ms) with validation; documented in
+  docs/configuration.md. See `docs/context-engine.md` for the
+  design, measured results, and remaining scale-out roadmap.
+- **Domain-partitioned storage (`[engine] domains = K`).**
+  `openmemory_engine::partition::DomainStore` runs K independent
+  SQLite store families with parallel writers; entities hash-route by
+  name, a per-profile `domains.toml` manifest pins K (mismatches are
+  hard errors, never silent re-homes), cross-domain relations are
+  double-written TAO-style (mirror edge + marked stub entities,
+  subtracted from listings and status), recall fans out to every
+  domain and merges by score, and the engine maps whole shards onto
+  domains so drains stay single-domain transactions. All MCP tools and
+  scriptable CLI commands route through the facade; `K = 1` (default)
+  is the byte-identical legacy layout. Measured end to end at 4000
+  concurrent agents with journaling: 65.2k obs/s durable at 4 domains
+  vs 41.6k at 1 (+57%).
+- **Commit-path performance + durability hardening.** The vector index
+  now tracks dirtiness and skips its O(corpus) save+fsync when
+  unchanged (previously EVERY drain rewrote the entire vectors.bin;
+  ~3 GB per drain at 1M embedded observations); batched writes defer
+  index persistence to the engine's maintenance cadence with a `Drop`
+  backstop. `remember`/`remember_batch` embed all observations in ONE
+  batched embedder call BEFORE taking the rebuild write lock. The
+  engine disables SQLite's in-commit auto-checkpoint and runs WAL
+  checkpoints on a maintenance tick (`MemoryStore::wal_checkpoint` /
+  `set_wal_autocheckpoint`); shard journals are reclaimed only after a
+  complete checkpoint covers every entry, closing a power-loss window
+  where an acknowledged drain could be lost with its journal already
+  truncated.
+
+- **`openmemory migrate-domains`: domain-count migration.** Re-homes a
+  profile between any two domain counts (including 1 -> K and K -> 1)
+  offline: raw export of every row (tombstoned and expired included,
+  via new `MemoryStore::export_*_raw` / `import_raw` APIs that preserve
+  ids, timestamps, access counts, and tiers byte-exactly), embedding
+  vectors and free-text index entries carried verbatim (nothing is
+  re-embedded; `FullTextStore::export_all` is new), old partition
+  bookkeeping dropped and re-derived for the new boundaries (canonical
+  edges re-pointed through stub ids), staging build verified by
+  raw-count reconciliation before anything destructive, and a
+  crash-safe two-phase swap behind an fsynced intent sentinel that the
+  store refuses to open through (a mid-swap crash would otherwise
+  decode as a fresh empty profile). Preconditions enforced: empty
+  engine journals and no stale backup. The old layout is parked in
+  `.migrate-backup/` and never auto-deleted.
+- **Facade recall cache for partitioned profiles.** `DomainStore`
+  memoises merged recall results (LRU 50, 60 s TTL), keyed by query +
+  top_k + every `RecallFilters` field and invalidated by a write
+  version bumped after every facade write (including tier changes,
+  consolidation, prune, and the free-text index writes, which now
+  route through new `index_insert`/`index_delete` facade methods).
+  Validated before implementation: repeated-query hits measure ~1 us
+  vs ~300 us fanned out (~230x), and p99 under epoch-paced write load
+  drops ~2x; a persistent reader pool was prototyped, measured at a
+  6-9% win, and rejected as not worth its lifecycle complexity (the
+  harness survives as `examples/readpath.rs` with the re-evaluation
+  bar documented). Cache-frozen decay scores and skipped access-count
+  bumps are TTL-bounded and documented. K=1 stays a pure passthrough.
+
+- **LLM agent swarm test harness** (`openmemory-mcp/examples/swarm.rs`,
+  requires `mcp-http`). ~50 concurrent agents seeded with content from
+  free OpenRouter models (one batched completion per agent, rotating
+  across models with retry + canned fallback so free-tier limits cannot
+  flake the run; `--offline` for deterministic content) write and read
+  SIMULTANEOUSLY through real MCP `tools/call` against a partitioned
+  engine profile. Hard invariants: accepted+durable receipts,
+  read-your-writes on unique per-memory markers, exact observation
+  counts, mirror-aware relation accounting, zero engine errors, and a
+  marker sample re-validated after an in-run domain migration.
+- **Single-write multiple-retrieval harness**
+  (`openmemory-mcp/examples/swmr.rs`, requires `mcp-http`). N staggered
+  writers each publish one memory while M simultaneous readers poll for
+  OTHER agents' memories over three routes (marker recall, topical
+  search, entity lookup), verifying exact published content and the
+  cross-agent visibility contract: any poll started after a writer's
+  durable ack must see the memory (which also regression-tests that
+  cached empty recall results invalidate on commit). Measured at
+  5 writers + 10 readers over 4 domains: visibility within one poll
+  interval of the ack in every run.
 
 ### Changed
 
-- **Braun-inspired palette refresh.** The CLI accent is no longer
-  magenta. Box chrome (corners, edges, vertical rules) renders in
-  `BORDER` (dim) so the frame recedes; the banner title carries the
-  single warm yellow `ACCENT` pop; section headings inside tables,
-  cards, and entity names use the new cool cyan `SECTION` accent.
-  Semantic colors (`SUCCESS`, `WARN`, `DANGER`) are unchanged. Banner
-  interior padding doubled from 1 to 2 blank rows top and bottom so
-  the container reads as a calm Braun-style enclosure rather than a
-  tight bezel. Hint arrows (`›`) in `integrate` restart prompts and
-  `model use` follow-ups demote to `MUTED` so the warm accent stays
-  reserved for the one place it belongs.
+- **Engine crate reorganized around the bus architecture.** `lib.rs`
+  is now the pipeline narrative (accept, journal, route, commit,
+  publish) with re-exports; the hot path lives in `engine.rs` and the
+  durability layer in `journal.rs`. Public paths are unchanged. The
+  design doc moved from `PLAN-2.md` to `docs/context-engine.md`; the
+  superseded commit-path experiment example was removed and the
+  remaining examples share common scaffolding. `migrate-domains` now
+  refuses to run against a profile with no store (it would previously
+  create an empty one).
+
+### Fixed
+
+- **Fuzzy normalization could merge a real entity into a partition
+  stub**, attaching knowledge to a bookkeeping row that listings hide
+  and partition accounting subtracts (found by the swarm test's
+  migration-time verification; migration refuses such profiles).
+  Placeholder rows (`PARTITION_STUB_SOURCE`, now defined in
+  openmemory-graph) are excluded from the fuzzy candidate scan;
+  exact-name matches still resolve stubs, which mirror writes rely on.
+- `model list` CLI output tests are now gated on the `embeddings`
+  feature; they invoked a subcommand that does not exist in
+  `--no-default-features` builds and failed CI's no-default test job.
 
 ## [0.4.4] - 2026-05-27
 

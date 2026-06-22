@@ -139,6 +139,16 @@ pub trait VectorIndex: VectorStore {
     /// Persist the index to `path`.
     fn save(&self, path: &Path) -> IndexResult<()>;
 
+    /// Whether in-memory state has changed since the last successful
+    /// [`Self::save`]. Persistence layers consult this to skip rewriting
+    /// an unchanged index: the save is O(corpus) plus an fsync, so a
+    /// flush after a batch that added no vectors (every keyword-only
+    /// write) must not pay it. Defaults to `true` (always save) so
+    /// implementations that do not track dirtiness stay correct.
+    fn is_dirty(&self) -> bool {
+        true
+    }
+
     /// Export every entry, including its vector. Used by migration and rebuild.
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>>;
 }
@@ -194,6 +204,18 @@ pub trait FullTextStore: Send + Sync {
     /// on every mutation (FTS5).
     fn flush(&self) -> IndexResult<()> {
         Ok(())
+    }
+
+    /// Export every stored row (uri, text, chunk_index; `vector` left
+    /// empty). Used by domain-count migration: free-text documents live
+    /// ONLY in the index stores, and the stored text is the
+    /// post-fielded weighted payload that cannot be reconstructed from
+    /// the graph database. The default errors so simple test doubles
+    /// need not implement it; real backends override.
+    fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
+        Err(crate::error::IndexError::InvalidInput(
+            "this full-text backend does not support export".into(),
+        ))
     }
 }
 

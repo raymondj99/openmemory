@@ -2,7 +2,8 @@
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_graph::{ConsolidateConfig, MemoryStore};
+use openmemory_engine::partition::DomainStore;
+use openmemory_graph::ConsolidateConfig;
 
 use crate::cli::ConsolidateArgs;
 use crate::ui::banner::Banner;
@@ -19,7 +20,7 @@ pub fn run(profile: &str, args: ConsolidateArgs) -> Result<()> {
             data_dir.display()
         );
     }
-    let store = MemoryStore::open(&config, &data_dir)
+    let store = DomainStore::open_existing(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let mut cfg = ConsolidateConfig::from_config(&config);
     if let Some(t) = args.dedup_threshold {
@@ -63,7 +64,7 @@ pub fn run(profile: &str, args: ConsolidateArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::cli::with_home;
-    use openmemory_graph::ObservationInput;
+    use openmemory_graph::{MemoryStore, ObservationInput};
 
     #[test]
     fn consolidate_runs_on_empty_store_after_init() {

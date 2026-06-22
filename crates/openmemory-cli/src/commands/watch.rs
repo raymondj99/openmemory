@@ -29,6 +29,12 @@ pub fn run(profile: &str, args: WatchArgs) -> Result<()> {
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir).context("creating data directory")?;
     }
+    if openmemory_engine::partition::DomainStore::manifest_domains(&data_dir)? > 1 {
+        anyhow::bail!(
+            "`openmemory watch` does not support domain-partitioned profiles yet; \
+             use `openmemory ingest` for bulk loading"
+        );
+    }
     let memory = MemoryStore::open(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let memory = Arc::new(memory);

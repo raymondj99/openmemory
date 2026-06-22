@@ -4,7 +4,8 @@ use std::io::Write;
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_graph::{MemoryStatus, MemoryStore};
+use openmemory_engine::partition::DomainStore;
+use openmemory_graph::MemoryStatus;
 
 use crate::ui::banner::{Banner, Line};
 use crate::ui::stdout_stream;
@@ -25,14 +26,20 @@ pub fn run(profile: &str) -> Result<()> {
             .render(&mut stream);
         return Ok(());
     }
-    let store = MemoryStore::open(&config, &data_dir)
+    let store = DomainStore::open_existing(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let status = store.status().context("reading status")?;
-    render_status(&mut stream, profile, &data_dir, &status);
+    render_status(&mut stream, profile, &data_dir, &status, store.domains());
     Ok(())
 }
 
-fn render_status<W: Write>(w: &mut W, profile: &str, data_dir: &std::path::Path, s: &MemoryStatus) {
+fn render_status<W: Write>(
+    w: &mut W,
+    profile: &str,
+    data_dir: &std::path::Path,
+    s: &MemoryStatus,
+    domains: usize,
+) {
     Banner::new("status")
         .subtitle(format!("profile: {profile}"))
         .render_header(w);
@@ -40,7 +47,11 @@ fn render_status<W: Write>(w: &mut W, profile: &str, data_dir: &std::path::Path,
 
     let mut table = KvTable::new()
         .row("data dir", data_dir.display().to_string())
-        .row("schema vers.", s.schema_version.to_string())
+        .row("schema vers.", s.schema_version.to_string());
+    if domains > 1 {
+        table = table.row("domains", domains.to_string());
+    }
+    table = table
         .row("entities", format_count(s.total_entities))
         .row("observations", format_count(s.total_observations))
         .row("relations", format_count(s.total_relations))

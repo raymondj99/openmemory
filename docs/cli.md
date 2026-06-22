@@ -264,6 +264,46 @@ openmemory forget-entity <ENTITY> --yes
 `--yes` is required to confirm the destructive action; the command
 aborts otherwise.
 
+## `openmemory ingest <PATH>`
+
+Bulk-load a data source through the concurrent write-behind context
+engine (journaled, batched commits; partitioned per `[engine] domains`
+when configured).
+
+```text
+openmemory ingest <PATH> [--format auto|markdown|chat] [--no-normalize] [--json]
+```
+
+| Flag | Effect |
+|------|--------|
+| `--format` | Source shape. `auto` (default) picks `chat` for `.jsonl` files and `markdown` for directories. Markdown: one entity per note (H1 title or file stem), one observation per `##` section, `Attendees:` lines become `has_participant` relations. Chat: one entity per channel, one observation per `{channel, user, ts, text}` line. |
+| `--no-normalize` | Skip fuzzy entity-name normalization for the bulk load; offline consolidation still dedups. |
+| `--json` | Emit a single-line JSON report. |
+
+## `openmemory migrate-domains`
+
+Re-home a profile to a different storage-domain count (see
+`[engine] domains` in [configuration](configuration.md)), including
+1 → K (partition a single-store profile) and K → 1 (restore the
+classic layout).
+
+```text
+openmemory migrate-domains --domains <N> --yes
+```
+
+Offline only: stop any MCP server, watcher, or TUI holding the profile
+first, and shut the engine down cleanly so its journals are empty (a
+non-empty journal aborts the migration). The new layout is built in a
+staging directory, verified by raw-count reconciliation, then swapped
+in under a crash-safe intent sentinel; ids, timestamps, tombstones,
+access counts, embedding vectors, and free-text index entries are
+preserved byte-exactly (nothing is re-embedded), while cross-domain
+stubs and mirror edges are re-derived for the new boundaries. The old
+layout is parked in `.migrate-backup/` inside the profile and is never
+deleted automatically; remove it after verifying.
+
+`--yes` is required to confirm; the command aborts otherwise.
+
 ## `openmemory completions <SHELL>`
 
 Emit shell completions for the named shell. Behind the

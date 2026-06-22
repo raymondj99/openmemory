@@ -17,6 +17,8 @@ pub struct Config {
     pub watch: WatchSection,
     #[serde(default)]
     pub normalization: NormalizationSection,
+    #[serde(default)]
+    pub engine: EngineSection,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -106,6 +108,58 @@ pub struct WatchSection {
     /// indexing snappy on an editor save loop.
     #[serde(default = "WatchSection::default_max_size")]
     pub max_size: u64,
+}
+
+/// Write-behind context-engine tuning. Read by `openmemory-engine` when
+/// an ingestion surface (the MCP server, `openmemory ingest`) routes
+/// writes through the sharded engine instead of direct `remember`
+/// transactions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)] // config flags, not state-machine state
+pub struct EngineSection {
+    /// Route MCP `remember` calls through the engine. Off by default;
+    /// scriptable single writes gain nothing from write-behind.
+    #[serde(default = "EngineSection::default_enabled")]
+    pub enabled: bool,
+    /// Storage domains: independent SQLite store families committed by
+    /// parallel writers, with entities hash-routed by name. `1` (the
+    /// default) keeps the classic single-store layout. The count is
+    /// pinned per profile on first partitioned open; changing it later
+    /// requires an explicit migration. Must divide `shards`.
+    #[serde(default = "EngineSection::default_domains")]
+    pub domains: usize,
+    /// Shard count. Submissions hash by entity name.
+    #[serde(default = "EngineSection::default_shards")]
+    pub shards: usize,
+    /// Epoch length in milliseconds: how often idle shards are drained.
+    #[serde(default = "EngineSection::default_flush_interval_ms")]
+    pub flush_interval_ms: u64,
+    /// Per-shard queue capacity; submission blocks (backpressure) when
+    /// a shard is full.
+    #[serde(default = "EngineSection::default_shard_capacity")]
+    pub shard_capacity: usize,
+    /// Background flusher threads.
+    #[serde(default = "EngineSection::default_flush_threads")]
+    pub flush_threads: usize,
+    /// Wait for SQLite durability before acknowledging an MCP remember
+    /// call (read-your-writes; costs up to one epoch). Per-call
+    /// `durable: false` opts out.
+    #[serde(default = "EngineSection::default_durable_ack")]
+    pub durable_ack: bool,
+    /// Run fuzzy entity-name normalization on drained batches.
+    #[serde(default = "EngineSection::default_normalize")]
+    pub normalize: bool,
+    /// Keep per-shard crash-recovery journals (under
+    /// `<data_dir>/engine-journal/`) so acknowledged-but-unflushed
+    /// writes survive a crash.
+    #[serde(default = "EngineSection::default_journal")]
+    pub journal: bool,
+    /// Maintenance cadence in milliseconds: WAL checkpoints, deferred
+    /// search-index persistence, and journal reclamation run on this
+    /// tick (the engine moves SQLite's auto-checkpoint out of commit
+    /// paths onto it).
+    #[serde(default = "EngineSection::default_checkpoint_interval_ms")]
+    pub checkpoint_interval_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,6 +278,42 @@ impl Config {
                 "normalization.flag_threshold ({}) must be less than auto_merge_threshold ({})",
                 self.normalization.flag_threshold, self.normalization.auto_merge_threshold
             )));
+        }
+        if self.engine.shards == 0 {
+            return Err(OmError::Config(
+                "engine.shards must be greater than 0".into(),
+            ));
+        }
+        if self.engine.shard_capacity == 0 {
+            return Err(OmError::Config(
+                "engine.shard_capacity must be greater than 0".into(),
+            ));
+        }
+        if self.engine.flush_threads == 0 {
+            return Err(OmError::Config(
+                "engine.flush_threads must be greater than 0".into(),
+            ));
+        }
+        if self.engine.flush_interval_ms == 0 {
+            return Err(OmError::Config(
+                "engine.flush_interval_ms must be greater than 0".into(),
+            ));
+        }
+        if self.engine.domains == 0 {
+            return Err(OmError::Config(
+                "engine.domains must be greater than 0".into(),
+            ));
+        }
+        if self.engine.shards % self.engine.domains != 0 {
+            return Err(OmError::Config(format!(
+                "engine.shards ({}) must be a multiple of engine.domains ({})",
+                self.engine.shards, self.engine.domains
+            )));
+        }
+        if self.engine.checkpoint_interval_ms == 0 {
+            return Err(OmError::Config(
+                "engine.checkpoint_interval_ms must be greater than 0".into(),
+            ));
         }
         Ok(())
     }
@@ -397,6 +487,56 @@ impl Default for WatchSection {
     }
 }
 
+impl EngineSection {
+    fn default_enabled() -> bool {
+        false
+    }
+    fn default_domains() -> usize {
+        1
+    }
+    fn default_shards() -> usize {
+        32
+    }
+    fn default_flush_interval_ms() -> u64 {
+        20
+    }
+    fn default_shard_capacity() -> usize {
+        4096
+    }
+    fn default_flush_threads() -> usize {
+        2
+    }
+    fn default_durable_ack() -> bool {
+        true
+    }
+    fn default_normalize() -> bool {
+        true
+    }
+    fn default_journal() -> bool {
+        true
+    }
+    fn default_checkpoint_interval_ms() -> u64 {
+        1000
+    }
+}
+
+impl Default for EngineSection {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            domains: Self::default_domains(),
+            shards: Self::default_shards(),
+            flush_interval_ms: Self::default_flush_interval_ms(),
+            shard_capacity: Self::default_shard_capacity(),
+            flush_threads: Self::default_flush_threads(),
+            durable_ack: Self::default_durable_ack(),
+            normalize: Self::default_normalize(),
+            journal: Self::default_journal(),
+            checkpoint_interval_ms: Self::default_checkpoint_interval_ms(),
+        }
+    }
+}
+
 impl NormalizationSection {
     fn default_enabled() -> bool {
         true
@@ -512,6 +652,70 @@ decay_rate = 0.02
         let mut config = Config::default();
         config.memory.decay_rate = -0.1;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn engine_section_defaults() {
+        let config = Config::default();
+        assert!(!config.engine.enabled, "engine is opt-in");
+        assert_eq!(config.engine.domains, 1, "partitioning is opt-in");
+        assert_eq!(config.engine.checkpoint_interval_ms, 1000);
+        assert_eq!(config.engine.shards, 32);
+        assert_eq!(config.engine.flush_interval_ms, 20);
+        assert_eq!(config.engine.shard_capacity, 4096);
+        assert_eq!(config.engine.flush_threads, 2);
+        assert!(config.engine.durable_ack);
+        assert!(config.engine.normalize);
+        assert!(config.engine.journal);
+    }
+
+    #[test]
+    fn engine_section_parses_from_toml() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(
+            &path,
+            r#"
+[engine]
+enabled = true
+shards = 8
+flush_interval_ms = 50
+durable_ack = false
+"#,
+        )
+        .unwrap();
+        let config = Config::load_from(&path).unwrap();
+        assert!(config.engine.enabled);
+        assert_eq!(config.engine.shards, 8);
+        assert_eq!(config.engine.flush_interval_ms, 50);
+        assert!(!config.engine.durable_ack);
+        // Unset keys keep their defaults.
+        assert_eq!(config.engine.shard_capacity, 4096);
+    }
+
+    #[test]
+    fn validate_rejects_zero_engine_knobs() {
+        for breakage in [
+            |c: &mut Config| c.engine.shards = 0,
+            |c: &mut Config| c.engine.shard_capacity = 0,
+            |c: &mut Config| c.engine.flush_threads = 0,
+            |c: &mut Config| c.engine.flush_interval_ms = 0,
+            |c: &mut Config| c.engine.domains = 0,
+            |c: &mut Config| c.engine.checkpoint_interval_ms = 0,
+        ] {
+            let mut config = Config::default();
+            breakage(&mut config);
+            assert!(config.validate().is_err());
+        }
+    }
+
+    #[test]
+    fn validate_rejects_indivisible_domain_count() {
+        let mut config = Config::default();
+        config.engine.domains = 5; // 32 shards % 5 != 0
+        assert!(config.validate().is_err());
+        config.engine.domains = 4;
+        config.validate().unwrap();
     }
 
     #[test]

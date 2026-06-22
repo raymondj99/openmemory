@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
-use openmemory_graph::MemoryStore;
+use openmemory_engine::partition::DomainStore;
 use openmemory_mcp::OpenMemoryMcpServer;
 
 use crate::cli::McpArgs;
@@ -19,9 +19,9 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir).context("creating data directory")?;
     }
-    let memory = MemoryStore::open(&config, &data_dir)
-        .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
-
+    // Partitioning materialises here: `[engine] domains` from the config
+    // creates (or reopens) the domain layout. A mismatch with an existing
+    // manifest is a hard error from DomainStore::open.
     #[cfg(feature = "embeddings")]
     let memory = {
         let models_dir = Config::models_dir().context("resolving models directory")?;
@@ -30,20 +30,47 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
                 "openmemory mcp: embeddings active ({})",
                 embedder.model_name()
             );
-            memory.with_embedder(Arc::new(embedder))
+            DomainStore::open_with_embedder(
+                &config,
+                &data_dir,
+                config.engine.domains,
+                Arc::new(embedder),
+            )
         } else {
             eprintln!("openmemory mcp: running in keyword-only mode (no embedder)");
-            memory
+            DomainStore::open(&config, &data_dir, config.engine.domains)
         }
-    };
+    }
+    .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
+    #[cfg(not(feature = "embeddings"))]
+    let memory = DomainStore::open(&config, &data_dir, config.engine.domains)
+        .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
 
-    let server = OpenMemoryMcpServer::from_memory(config, Arc::new(memory));
+    if memory.domains() > 1 {
+        eprintln!(
+            "openmemory mcp: domain-partitioned profile ({} domains)",
+            memory.domains()
+        );
+    }
+    let server = OpenMemoryMcpServer::from_domain_store(config, Arc::new(memory))
+        .context("starting context engine")?;
+    let engine = server.engine().cloned();
+    if engine.is_some() {
+        eprintln!("openmemory mcp: write-behind context engine active");
+    }
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("building tokio runtime")?;
-    runtime.block_on(serve(server, args))
+    let result = runtime.block_on(serve(server, args));
+
+    // Graceful exit: drain the engine so acknowledged writes commit.
+    // After a crash the per-shard journal replays them instead.
+    if let Some(engine) = engine {
+        engine.quiesce();
+    }
+    result
 }
 
 async fn serve(server: OpenMemoryMcpServer, args: McpArgs) -> Result<()> {

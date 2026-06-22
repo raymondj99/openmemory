@@ -53,6 +53,10 @@ struct Inner {
 /// Approximate-nearest-neighbour vector index backed by usearch.
 pub struct HnswIndex {
     inner: Mutex<Inner>,
+    /// Set by mutations, cleared by [`VectorIndex::save`]. Only ever
+    /// touched while `inner` is locked, so `Relaxed` ordering is
+    /// sufficient — the mutex provides the happens-before edges.
+    dirty: std::sync::atomic::AtomicBool,
 }
 
 impl HnswIndex {
@@ -68,6 +72,7 @@ impl HnswIndex {
                 by_uri: HashMap::new(),
                 dimensions: 0,
             }),
+            dirty: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -83,6 +88,7 @@ impl HnswIndex {
                 by_uri: HashMap::new(),
                 dimensions: dim,
             }),
+            dirty: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -158,6 +164,7 @@ impl HnswIndex {
                 by_uri,
                 dimensions,
             }),
+            dirty: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -177,6 +184,10 @@ impl HnswIndex {
         let meta_bytes = serde_json::to_vec(&inner.meta)
             .map_err(|e| IndexError::InvalidInput(format!("serialize meta: {e}")))?;
         std::fs::write(dir.join(META_FILE), meta_bytes)?;
+        // `inner` is still locked: no mutation can interleave between the
+        // writes above and clearing the flag.
+        self.dirty
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
@@ -263,6 +274,7 @@ impl VectorStore for HnswIndex {
                 },
             );
         }
+        self.dirty.store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
@@ -302,6 +314,9 @@ impl VectorStore for HnswIndex {
             let _ = inner.index.remove(label);
             inner.meta.remove(&label);
         }
+        if count > 0 {
+            self.dirty.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         Ok(count)
     }
 
@@ -317,6 +332,10 @@ impl VectorIndex for HnswIndex {
         // the multi-file HNSW layout.
         let dir = path.parent().unwrap_or_else(|| Path::new("."));
         self.save_to(dir)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.dirty.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {

@@ -310,6 +310,38 @@ lockstep by `MemoryStore`. This is the heart of the project.
 The decay scoring math and the spreading-activation algorithm are
 documented in [search.md](search.md):
 
+## `openmemory-engine`
+
+The concurrency bus between agents and the stores; the full design
+and measured results live in [context-engine.md](context-engine.md).
+
+**Purpose.** Absorb thousands of concurrent agent writes (sharded
+write-behind queues, epoch drains committed as single
+`remember_batch` transactions, crash-durable journals with
+exactly-once replay) and serve concurrent reads (domain-partitioned
+fan-out with a write-version-invalidated merged recall cache).
+
+**Feature flags.** `default = ["fts5"]`; `embeddings` and `testing`
+mirror the graph crate's flags.
+
+**Key types.**
+
+| Item | Module | Role |
+|------|--------|------|
+| `ContextEngine` | `engine` | The bus: `submit` returns a `Ticket` in sub-microsecond time; `wait_durable` blocks on the shard watermark; flusher threads drain epochs and run the maintenance tick (WAL checkpoints, index persistence, journal reclamation). |
+| `EngineOptions` / `EngineStats` | `engine` | Tuning knobs (shards, epoch, capacity, journal dir, checkpoint cadence) and monotonic counters. |
+| `journal` (module) | `journal` | Per-shard JSONL journals: append before ack, fsync before commit, checkpoint inside the commit transaction, truncate only after a complete WAL checkpoint. |
+| `DomainStore` | `partition` | K independent store families behind one routing facade: entity-hash routing, TAO-style double-written cross-domain edges with marked stubs, fan-out recall + merged-result cache, aggregated status/listings. `K = 1` is the byte-identical legacy layout. |
+| `migrate_domains` / `MigrationReport` | `migrate` | Offline re-homing between domain counts: raw export, stub/mirror re-derivation, verified staging build, sentinel-guarded two-phase swap, backup retention. |
+| `SourceAdapter`, `MarkdownNotesAdapter`, `ChatJsonlAdapter` | `adapter` | Turn external sources into `RememberRequest` streams for `openmemory ingest`. |
+
+**Source map.** `lib.rs` (bus narrative + re-exports), `engine.rs`
+(hot path), `journal.rs` (durability), `partition.rs` (domains +
+read path), `migrate.rs`, `adapter.rs`. Examples: `stress`
+(throughput benchmark, single vs partitioned) and `readpath` (the
+recall-path validation harness, kept as the reader-pool
+re-evaluation tool).
+
 ## `openmemory-mcp`
 
 **Purpose.** The MCP server. Eleven `openmemory_*` tools served

@@ -70,6 +70,21 @@ pub struct MemoryStatus {
     pub reader_pool_size: usize,
 }
 
+/// Outcome of one PASSIVE WAL checkpoint pass over the graph database.
+/// Returned by [`MemoryStore::wal_checkpoint`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WalCheckpointReport {
+    /// Frames in the WAL when the checkpoint ran. `-1` when the
+    /// database is not in WAL mode (`:memory:`).
+    pub log_frames: i64,
+    /// Frames transferred into the database file by this pass.
+    pub checkpointed_frames: i64,
+    /// `true` when every WAL frame was transferred and synced: all
+    /// previously committed transactions are now durable against power
+    /// loss, not just process crash.
+    pub complete: bool,
+}
+
 /// One row of [`MemoryStore::list_entities`]. Pairs the entity record with
 /// its live observation count so callers can render a one-shot summary
 /// without an extra query.
@@ -98,6 +113,17 @@ pub struct MemoryStore {
     /// used, so the engine's on-disk files are cleaned up when the store
     /// drops. `None` for the regular `open` path.
     _temp_dir: Option<tempfile::TempDir>,
+}
+
+impl Drop for MemoryStore {
+    /// Clean-exit backstop for deferred index persistence: batched
+    /// writes (`remember_batch`) update the vector index in memory and
+    /// leave the O(corpus) save to a caller cadence; this guarantees a
+    /// dropped store never exits with unsaved vectors. A no-op when the
+    /// index is already clean (every keyword-only run).
+    fn drop(&mut self) {
+        self.flush_engine();
+    }
 }
 
 impl MemoryStore {
@@ -239,6 +265,72 @@ impl MemoryStore {
                 "vector index flush failed; vectors will be rebuilt on next full sync"
             );
         }
+    }
+
+    /// Persist the search index to disk if it has unsaved changes.
+    /// Public twin of the internal post-write flush, for callers that
+    /// defer persistence to a background cadence (the context engine's
+    /// maintenance tick) instead of paying the O(corpus) vector save
+    /// inside every batch commit.
+    pub fn persist_search_index(&self) -> MemoryResult<()> {
+        openmemory_index::engine::flush(&self.engine)?;
+        Ok(())
+    }
+
+    /// Override the writer connection's WAL auto-checkpoint threshold
+    /// (`PRAGMA wal_autocheckpoint`), in pages. `0` disables automatic
+    /// checkpoints entirely — the caller then owns checkpointing via
+    /// [`Self::wal_checkpoint`] on its own cadence, or WAL files grow
+    /// without bound. Sustained-ingest callers do this to move the
+    /// checkpoint fsyncs out of commit paths; one-shot CLI processes
+    /// should keep the SQLite default.
+    pub fn set_wal_autocheckpoint(&self, pages: u32) -> MemoryResult<()> {
+        let conn = self.lock_db();
+        conn.pragma_update(None, "wal_autocheckpoint", pages)?;
+        Ok(())
+    }
+
+    /// Run a PASSIVE WAL checkpoint on the graph database, plus the
+    /// search engine's SQLite files (fulltext, metadata). PASSIVE never
+    /// blocks or is blocked by readers and writers; frames still needed
+    /// by an active reader are simply left for the next pass.
+    ///
+    /// The returned report says whether the graph WAL was *fully*
+    /// transferred and synced — when [`WalCheckpointReport::complete`]
+    /// is `true`, every previously committed transaction is durable
+    /// against power loss, which is the predicate the context engine's
+    /// journal truncation relies on.
+    pub fn wal_checkpoint(&self) -> MemoryResult<WalCheckpointReport> {
+        let report = {
+            let conn = self.lock_db();
+            // PRAGMA wal_checkpoint(PASSIVE) returns one row:
+            // (busy, log_frames, checkpointed_frames). On a non-WAL
+            // database (`:memory:`) the frame counts are -1/-1, which
+            // reports `complete` — correct, since there is nothing to
+            // checkpoint.
+            conn.query_row("PRAGMA wal_checkpoint(PASSIVE);", [], |row| {
+                let busy: i64 = row.get(0)?;
+                let log_frames: i64 = row.get(1)?;
+                let checkpointed_frames: i64 = row.get(2)?;
+                Ok(WalCheckpointReport {
+                    log_frames,
+                    checkpointed_frames,
+                    complete: busy == 0 && log_frames == checkpointed_frames,
+                })
+            })?
+        };
+        // Best-effort companion checkpoint of the engine's SQLite files;
+        // their durability is not load-bearing (SQLite rows in
+        // memory.sqlite are authoritative and consolidation re-indexes),
+        // so a failure here downgrades to a warning.
+        if let Err(e) = openmemory_index::engine::checkpoint(&self.engine) {
+            tracing::warn!(
+                target: "openmemory_graph::store",
+                error = %e,
+                "search-engine WAL checkpoint failed; will retry next pass"
+            );
+        }
+        Ok(report)
     }
 
     /// Borrow the optional embedder, if any. Used by the search-sync
@@ -391,6 +483,42 @@ impl MemoryStore {
                 let rows = stmt.query_map(params![now, limit_i, offset_i], row_to_entity_row)?;
                 collect_rows(rows)
             }
+        })
+    }
+
+    /// Per-`entity_type` counts of entities tagged with exactly `source`.
+    /// The partition layer (openmemory-engine's `DomainStore`) marks its
+    /// cross-domain stub entities with a reserved source and uses this to
+    /// subtract them from aggregated status snapshots.
+    pub fn entity_type_counts_by_source(&self, source: &str) -> MemoryResult<HashMap<String, u64>> {
+        self.with_reader(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT entity_type, COUNT(*) FROM entities
+                 WHERE source = ?1 GROUP BY entity_type",
+            )?;
+            let mut rows = stmt.query(params![source])?;
+            let mut out = HashMap::new();
+            while let Some(row) = rows.next()? {
+                out.insert(row.get::<_, String>(0)?, row.get::<_, u64>(1)?);
+            }
+            Ok(out)
+        })
+    }
+
+    /// Count relations whose `from_entity` is tagged with exactly
+    /// `source`. Companion to [`Self::entity_type_counts_by_source`]:
+    /// a partition mirror edge always originates from a stub entity, so
+    /// this is the number of duplicated (mirrored) edges in this store.
+    pub fn count_relations_from_source_entities(&self, source: &str) -> MemoryResult<u64> {
+        self.with_reader(|conn| {
+            let count = conn.query_row(
+                "SELECT COUNT(*) FROM relations r
+                 JOIN entities e ON r.from_entity = e.id
+                 WHERE e.source = ?1",
+                params![source],
+                |row| row.get(0),
+            )?;
+            Ok(count)
         })
     }
 
@@ -675,7 +803,7 @@ impl MemoryStore {
 
 // --------------------- row mappers ---------------------
 
-fn row_to_entity(row: &rusqlite::Row<'_>) -> rusqlite::Result<Entity> {
+pub(crate) fn row_to_entity(row: &rusqlite::Row<'_>) -> rusqlite::Result<Entity> {
     let entity_type_str: String = row.get(2)?;
     Ok(Entity {
         id: row.get(0)?,
@@ -802,7 +930,7 @@ where
 /// against the supplied connection and group the results by observation id.
 /// Used to populate the v2 side-table arrays (`concepts`, `source_files`) for
 /// a batch of observations in O(1) round-trips.
-fn load_observation_side_table(
+pub(crate) fn load_observation_side_table(
     conn: &Connection,
     sql_prefix: &str,
     ids: &[&str],
@@ -858,6 +986,56 @@ mod tests {
         let store = MemoryStore::open(&cfg(), &nested).unwrap();
         assert!(nested.join(MEMORY_DB_FILE).exists());
         assert_eq!(store.data_dir(), nested);
+    }
+
+    #[test]
+    fn wal_checkpoint_reports_complete_after_writes() {
+        let (store, _dir) = open_temp();
+        // Disable auto-checkpoint so the WAL provably holds our frames
+        // when the explicit checkpoint runs.
+        store.set_wal_autocheckpoint(0).unwrap();
+        for i in 0..10 {
+            store
+                .remember(
+                    &format!("entity-{i}"),
+                    EntityType::Fact,
+                    &[crate::remember::ObservationInput::new(format!("fact {i}"))],
+                    &[],
+                    "test",
+                )
+                .unwrap();
+        }
+        let report = store.wal_checkpoint().unwrap();
+        assert!(
+            report.log_frames > 0,
+            "writes must have produced WAL frames"
+        );
+        assert_eq!(report.log_frames, report.checkpointed_frames);
+        assert!(report.complete, "no readers -> full transfer: {report:?}");
+    }
+
+    #[test]
+    fn wal_checkpoint_on_in_memory_store_is_complete_noop() {
+        // :memory: databases have no WAL; the report must still parse and
+        // count as complete so callers can treat it uniformly.
+        let store = MemoryStore::open_in_memory(&cfg()).unwrap();
+        let report = store.wal_checkpoint().unwrap();
+        assert!(report.complete);
+    }
+
+    #[test]
+    fn persist_search_index_succeeds_on_keyword_only_store() {
+        let (store, _dir) = open_temp();
+        store
+            .remember(
+                "alpha",
+                EntityType::Fact,
+                &[crate::remember::ObservationInput::new("a fact")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        store.persist_search_index().unwrap();
     }
 
     #[test]

@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{IndexError, IndexResult};
-use crate::traits::{FullTextStore, IndexEntry, SearchResult};
+use crate::traits::{ExportEntry, FullTextStore, IndexEntry, SearchResult};
 
 /// BM25 ranking parameter `k1` — saturation of term frequency.
 const K1: f64 = 1.2;
@@ -246,6 +246,22 @@ impl Bm25Inner {
 }
 
 impl FullTextStore for Bm25Store {
+    fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
+        let inner = self.lock()?;
+        let mut out: Vec<ExportEntry> = inner
+            .docs
+            .values()
+            .map(|doc| ExportEntry {
+                uri: doc.uri.clone(),
+                text: doc.text.clone(),
+                chunk_index: doc.chunk_index,
+                vector: Vec::new(),
+            })
+            .collect();
+        out.sort_by(|a, b| (a.uri.as_str(), a.chunk_index).cmp(&(b.uri.as_str(), b.chunk_index)));
+        Ok(out)
+    }
+
     fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
         let mut inner = self.lock()?;
         for e in entries {
