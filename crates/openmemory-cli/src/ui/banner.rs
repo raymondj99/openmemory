@@ -113,7 +113,10 @@ impl Banner {
             let painted_edge = paint(BORDER, &edge);
             writeln_swallow(
                 w,
-                &format!("{painted_edge} {} {painted_edge}", paint(ACCENT, &self.title)),
+                &format!(
+                    "{painted_edge} {} {painted_edge}",
+                    paint(ACCENT, &self.title)
+                ),
             );
             return;
         }
@@ -127,7 +130,10 @@ impl Banner {
         let painted_edge = paint(BORDER, &edge);
         writeln_swallow(
             w,
-            &format!("{painted_edge} {} {painted_edge}", paint(ACCENT, &self.title)),
+            &format!(
+                "{painted_edge} {} {painted_edge}",
+                paint(ACCENT, &self.title)
+            ),
         );
         for line in &self.lines {
             match line {

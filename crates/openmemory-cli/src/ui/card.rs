@@ -33,6 +33,11 @@ const CARD_HEADER_MIN: usize = 24;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeaderEmphasis {
     Default,
+    // The active marker is only rendered by `model list` (behind the
+    // `embeddings` feature); the variant is still exercised by this
+    // module's tests, so suppress the dead-code lint on minimal builds
+    // rather than gate the variant out and fragment the `match`.
+    #[cfg_attr(not(feature = "embeddings"), allow(dead_code))]
     Active,
 }
 
@@ -56,6 +61,10 @@ pub fn render<W: Write>(w: &mut W, header: &str, suffix: &str, body: &str) {
 /// Print a single card whose header reads as the active/selected item
 /// in a peer list. Identical layout to [`render`], but the header is
 /// painted with the success accent so it pops in a stack of muted peers.
+///
+/// Consumed by `model list` (the `embeddings` feature); always reachable
+/// from this module's tests.
+#[cfg_attr(not(feature = "embeddings"), allow(dead_code))]
 pub fn render_active<W: Write>(w: &mut W, header: &str, suffix: &str, body: &str) {
     render_with(w, header, suffix, body, HeaderEmphasis::Active);
 }
