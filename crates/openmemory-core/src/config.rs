@@ -19,6 +19,10 @@ pub struct Config {
     pub normalization: NormalizationSection,
     #[serde(default)]
     pub engine: EngineSection,
+    /// Raw 32-byte SQLCipher data key for encryption at rest (`v0.4.4-lb1`). Set programmatically
+    /// at open time (never read from / written to `config.toml`); `None` = plaintext databases.
+    #[serde(skip)]
+    pub cipher_key: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -175,6 +179,19 @@ pub struct NormalizationSection {
 }
 
 impl Config {
+    /// Attach a raw 32-byte SQLCipher data key (encryption at rest, `v0.4.4-lb1`).
+    #[must_use]
+    pub fn with_cipher_key(mut self, key: Vec<u8>) -> Self {
+        self.cipher_key = Some(key);
+        self
+    }
+
+    /// The configured cipher key, if any.
+    #[must_use]
+    pub fn cipher_key(&self) -> Option<&[u8]> {
+        self.cipher_key.as_deref()
+    }
+
     pub fn home_dir() -> OmResult<PathBuf> {
         if let Ok(v) = std::env::var("OPENMEMORY_HOME") {
             return Ok(PathBuf::from(v));

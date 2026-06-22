@@ -45,6 +45,12 @@ impl EmbeddingCache {
     /// Open a persistent cache at `path`. Creates parent directories
     /// and applies schema migrations as needed.
     pub fn open(path: &Path) -> EmbedResult<Self> {
+        Self::open_keyed(path, None)
+    }
+
+    /// As [`Self::open`], applying a SQLCipher key (encryption at rest, `v0.4.4-lb1`) before any
+    /// other statement. `None` = plaintext.
+    pub fn open_keyed(path: &Path, cipher_key: Option<&[u8]>) -> EmbedResult<Self> {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent)?;
@@ -52,6 +58,7 @@ impl EmbeddingCache {
         }
 
         let conn = Connection::open(path)?;
+        openmemory_core::cipher::apply_cipher_key(&conn, cipher_key)?;
         Self::init(conn)
     }
 

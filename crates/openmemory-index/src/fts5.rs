@@ -62,12 +62,23 @@ impl Fts5Store {
     /// Open or create an FTS5 database at `path` with caller-supplied
     /// field weights for newly inserted fielded entries.
     pub fn open_with_field_weights(path: &Path, field_weights: FieldWeights) -> IndexResult<Self> {
+        Self::open_with_field_weights_keyed(path, field_weights, None)
+    }
+
+    /// As [`Self::open_with_field_weights`], applying a SQLCipher key (encryption at rest,
+    /// `v0.4.4-lb1`) before any other statement. `None` = plaintext.
+    pub fn open_with_field_weights_keyed(
+        path: &Path,
+        field_weights: FieldWeights,
+        cipher_key: Option<&[u8]>,
+    ) -> IndexResult<Self> {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent)?;
             }
         }
         let conn = Connection::open(path)?;
+        openmemory_core::cipher::apply_cipher_key(&conn, cipher_key)?;
         Self::configure(&conn)?;
         Self::init_schema(&conn)?;
         Ok(Self {

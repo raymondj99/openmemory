@@ -76,11 +76,11 @@ impl ReadPool {
     /// (`busy_timeout`, `cache_size`); journal mode is set on the writer
     /// and inherited from the database file, so we don't try to set it
     /// here (read-only handles can't change WAL mode anyway).
-    pub fn open(path: &Path, size: usize) -> MemoryResult<Self> {
+    pub fn open(path: &Path, size: usize, cipher_key: Option<&[u8]>) -> MemoryResult<Self> {
         let size = size.max(1);
         let mut connections = Vec::with_capacity(size);
         for _ in 0..size {
-            let conn = open_reader(path)?;
+            let conn = open_reader(path, cipher_key)?;
             connections.push(conn);
         }
         Ok(Self {
@@ -187,12 +187,14 @@ fn checkout(available: &Mutex<Vec<Connection>>, cond_var: &Condvar) -> Connectio
     }
 }
 
-fn open_reader(path: &Path) -> MemoryResult<Connection> {
+fn open_reader(path: &Path, cipher_key: Option<&[u8]>) -> MemoryResult<Connection> {
     let flags = OpenFlags::SQLITE_OPEN_READ_ONLY
         | OpenFlags::SQLITE_OPEN_URI
         | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn = Connection::open_with_flags(path, flags)
         .map_err(|e| MemoryError::Schema(format!("open read-only connection: {e}")))?;
+    // SQLCipher key must be applied before any other statement (no-op when None).
+    openmemory_core::cipher::apply_cipher_key(&conn, cipher_key)?;
     // Read-only handles can't set journal_mode, but session-local pragmas
     // are fair game. busy_timeout matches the writer's setting so a reader
     // mid-snapshot waits cooperatively rather than failing fast.
@@ -228,7 +230,7 @@ mod tests {
         let db = dir.path().join("p.sqlite");
         seed(&db);
 
-        let pool = ReadPool::open(&db, 4).unwrap();
+        let pool = ReadPool::open(&db, 4, None).unwrap();
         assert_eq!(pool.size(), 4);
 
         let count: i64 = pool
@@ -247,7 +249,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let db = dir.path().join("p.sqlite");
         seed(&db);
-        let pool = ReadPool::open(&db, 0).unwrap();
+        let pool = ReadPool::open(&db, 0, None).unwrap();
         assert_eq!(pool.size(), 1);
     }
 
@@ -281,7 +283,7 @@ mod tests {
         let db = dir.path().join("p.sqlite");
         seed(&db);
 
-        let pool = Arc::new(ReadPool::open(&db, 4).unwrap());
+        let pool = Arc::new(ReadPool::open(&db, 4, None).unwrap());
         let handles: Vec<_> = (0..4)
             .map(|_| {
                 let pool = Arc::clone(&pool);
@@ -319,7 +321,7 @@ mod tests {
         // condvar and wake when the other thread's `ReturnGuard::drop`
         // fires. If the wakeup path is broken, this test deadlocks rather
         // than ticking through silently.
-        let pool = Arc::new(ReadPool::open(&db, 1).unwrap());
+        let pool = Arc::new(ReadPool::open(&db, 1, None).unwrap());
         let gate = Arc::new(std::sync::Barrier::new(2));
 
         let mut handles = Vec::new();
@@ -348,7 +350,7 @@ mod tests {
         let db = dir.path().join("p.sqlite");
         seed(&db);
 
-        let pool = ReadPool::open(&db, 1).unwrap();
+        let pool = ReadPool::open(&db, 1, None).unwrap();
         let result: MemoryResult<usize> = pool.with_reader(|conn| {
             // OPEN_READ_ONLY surfaces as `attempt to write a readonly database`.
             let n = conn.execute("INSERT INTO t (id, name) VALUES (3, 'gamma')", params![])?;

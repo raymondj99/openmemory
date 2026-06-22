@@ -22,7 +22,9 @@ openmemory-core = { workspace = true }
 thiserror.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
-rusqlite = { workspace = true, features = ["bundled"] }
+# v0.4.4-lb1: SQLCipher (page-level AES-256 encryption at rest) with vendored OpenSSL so the
+# build is self-contained. A no-key connection behaves as plain SQLite, keeping stock callers green.
+rusqlite = { workspace = true, features = ["bundled-sqlcipher-vendored-openssl"] }
 lru.workspace = true
 usearch = { workspace = true, optional = true }
 tracing.workspace = true

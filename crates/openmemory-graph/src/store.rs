@@ -139,11 +139,12 @@ impl MemoryStore {
 
         let db_path = data_dir.join(MEMORY_DB_FILE);
         let conn = Connection::open(&db_path)?;
+        openmemory_core::cipher::apply_cipher_key(&conn, config.cipher_key())?;
         configure(&conn)?;
         migrate(&conn)?;
 
         let engine = open_engine(config, data_dir)?;
-        let readers = ReadPool::open(&db_path, config.num_jobs())?;
+        let readers = ReadPool::open(&db_path, config.num_jobs(), config.cipher_key())?;
 
         Ok(Self {
             db: Arc::new(Mutex::new(conn)),
@@ -175,6 +176,7 @@ impl MemoryStore {
     /// [`Self::open`] against a tempdir.
     pub fn open_in_memory(config: &Config) -> MemoryResult<Self> {
         let conn = Connection::open_in_memory()?;
+        openmemory_core::cipher::apply_cipher_key(&conn, config.cipher_key())?;
         // PRAGMA journal_mode=WAL is silently ignored on :memory: databases —
         // applying the rest is still correct.
         configure(&conn)?;

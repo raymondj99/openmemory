@@ -78,12 +78,19 @@ pub struct MetadataStore {
 impl MetadataStore {
     /// Open or create a metadata database at `path`.
     pub fn open(path: &Path) -> IndexResult<Self> {
+        Self::open_keyed(path, None)
+    }
+
+    /// As [`Self::open`], applying a SQLCipher key (encryption at rest, `v0.4.4-lb1`) before any
+    /// other statement. `None` = plaintext.
+    pub fn open_keyed(path: &Path, cipher_key: Option<&[u8]>) -> IndexResult<Self> {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent)?;
             }
         }
         let conn = Connection::open(path)?;
+        openmemory_core::cipher::apply_cipher_key(&conn, cipher_key)?;
         Self::configure(&conn)?;
         Self::migrate(&conn)?;
         Ok(Self {

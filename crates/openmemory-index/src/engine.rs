@@ -73,15 +73,16 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
     let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
 
     #[cfg(feature = "fts5")]
-    let fulltext_store = Fts5Store::open_with_field_weights(
+    let fulltext_store = Fts5Store::open_with_field_weights_keyed(
         &data_dir.join(FULLTEXT_FILE),
         config.search.field_weights.as_array(),
+        config.cipher_key(),
     )?;
     #[cfg(not(feature = "fts5"))]
     let fulltext_store = Bm25Store::open(&data_dir.join(FULLTEXT_FILE))?;
 
     #[cfg(feature = "sqlite")]
-    let metadata = MetadataStore::open(&data_dir.join(METADATA_FILE))?;
+    let metadata = MetadataStore::open_keyed(&data_dir.join(METADATA_FILE), config.cipher_key())?;
 
     let hybrid = HybridSearchEngine::with_rrf_k(
         vector_store,

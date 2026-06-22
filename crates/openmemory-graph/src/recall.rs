@@ -55,7 +55,7 @@ const CORRECTION_SOURCES: &[&str] = &["correction", "cortex:correction"];
 
 /// Filters applied to recall. Each field is optional; `None` disables that
 /// filter.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecallFilters {
     pub entity_type: Option<EntityType>,
     /// Restrict to observations valid at this Unix timestamp. `None` =
@@ -74,6 +74,26 @@ pub struct RecallFilters {
     /// Whether to use the relation-spreading fallback when direct search
     /// underflows. Default: enabled.
     pub spreading_activation: bool,
+    /// Whether recall may mutate `access_count` (the retrieval-frequency
+    /// boost). Default `true`. Set `false` for archived / read-only-share
+    /// surfaces that must recall without mutating anything (`v0.4.4-lb1`).
+    pub bump_access: bool,
+}
+
+impl Default for RecallFilters {
+    fn default() -> Self {
+        Self {
+            entity_type: None,
+            valid_at: None,
+            source: None,
+            min_confidence: None,
+            entity_names: None,
+            mode: None,
+            memory_tier: None,
+            spreading_activation: false,
+            bump_access: true,
+        }
+    }
 }
 
 impl RecallFilters {
@@ -267,8 +287,9 @@ impl MemoryStore {
         }
 
         // Side-effect: increment access_count so future recalls of the same
-        // observation get the retrieval-frequency boost.
-        if !hits.is_empty() {
+        // observation get the retrieval-frequency boost. Skipped when the
+        // caller requests a read-only recall (`bump_access = false`, v0.4.4-lb1).
+        if filters.bump_access && !hits.is_empty() {
             let ids: Vec<String> = hits.iter().map(|r| r.observation.id.clone()).collect();
             let _ = self.bump_access_counts(&ids);
         }
