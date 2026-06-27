@@ -191,6 +191,7 @@ MSRV is **1.85.0** (pinned via `rust-toolchain.toml`).
 | [Watcher](docs/watcher.md) | Filesystem watcher internals |
 | [Development](docs/development.md) | Build, test, lint, CI |
 | [Roadmap](docs/roadmap.md) | Release history and backlog |
+| [Product roadmap](docs/product-roadmap.md) | Local desktop productization plan |
 
 ## Contributing
 

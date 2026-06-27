@@ -64,6 +64,7 @@ its own; skip ahead if you only need one slice.
 | [watcher.md](watcher.md) | The `openmemory-watch` crate. What it indexes, the initial-tree walk, the debounced event loop, BLAKE3 dedup, the precedence of `.gitignore` / `.ignore` / `.openmemory-ignore`, and the `file://` URI shape. |
 | [development.md](development.md) | The local development loop, MSRV pin, lints and clippy config, the CI matrix, testing discipline, the hosted-Codespace walkthrough for HTTP-transport validation, and security-review checklist. |
 | [roadmap.md](roadmap.md) | What shipped in v0.1.0, v0.2.0, and v0.2.1, what is in flight on `[Unreleased]`, and the post-v0.2 backlog (Homebrew, LLM features, Postgres backend, etc.). |
+| [product-roadmap.md](product-roadmap.md) | Product plan for turning the engine into a local desktop app: positioning, architecture, phases, UX, capture, packaging, metrics, and commercial rollout. |
 
 ## Quick links
 
