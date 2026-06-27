@@ -1,14 +1,17 @@
 //! `openmemory daemon` — start the local admin API daemon.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use openmemory_admin::{
-    AdminError, AdminErrorCode, AdminErrorResponse, DaemonRuntimeInfo, DaemonStatusResponse,
-    DaemonStopResponse,
+    AdminError, AdminErrorCode, AdminErrorResponse, AdminShutdownResponse, DaemonRuntimeInfo,
+    DaemonStatusResponse, DaemonStatusState, DaemonStopResponse,
 };
 use openmemory_core::config::Config;
 use openmemory_daemon::{AdminToken, DaemonConfig};
+use std::time::Duration;
 
 use crate::cli::{DaemonCommand, DaemonStartArgs, DaemonStatusArgs, DaemonStopArgs};
+
+const DAEMON_HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub fn run(profile: &str, command: DaemonCommand) -> Result<()> {
     match command {
@@ -20,6 +23,7 @@ pub fn run(profile: &str, command: DaemonCommand) -> Result<()> {
 
 fn start(profile: &str, args: DaemonStartArgs) -> Result<()> {
     let home = Config::home_dir().context("resolving OpenMemory home")?;
+    ensure_no_running_daemon(&home)?;
     let token = openmemory_daemon::load_or_create_admin_token(&home)
         .context("loading daemon admin token")?;
     let admin_token = AdminToken::new(token).context("validating daemon admin token")?;
@@ -46,7 +50,7 @@ fn start(profile: &str, args: DaemonStartArgs) -> Result<()> {
     eprintln!("openmemory daemon: token loaded from per-home runtime storage");
     eprintln!("openmemory daemon: press Ctrl-C to stop");
 
-    let result = runtime
+    let serve_result = runtime
         .block_on(openmemory_daemon::serve_listener_until_shutdown(
             config,
             listener,
@@ -55,8 +59,9 @@ fn start(profile: &str, args: DaemonStartArgs) -> Result<()> {
             },
         ))
         .context("serving daemon admin API");
-    let _ = openmemory_daemon::remove_runtime_info(&home_for_cleanup);
-    result
+    let cleanup_result = openmemory_daemon::remove_runtime_info(&home_for_cleanup)
+        .context("removing daemon runtime metadata after daemon exit");
+    serve_result.and(cleanup_result)
 }
 
 fn status(args: DaemonStatusArgs) -> Result<()> {
@@ -78,7 +83,41 @@ fn stop(args: DaemonStopArgs) -> Result<()> {
     } else {
         render_stop(&response);
     }
-    Ok(())
+    if response.stopped {
+        Ok(())
+    } else {
+        let message = response
+            .error
+            .as_ref()
+            .map_or("daemon was not stopped", |error| error.message.as_str());
+        bail!("{message}")
+    }
+}
+
+fn ensure_no_running_daemon(home: &std::path::Path) -> Result<()> {
+    let Some(runtime) = openmemory_daemon::read_runtime_info(home)
+        .context("checking existing daemon runtime metadata")?
+    else {
+        return Ok(());
+    };
+
+    if daemon_endpoint_responds(&runtime) {
+        bail!(
+            "openmemory daemon already running at {} (profile: {}); stop it before starting another daemon",
+            runtime.admin_url,
+            runtime.active_profile,
+        );
+    }
+
+    openmemory_daemon::remove_runtime_info(home).context("removing stale daemon runtime metadata")
+}
+
+fn daemon_endpoint_responds(runtime: &DaemonRuntimeInfo) -> bool {
+    let url = format!("{}/admin/health", runtime.admin_url.trim_end_matches('/'));
+    match daemon_http_agent().get(&url).call() {
+        Ok(_) | Err(ureq::Error::Status(_, _)) => true,
+        Err(ureq::Error::Transport(_)) => false,
+    }
 }
 
 fn daemon_status(home: &std::path::Path) -> DaemonStatusResponse {
@@ -195,10 +234,19 @@ fn daemon_stop(home: &std::path::Path) -> DaemonStopResponse {
     };
 
     match request_shutdown(&runtime, &token) {
-        Ok(()) => {
-            let _ = openmemory_daemon::remove_runtime_info(home);
-            DaemonStopResponse::stopped(runtime)
-        }
+        Ok(()) => match openmemory_daemon::remove_runtime_info(home) {
+            Ok(()) => DaemonStopResponse::stopped(runtime),
+            Err(error) => DaemonStopResponse::not_stopped(
+                Some(runtime),
+                AdminError::new(
+                    AdminErrorCode::RuntimeMetadataInvalid,
+                    "daemon stopped but runtime metadata could not be removed",
+                    Some("Remove the stale runtime file and retry status/stop."),
+                    false,
+                )
+                .with_details(serde_json::json!({ "error": error.to_string() })),
+            ),
+        },
         Err(error) => DaemonStopResponse::not_stopped(Some(runtime), error),
     }
 }
@@ -208,7 +256,8 @@ fn fetch_health(
     token: &str,
 ) -> Result<openmemory_admin::HealthResponse, AdminError> {
     let url = format!("{}/admin/health", runtime.admin_url.trim_end_matches('/'));
-    let response = ureq::get(&url)
+    let response = daemon_http_agent()
+        .get(&url)
         .set("Authorization", &format!("Bearer {token}"))
         .call()
         .map_err(|e| http_error(&url, e))?;
@@ -225,20 +274,44 @@ fn fetch_health(
 
 fn request_shutdown(runtime: &DaemonRuntimeInfo, token: &str) -> Result<(), AdminError> {
     let url = format!("{}/admin/shutdown", runtime.admin_url.trim_end_matches('/'));
-    let response = ureq::post(&url)
+    let response = daemon_http_agent()
+        .post(&url)
         .set("Authorization", &format!("Bearer {token}"))
         .call()
         .map_err(|e| http_error(&url, e))?;
-    if (200..300).contains(&response.status()) {
-        Ok(())
-    } else {
-        Err(AdminError::new(
+    if !(200..300).contains(&response.status()) {
+        return Err(AdminError::new(
             AdminErrorCode::DaemonUnreachable,
             format!("daemon shutdown returned HTTP {}", response.status()),
             Some("Verify that the runtime metadata points at the current daemon."),
             true,
+        ));
+    }
+    let payload = response.into_json::<AdminShutdownResponse>().map_err(|e| {
+        AdminError::new(
+            AdminErrorCode::RuntimeMetadataInvalid,
+            "daemon shutdown response was not valid JSON",
+            Some("Restart the daemon and try again."),
+            true,
+        )
+        .with_details(serde_json::json!({ "error": e.to_string() }))
+    })?;
+    if payload.accepted {
+        Ok(())
+    } else {
+        Err(AdminError::new(
+            AdminErrorCode::Conflict,
+            "daemon shutdown was rejected",
+            Some("Retry after checking daemon health."),
+            false,
         ))
     }
+}
+
+fn daemon_http_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .timeout(DAEMON_HTTP_TIMEOUT)
+        .build()
 }
 
 fn http_error(url: &str, error: ureq::Error) -> AdminError {
@@ -267,17 +340,17 @@ fn http_error(url: &str, error: ureq::Error) -> AdminError {
 
 fn render_status(response: &DaemonStatusResponse) {
     match response.state {
-        openmemory_admin::DaemonStatusState::Running => {
+        DaemonStatusState::Running => {
             let runtime = response.runtime.as_ref().expect("running includes runtime");
             println!(
                 "openmemory daemon: running at {} (profile: {})",
                 runtime.admin_url, runtime.active_profile
             );
         }
-        openmemory_admin::DaemonStatusState::NotStarted => {
+        DaemonStatusState::NotStarted => {
             println!("openmemory daemon: not running");
         }
-        openmemory_admin::DaemonStatusState::Unreachable => {
+        DaemonStatusState::Unreachable => {
             let message = response
                 .error
                 .as_ref()

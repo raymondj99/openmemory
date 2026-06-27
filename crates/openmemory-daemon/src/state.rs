@@ -14,6 +14,7 @@ use crate::{redact_log_text, redact_log_value, unix_now_secs, AdminToken, Daemon
 #[derive(Clone)]
 pub(crate) struct AdminState {
     pub(crate) token: Arc<RwLock<AdminToken>>,
+    pub(crate) token_generation: watch::Sender<u64>,
     pub(crate) config: DaemonConfig,
     pub(crate) logs: Arc<RedactedLogRing>,
     pub(crate) jobs: Arc<JobRegistry>,
@@ -84,6 +85,7 @@ impl RedactedLogRing {
 #[derive(Debug)]
 pub(crate) struct JobRegistry {
     inner: Mutex<JobRegistryInner>,
+    event_order: Mutex<()>,
     events: broadcast::Sender<AdminEvent>,
     store: Option<ProductStore>,
     durability_error: Mutex<Option<String>>,
@@ -117,6 +119,7 @@ impl JobRegistry {
                 next_event_sequence,
                 jobs: jobs.into_iter().map(|job| (job.id.clone(), job)).collect(),
             }),
+            event_order: Mutex::new(()),
             events,
             store,
             durability_error: Mutex::new(durability_error),
@@ -124,20 +127,31 @@ impl JobRegistry {
     }
 
     pub(crate) fn insert(&self, job: AdminJob) -> AdminJob {
-        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        inner.jobs.insert(job.id.clone(), job.clone());
+        let _event_order = self.event_order.lock().unwrap_or_else(|e| e.into_inner());
+        let event = {
+            let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            inner.jobs.insert(job.id.clone(), job.clone());
+            Self::event_for_job_locked(&mut inner, job.clone())
+        };
         self.persist_job(&job);
-        self.emit_locked(&mut inner, job.clone());
+        self.persist_event(&event);
+        let _ = self.events.send(event);
         job
     }
 
     pub(crate) fn update(&self, id: &str, update: impl FnOnce(&mut AdminJob)) -> Option<AdminJob> {
-        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        let job = inner.jobs.get_mut(id)?;
-        update(job);
-        let job = job.clone();
+        let _event_order = self.event_order.lock().unwrap_or_else(|e| e.into_inner());
+        let (job, event) = {
+            let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            let job = inner.jobs.get_mut(id)?;
+            update(job);
+            let job = job.clone();
+            let event = Self::event_for_job_locked(&mut inner, job.clone());
+            (job, event)
+        };
         self.persist_job(&job);
-        self.emit_locked(&mut inner, job.clone());
+        self.persist_event(&event);
+        let _ = self.events.send(event);
         Some(job)
     }
 
@@ -188,8 +202,14 @@ impl JobRegistry {
         let next_event_sequence = inner.next_event_sequence;
         drop(inner);
 
+        let durability_error = self
+            .durability_error
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let durable = self.store.is_some() && durability_error.is_none();
         let details = serde_json::json!({
-            "durable": self.store.is_some(),
+            "durable": durable,
             "jobs": total,
             "queued": queued,
             "running": running,
@@ -198,12 +218,7 @@ impl JobRegistry {
             "store_path": self.store.as_ref().map(|store| store.path().display().to_string()),
         });
 
-        if let Some(error) = self
-            .durability_error
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-        {
+        if let Some(error) = durability_error {
             ComponentHealth::error(
                 AdminErrorCode::StoreUnreadable,
                 "job registry persistence is unavailable",
@@ -214,7 +229,7 @@ impl JobRegistry {
         }
     }
 
-    fn emit_locked(&self, inner: &mut JobRegistryInner, job: AdminJob) {
+    fn event_for_job_locked(inner: &mut JobRegistryInner, job: AdminJob) -> AdminEvent {
         let event = AdminEvent {
             sequence: inner.next_event_sequence,
             unix_secs: unix_now_secs().unwrap_or(0),
@@ -223,8 +238,7 @@ impl JobRegistry {
             message: None,
         };
         inner.next_event_sequence = inner.next_event_sequence.saturating_add(1);
-        self.persist_event(&event);
-        let _ = self.events.send(event);
+        event
     }
 
     fn persist_job(&self, job: &AdminJob) {

@@ -11,6 +11,8 @@
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
+use std::sync::mpsc;
+use std::time::Duration;
 
 /// Locate the `openmemory` binary cargo built for this test.
 /// Same heuristic as `mcp_e2e.rs::binary_path`.
@@ -247,6 +249,21 @@ fn daemon_status_json_reports_not_started_without_runtime_file() {
 }
 
 #[test]
+fn daemon_stop_json_reports_not_stopped_with_failure_exit() {
+    let home = tempfile::tempdir().expect("tempdir");
+    let out = run(&home.path().to_path_buf(), &["daemon", "stop", "--json"]);
+    assert!(
+        !out.status.success(),
+        "stop without runtime metadata should fail"
+    );
+    let body = String::from_utf8(out.stdout).expect("utf-8 stdout");
+    let value: serde_json::Value = serde_json::from_str(body.trim()).expect("daemon stop json");
+
+    assert_eq!(value["stopped"], false);
+    assert_eq!(value["error"]["code"], "daemon_not_found");
+}
+
+#[test]
 fn daemon_start_serves_authenticated_health() {
     let home = tempfile::tempdir().expect("tempdir");
     let mut child = Command::new(binary_path())
@@ -262,11 +279,16 @@ fn daemon_start_serves_authenticated_health() {
     let stderr = child.stderr.take().expect("daemon stderr");
     let mut lines = BufReader::new(stderr).lines();
     let mut guard = ChildGuard(child);
+    let (line_tx, line_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = line_tx.send(lines.next().transpose());
+    });
 
-    let listen_line = lines
-        .next()
-        .expect("daemon should write listen line")
-        .expect("daemon listen line should be utf-8");
+    let listen_line = line_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("daemon should write listen line within 10 seconds")
+        .expect("daemon listen line should be readable")
+        .expect("daemon should write listen line");
     let url = listen_line
         .strip_prefix("openmemory daemon: admin API listening on ")
         .unwrap_or_else(|| panic!("unexpected daemon listen line: {listen_line}"))

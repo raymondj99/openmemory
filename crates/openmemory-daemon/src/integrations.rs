@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use openmemory_admin::{
@@ -125,14 +124,34 @@ fn integration_detected(client: AdminIntegrationClient, path: &Path) -> bool {
 }
 
 fn bin_on_path(name: &str) -> bool {
-    Command::new(name)
-        .arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|status| status.success())
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&paths).any(|dir| executable_on_path(&dir, name))
+}
+
+#[cfg(unix)]
+fn executable_on_path(dir: &Path, name: &str) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::metadata(dir.join(name))
+        .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
         .unwrap_or(false)
+}
+
+#[cfg(windows)]
+fn executable_on_path(dir: &Path, name: &str) -> bool {
+    let candidate = dir.join(name);
+    if candidate.is_file() {
+        return true;
+    }
+    let pathext = std::env::var_os("PATHEXT")
+        .and_then(|value| value.into_string().ok())
+        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string());
+    pathext.split(';').any(|extension| {
+        let extension = extension.trim();
+        !extension.is_empty() && dir.join(format!("{name}{extension}")).is_file()
+    })
 }
 
 fn resolve_integration_path(

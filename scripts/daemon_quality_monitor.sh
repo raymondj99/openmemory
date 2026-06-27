@@ -11,15 +11,26 @@ run() {
 
 check_no_matches() {
   local description="$1"
+  local matches
+  local status
   shift
+  matches="$(mktemp)"
   printf '\n[daemon-monitor] checking %s\n' "$description"
-  if rg "$@" >/tmp/openmemory-daemon-monitor.matches; then
-    cat /tmp/openmemory-daemon-monitor.matches
-    rm -f /tmp/openmemory-daemon-monitor.matches
+  set +e
+  rg "$@" >"$matches"
+  status=$?
+  set -e
+  if [[ "$status" -eq 0 ]]; then
+    cat "$matches"
+    rm -f "$matches"
     printf '[daemon-monitor] failed: %s\n' "$description" >&2
     exit 1
+  elif [[ "$status" -ne 1 ]]; then
+    rm -f "$matches"
+    printf '[daemon-monitor] rg failed while checking %s\n' "$description" >&2
+    exit "$status"
   fi
-  rm -f /tmp/openmemory-daemon-monitor.matches
+  rm -f "$matches"
 }
 
 run git diff --check

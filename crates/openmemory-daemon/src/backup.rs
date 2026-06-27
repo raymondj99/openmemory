@@ -1,5 +1,5 @@
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use openmemory_admin::{
@@ -32,17 +32,33 @@ pub(crate) fn backup_preflight(
             hint: Some("Run `openmemory init` for this profile.".into()),
             details: serde_json::json!({ "source_dir": source_dir.display().to_string() }),
         });
-    } else if path_is_same_or_descendant(&destination_dir, &source_dir) {
-        diagnostics.push(AdminDiagnostic {
-            component: "backup".into(),
-            code: AdminErrorCode::BackupPreflightFailed,
-            message: "backup destination cannot be inside the profile data directory".into(),
-            hint: Some("Choose a destination outside the active profile data directory.".into()),
-            details: serde_json::json!({
-                "source_dir": source_dir.display().to_string(),
-                "destination_dir": destination_dir.display().to_string(),
+    } else {
+        match path_is_same_or_descendant(&destination_dir, &source_dir) {
+            Ok(true) => diagnostics.push(AdminDiagnostic {
+                component: "backup".into(),
+                code: AdminErrorCode::BackupPreflightFailed,
+                message: "backup destination cannot be inside the profile data directory".into(),
+                hint: Some(
+                    "Choose a destination outside the active profile data directory.".into(),
+                ),
+                details: serde_json::json!({
+                    "source_dir": source_dir.display().to_string(),
+                    "destination_dir": destination_dir.display().to_string(),
+                }),
             }),
-        });
+            Ok(false) => {}
+            Err(error) => diagnostics.push(AdminDiagnostic {
+                component: "backup".into(),
+                code: AdminErrorCode::BackupPreflightFailed,
+                message: "backup destination containment could not be checked".into(),
+                hint: Some("Choose a destination with readable parent directories.".into()),
+                details: serde_json::json!({
+                    "source_dir": source_dir.display().to_string(),
+                    "destination_dir": destination_dir.display().to_string(),
+                    "error": error.to_string(),
+                }),
+            }),
+        }
     }
 
     if let Some(diagnostic) = backup_destination_diagnostic(&destination_dir) {
@@ -305,6 +321,8 @@ fn backup_create_blocking(
     let backup_name = format!("{}-{created_at}-{}", config.active_profile(), &unique[..8]);
     let final_dir = destination_dir.join(&backup_name);
     let staging_dir = destination_dir.join(format!(".{backup_name}.tmp"));
+    ensure_destination_outside_source(&final_dir, &source_dir).map_err(admin_backup_io)?;
+    ensure_destination_outside_source(&staging_dir, &source_dir).map_err(admin_backup_io)?;
     if staging_dir.exists() {
         std::fs::remove_dir_all(&staging_dir).map_err(admin_backup_io)?;
     }
@@ -392,6 +410,7 @@ fn restore_blocking(
         .target_profile
         .clone()
         .unwrap_or_else(|| manifest.profile.clone());
+    validate_restore_target_profile(&target_profile)?;
     let target_dir = profile_data_dir(config.home(), &target_profile);
     if target_dir.exists() && !request.replace_existing {
         return Err(AdminError::new(
@@ -606,8 +625,10 @@ pub(crate) fn copy_dir_recursive(source: &Path, destination: &Path) -> std::io::
             copy_dir_recursive(&source_path, &destination_path)?;
         } else if file_type.is_file() {
             std::fs::copy(&source_path, &destination_path)?;
+            std::fs::File::open(&destination_path)?.sync_all()?;
         }
     }
+    fsync_dir(destination)?;
     Ok(())
 }
 
@@ -637,30 +658,69 @@ fn existing_ancestor(path: &Path) -> Option<PathBuf> {
         .map(Path::to_path_buf)
 }
 
-fn path_is_same_or_descendant(path: &Path, parent: &Path) -> bool {
-    normalize_absolute(path).starts_with(normalize_absolute(parent))
+pub(crate) fn validate_restore_target_profile(profile: &str) -> Result<(), AdminError> {
+    let path = Path::new(profile);
+    let invalid = profile.trim().is_empty()
+        || profile.contains('/')
+        || profile.contains('\\')
+        || path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)));
+    if invalid {
+        return Err(AdminError::new(
+            AdminErrorCode::InvalidRequest,
+            "restore target profile is invalid",
+            Some("Use a single profile name without path separators or parent segments."),
+            false,
+        )
+        .with_details(serde_json::json!({ "target_profile": profile })));
+    }
+    Ok(())
 }
 
-fn normalize_absolute(path: &Path) -> PathBuf {
-    let path = if path.is_absolute() {
-        path.to_path_buf()
+fn ensure_destination_outside_source(destination: &Path, source: &Path) -> std::io::Result<()> {
+    if path_is_same_or_descendant(destination, source)? {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "backup destination {} resolves inside source {}",
+                destination.display(),
+                source.display()
+            ),
+        ))
     } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(path)
-    };
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                normalized.pop();
-            }
-            std::path::Component::Normal(part) => normalized.push(part),
-            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
-                normalized.push(component.as_os_str());
-            }
-        }
+        Ok(())
     }
-    normalized
+}
+
+fn path_is_same_or_descendant(path: &Path, parent: &Path) -> std::io::Result<bool> {
+    Ok(resolve_with_existing_ancestor(path)?.starts_with(resolve_with_existing_ancestor(parent)?))
+}
+
+fn resolve_with_existing_ancestor(path: &Path) -> std::io::Result<PathBuf> {
+    let absolute = absolute_path(path)?;
+    if let Ok(canonical) = absolute.canonicalize() {
+        return Ok(canonical);
+    }
+
+    let ancestor = existing_ancestor(&absolute).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("no existing ancestor for {}", path.display()),
+        )
+    })?;
+    let canonical_ancestor = ancestor.canonicalize()?;
+    let suffix = absolute
+        .strip_prefix(&ancestor)
+        .unwrap_or_else(|_| Path::new(""));
+    Ok(canonical_ancestor.join(suffix))
+}
+
+fn absolute_path(path: &Path) -> std::io::Result<PathBuf> {
+    if path.is_absolute() {
+        Ok(path.to_path_buf())
+    } else {
+        Ok(std::env::current_dir()?.join(path))
+    }
 }

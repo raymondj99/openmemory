@@ -43,7 +43,7 @@ use openmemory_index::traits::SearchMode;
 use rand::RngCore;
 use serde::Deserialize;
 use thiserror::Error;
-use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::wrappers::{BroadcastStream, WatchStream};
 use tokio_stream::StreamExt;
 
 mod backup;
@@ -51,7 +51,10 @@ mod integrations;
 mod product_store;
 mod state;
 
-use backup::{backup_preflight, restore_preflight, spawn_backup_create_job, spawn_restore_job};
+use backup::{
+    backup_preflight, restore_preflight, spawn_backup_create_job, spawn_restore_job,
+    validate_restore_target_profile,
+};
 use integrations::{
     integration_install, integration_preview, integrations_response, parse_integration_client,
     spawn_integration_verify_job,
@@ -72,6 +75,8 @@ pub enum DaemonError {
     NonLoopbackBind(SocketAddr),
     #[error("failed to read or write daemon runtime file: {0}")]
     RuntimeIo(#[from] std::io::Error),
+    #[error("admin token file has insecure permissions at {path}: mode {mode:o}")]
+    InsecureAdminTokenPermissions { path: PathBuf, mode: u32 },
     #[error("daemon runtime metadata is invalid: {0}")]
     RuntimeJson(#[from] serde_json::Error),
     #[error("system clock is before the Unix epoch")]
@@ -282,6 +287,7 @@ fn build_router_with_shutdown(
 ) -> Router {
     let logs = Arc::new(RedactedLogRing::new(DEFAULT_LOG_RING_CAPACITY));
     let jobs = Arc::new(JobRegistry::open(config.home()));
+    let (token_generation, _) = tokio::sync::watch::channel(0);
     logs.push(
         AdminLogLevel::Info,
         "admin_router_ready",
@@ -295,6 +301,7 @@ fn build_router_with_shutdown(
 
     let state = AdminState {
         token: Arc::new(RwLock::new(config.admin_token.clone())),
+        token_generation,
         config,
         logs,
         jobs,
@@ -1072,6 +1079,8 @@ async fn handle_rotate_token(State(state): State<AdminState>, headers: HeaderMap
                 );
             };
             *state.token.write().unwrap_or_else(|e| e.into_inner()) = new_token;
+            let next_generation = (*state.token_generation.borrow()).saturating_add(1);
+            let _ = state.token_generation.send(next_generation);
             state.logs.push(
                 AdminLogLevel::Info,
                 "admin_token_rotated",
@@ -1367,19 +1376,25 @@ async fn handle_events(State(state): State<AdminState>, headers: HeaderMap) -> R
         .unwrap_or(0);
     let replay = state.jobs.events_after(last_event_id, 256);
     let replay_stream = tokio_stream::iter(replay.into_iter().map(event_to_sse));
-    let live_stream = BroadcastStream::new(state.jobs.subscribe()).map(|result| {
-        let event = match result {
-            Ok(event) => event,
-            Err(error) => AdminEvent {
-                sequence: 0,
-                unix_secs: unix_now_secs().unwrap_or(0),
-                event_type: AdminEventType::Warning,
-                job: None,
-                message: Some(format!("event stream lagged: {error}")),
-            },
-        };
-        event_to_sse(event)
-    });
+    let live_stream = BroadcastStream::new(state.jobs.subscribe())
+        .map(|result| {
+            let event = match result {
+                Ok(event) => event,
+                Err(error) => AdminEvent {
+                    sequence: 0,
+                    unix_secs: unix_now_secs().unwrap_or(0),
+                    event_type: AdminEventType::Warning,
+                    job: None,
+                    message: Some(format!("event stream lagged: {error}")),
+                },
+            };
+            Some(event_to_sse(event))
+        })
+        .merge(
+            WatchStream::from_changes(state.token_generation.subscribe())
+                .map(|_| None::<Result<Event, Infallible>>),
+        )
+        .map_while(|event| event);
     let stream = replay_stream.chain(live_stream);
 
     Sse::new(stream)
@@ -1394,10 +1409,13 @@ fn event_to_sse(event: AdminEvent) -> Result<Event, Infallible> {
     };
     let data = serde_json::to_string(&event)
         .unwrap_or_else(|_| "{\"event_type\":\"warning\"}".to_string());
-    Ok(Event::default()
-        .event(event_name)
-        .id(event.sequence.to_string())
-        .data(data))
+    let sequence = event.sequence;
+    let event = Event::default().event(event_name).data(data);
+    if sequence == 0 {
+        Ok(event)
+    } else {
+        Ok(event.id(sequence.to_string()))
+    }
 }
 
 async fn handle_integrations(State(state): State<AdminState>, headers: HeaderMap) -> Response {
@@ -1615,6 +1633,9 @@ async fn handle_restore(
         .target_profile
         .clone()
         .unwrap_or_else(|| manifest.profile.clone());
+    if let Err(error) = validate_restore_target_profile(&target_profile) {
+        return json_error(StatusCode::BAD_REQUEST, AdminErrorResponse::new(error));
+    }
     let target_dir = profile_data_dir(state.config.home(), &target_profile);
     if target_dir.exists() && !request.replace_existing {
         return json_error(
@@ -1858,6 +1879,9 @@ fn write_atomic(path: &Path, content: &[u8]) -> Result<(), DaemonError> {
 }
 
 fn read_admin_token(path: &Path) -> Result<Option<String>, DaemonError> {
+    if !admin_token_file_exists_securely(path)? {
+        return Ok(None);
+    }
     match std::fs::read_to_string(path) {
         Ok(existing) => {
             let token = existing.trim();
@@ -1868,6 +1892,36 @@ fn read_admin_token(path: &Path) -> Result<Option<String>, DaemonError> {
             }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(DaemonError::RuntimeIo(e)),
+    }
+}
+
+#[cfg(unix)]
+fn admin_token_file_exists_securely(path: &Path) -> Result<bool, DaemonError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(DaemonError::RuntimeIo(e)),
+    };
+    let mode = metadata.permissions().mode() & 0o777;
+    if metadata.file_type().is_symlink()
+        || (metadata.file_type().is_file() && metadata.permissions().mode() & 0o077 != 0)
+    {
+        return Err(DaemonError::InsecureAdminTokenPermissions {
+            path: path.to_path_buf(),
+            mode,
+        });
+    }
+    Ok(true)
+}
+
+#[cfg(not(unix))]
+fn admin_token_file_exists_securely(path: &Path) -> Result<bool, DaemonError> {
+    match std::fs::metadata(path) {
+        Ok(_) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(DaemonError::RuntimeIo(e)),
     }
 }

@@ -106,7 +106,7 @@ impl ProductStore {
         let event_type = serde_json::to_string(&event.event_type)?;
         let job_id = event.job.as_ref().map(|job| job.id.as_str());
         conn.execute(
-            "INSERT OR IGNORE INTO daemon_events (
+            "INSERT INTO daemon_events (
                  sequence, unix_secs, event_type_json, job_id, event_json
              )
              VALUES (?1, ?2, ?3, ?4, ?5)",

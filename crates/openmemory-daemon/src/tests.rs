@@ -12,7 +12,15 @@ use openmemory_graph::{EntityType, ObservationInput, RelationInput};
 use tower::ServiceExt;
 
 fn test_config() -> DaemonConfig {
-    test_config_with_home(PathBuf::from("/tmp/openmemory-test"))
+    test_config_with_home(unique_test_home())
+}
+
+fn unique_test_home() -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "openmemory-test-{}-{}",
+        std::process::id(),
+        new_id()
+    ))
 }
 
 fn test_config_with_home(home: PathBuf) -> DaemonConfig {
@@ -128,7 +136,8 @@ async fn request_app_json(
 }
 
 async fn wait_for_job(app: Router, id: &str) -> AdminJob {
-    for _ in 0..100 {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
         let response = request_app(
             app.clone(),
             Method::GET,
@@ -141,9 +150,12 @@ async fn wait_for_job(app: Router, id: &str) -> AdminJob {
         if matches!(job.state, AdminJobState::Succeeded | AdminJobState::Failed) {
             return job;
         }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "job {id} did not finish"
+        );
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    panic!("job {id} did not finish");
 }
 
 async fn read_json<T: serde::de::DeserializeOwned>(response: Response) -> T {
@@ -231,7 +243,7 @@ fn runtime_info_path_lives_under_run_dir() {
 
 #[test]
 fn runtime_info_contains_public_discovery_fields_only() {
-    let config = test_config();
+    let config = test_config_with_home(PathBuf::from("/tmp/openmemory-test"));
     let info = runtime_info(&config, "127.0.0.1:7821".parse().unwrap()).unwrap();
 
     assert_eq!(info.api_version, ADMIN_API_VERSION);
@@ -423,12 +435,23 @@ fn token_file_is_created_then_reused() {
     assert!(first.chars().all(|c| c.is_ascii_hexdigit()));
 }
 
+#[cfg(unix)]
+fn set_owner_only(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+}
+
+#[cfg(not(unix))]
+fn set_owner_only(_path: &Path) {}
+
 #[test]
 fn existing_token_is_trimmed_when_reused() {
     let dir = tempfile::tempdir().unwrap();
     let path = admin_token_path(dir.path());
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, " saved-token \n").unwrap();
+    set_owner_only(&path);
 
     let token = load_or_create_admin_token(dir.path()).unwrap();
 
@@ -441,10 +464,30 @@ fn empty_existing_token_file_is_rejected() {
     let path = admin_token_path(dir.path());
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, "\n\t ").unwrap();
+    set_owner_only(&path);
 
     let err = load_or_create_admin_token(dir.path()).unwrap_err();
 
     assert!(matches!(err, DaemonError::EmptyAdminToken));
+}
+
+#[cfg(unix)]
+#[test]
+fn permissive_existing_token_file_is_rejected() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = admin_token_path(dir.path());
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, "saved-token\n").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let err = load_or_create_admin_token(dir.path()).unwrap_err();
+
+    assert!(matches!(
+        err,
+        DaemonError::InsecureAdminTokenPermissions { .. }
+    ));
 }
 
 #[test]
@@ -786,6 +829,41 @@ async fn rotate_token_endpoint_switches_auth_token_without_returning_secret() {
 }
 
 #[tokio::test]
+async fn rotate_token_endpoint_closes_existing_event_streams() {
+    let dir = tempfile::tempdir().unwrap();
+    let old = load_or_create_admin_token(dir.path()).unwrap();
+    let config = DaemonConfig::new(
+        "127.0.0.1:0".parse().unwrap(),
+        AdminToken::new(&old).unwrap(),
+        dir.path().to_path_buf(),
+        "default",
+    )
+    .unwrap();
+    let app = build_router(config);
+    let auth = HeaderValue::from_str(&format!("Bearer {old}")).unwrap();
+
+    let events = request_app(
+        app.clone(),
+        Method::GET,
+        "/admin/events",
+        Some(auth.clone()),
+    )
+    .await;
+    assert_eq!(events.status(), StatusCode::OK);
+
+    let rotated = request_app(app, Method::POST, "/admin/auth/rotate", Some(auth)).await;
+    assert_eq!(rotated.status(), StatusCode::OK);
+
+    tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        to_bytes(events.into_body(), usize::MAX),
+    )
+    .await
+    .expect("event stream should close after token rotation")
+    .expect("event stream body should be readable");
+}
+
+#[tokio::test]
 async fn logs_endpoint_is_authenticated_and_redacted() {
     let dir = tempfile::tempdir().unwrap();
     let token = load_or_create_admin_token(dir.path()).unwrap();
@@ -1054,6 +1132,24 @@ fn job_registry_persists_jobs_and_events_for_replay() {
     assert_eq!(reopened.events_after(1, 10).len(), 1);
     assert_eq!(reopened.health().state, ComponentState::Ok);
     assert_eq!(reopened.health().details["durable"], true);
+}
+
+#[test]
+fn product_store_rejects_duplicate_event_sequences() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = product_store::ProductStore::open(dir.path()).unwrap();
+    let event = AdminEvent {
+        sequence: 1,
+        unix_secs: 10,
+        event_type: AdminEventType::Warning,
+        job: None,
+        message: Some("first".into()),
+    };
+
+    store.insert_event(&event).unwrap();
+    let err = store.insert_event(&event).unwrap_err();
+
+    assert!(matches!(err, product_store::ProductStoreError::Sql(_)));
 }
 
 #[test]
@@ -1371,6 +1467,29 @@ async fn backup_create_rejects_destination_inside_profile_data() {
     assert_eq!(payload.error.code, AdminErrorCode::BackupPreflightFailed);
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn backup_create_rejects_symlink_destination_resolving_inside_profile_data() {
+    let dir = tempfile::tempdir().unwrap();
+    seed_default_profile(dir.path());
+    let link = dir.path().join("profile-link");
+    std::os::unix::fs::symlink(dir.path().join("data").join("default"), &link).unwrap();
+    let destination = link.join("backups");
+
+    let response = request_app_json(
+        build_router(test_config_with_home(dir.path().to_path_buf())),
+        Method::POST,
+        "/admin/backup/create",
+        Some(HeaderValue::from_static("Bearer secret")),
+        serde_json::json!({ "destination_dir": destination.display().to_string() }),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let payload: AdminErrorResponse = read_json(response).await;
+    assert_eq!(payload.error.code, AdminErrorCode::BackupPreflightFailed);
+}
+
 #[tokio::test]
 async fn backup_create_job_writes_manifest_and_artifact_opens_after_copy() {
     let dir = tempfile::tempdir().unwrap();
@@ -1526,6 +1645,43 @@ async fn restore_preflight_rejects_missing_invalid_and_truncated_artifacts() {
     let truncated_payload: AdminRestorePreflightResponse = read_json(truncated_response).await;
     assert!(!truncated_payload.ready);
     assert!(truncated_payload.manifest.is_some());
+}
+
+#[tokio::test]
+async fn restore_rejects_path_shaped_target_profile() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = build_router(test_config_with_home(dir.path().to_path_buf()));
+    let backup_dir = dir.path().join("backup");
+    std::fs::create_dir_all(&backup_dir).unwrap();
+    let manifest = AdminBackupManifest {
+        api_version: ADMIN_API_VERSION.to_string(),
+        profile: "default".into(),
+        created_at_unix_secs: 1,
+        source_dir: "/tmp/source".into(),
+        files_copied: 0,
+        bytes_copied: 0,
+    };
+    std::fs::write(
+        backup_dir.join("openmemory-backup.json"),
+        serde_json::to_string(&manifest).unwrap(),
+    )
+    .unwrap();
+
+    let response = request_app_json(
+        app,
+        Method::POST,
+        "/admin/restore",
+        Some(HeaderValue::from_static("Bearer secret")),
+        serde_json::json!({
+            "backup_dir": backup_dir.display().to_string(),
+            "target_profile": "../escaped"
+        }),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let payload: AdminErrorResponse = read_json(response).await;
+    assert_eq!(payload.error.code, AdminErrorCode::InvalidRequest);
 }
 
 #[tokio::test]
