@@ -1,0 +1,14 @@
+[package]
+name = "openmemory-admin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: typed local admin API contracts"
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

@@ -8,8 +8,9 @@
 //! of escaping to release. Per-primitive unit tests still live in
 //! `crates/openmemory-cli/src/ui/`.
 
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 /// Locate the `openmemory` binary cargo built for this test.
 /// Same heuristic as `mcp_e2e.rs::binary_path`.
@@ -62,6 +63,15 @@ fn stdout(o: &Output) -> String {
 
 fn stderr(o: &Output) -> String {
     String::from_utf8(o.stderr.clone()).expect("utf-8 stderr")
+}
+
+struct ChildGuard(Child);
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 #[test]
@@ -223,6 +233,97 @@ fn json_flag_emits_plain_json_not_ui() {
     let _: serde_json::Value = serde_json::from_str(trimmed).expect("json output");
     assert!(!body.contains('+'));
     assert!(!body.contains("no entities"));
+}
+
+#[test]
+fn daemon_status_json_reports_not_started_without_runtime_file() {
+    let home = tempfile::tempdir().expect("tempdir");
+    let out = run(&home.path().to_path_buf(), &["daemon", "status", "--json"]);
+    let body = stdout(&out);
+    let value: serde_json::Value = serde_json::from_str(body.trim()).expect("daemon status json");
+
+    assert_eq!(value["state"], "not_started");
+    assert_eq!(value["error"]["code"], "daemon_not_found");
+}
+
+#[test]
+fn daemon_start_serves_authenticated_health() {
+    let home = tempfile::tempdir().expect("tempdir");
+    let mut child = Command::new(binary_path())
+        .env_remove("NO_COLOR")
+        .env_remove("CLICOLOR_FORCE")
+        .env("OPENMEMORY_HOME", home.path())
+        .arg("--color=never")
+        .args(["daemon", "start", "--foreground"])
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn daemon");
+
+    let stderr = child.stderr.take().expect("daemon stderr");
+    let mut lines = BufReader::new(stderr).lines();
+    let mut guard = ChildGuard(child);
+
+    let listen_line = lines
+        .next()
+        .expect("daemon should write listen line")
+        .expect("daemon listen line should be utf-8");
+    let url = listen_line
+        .strip_prefix("openmemory daemon: admin API listening on ")
+        .unwrap_or_else(|| panic!("unexpected daemon listen line: {listen_line}"))
+        .to_string();
+
+    let token_path = home.path().join("run").join("admin-token");
+    let token = std::fs::read_to_string(&token_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", token_path.display()));
+    let token = token.trim();
+    assert_eq!(token.len(), 64);
+
+    let response = ureq::get(&format!("{url}/admin/health"))
+        .set("Authorization", &format!("Bearer {token}"))
+        .call()
+        .expect("health request");
+    assert_eq!(response.status(), 200);
+    let body: serde_json::Value = response.into_json().expect("health json");
+    assert_eq!(body["api_version"], "v1alpha1");
+    assert_eq!(body["active_profile"], "default");
+    assert_eq!(body["daemon"]["state"], "ok");
+    assert_eq!(body["store"]["state"], "warning");
+    assert_eq!(body["store"]["code"], "profile_not_initialized");
+    #[cfg(feature = "embeddings")]
+    {
+        assert_eq!(body["model"]["state"], "warning");
+        assert_eq!(body["model"]["code"], "model_missing");
+    }
+    #[cfg(not(feature = "embeddings"))]
+    assert_eq!(body["model"]["state"], "unknown");
+
+    let status_out = run(&home.path().to_path_buf(), &["daemon", "status", "--json"]);
+    let status_body = stdout(&status_out);
+    let status: serde_json::Value =
+        serde_json::from_str(status_body.trim()).expect("daemon status json");
+    assert_eq!(status["state"], "running");
+    assert_eq!(status["runtime"]["admin_url"], url);
+    assert_eq!(status["health"]["daemon"]["state"], "ok");
+    assert_eq!(status["health"]["store"]["code"], "profile_not_initialized");
+    assert!(status["runtime"]["pid"].as_u64().unwrap() > 0);
+
+    let stop_out = run(&home.path().to_path_buf(), &["daemon", "stop", "--json"]);
+    let stop_body = stdout(&stop_out);
+    let stop: serde_json::Value = serde_json::from_str(stop_body.trim()).expect("stop json");
+    assert_eq!(stop["stopped"], true);
+    assert_eq!(stop["runtime"]["admin_url"], url);
+
+    let status = guard.0.wait().expect("wait daemon");
+    assert!(
+        status.success(),
+        "graceful daemon stop should exit successfully"
+    );
+
+    let stopped_status_out = run(&home.path().to_path_buf(), &["daemon", "status", "--json"]);
+    let stopped_status_body = stdout(&stopped_status_out);
+    let stopped_status: serde_json::Value =
+        serde_json::from_str(stopped_status_body.trim()).expect("daemon status json");
+    assert_eq!(stopped_status["state"], "not_started");
 }
 
 // The `model` subcommand only exists with the `embeddings` feature; in

@@ -93,3 +93,20 @@ jobs:
         with:
           key: doc-all-features
       - run: cargo doc --workspace --no-deps --all-features
+
+  daemon-production-gate:
+    name: daemon production gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: daemon-production-gate
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: ./scripts/daemon_quality_monitor.sh

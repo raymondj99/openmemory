@@ -6,6 +6,7 @@
 
 pub mod completions;
 pub mod consolidate;
+pub mod daemon;
 #[cfg(feature = "eval")]
 pub mod eval;
 pub mod ingest;

@@ -1,6 +1,6 @@
 //! Performance benchmarks for openmemory's critical paths.
 //!
-//! Six benchmark groups covering the read hot paths and maintenance
+//! Seven benchmark groups covering the read hot paths and maintenance
 //! operations that dominate real-world workloads:
 //!
 //! 1. **flat_vector_search** — brute-force cosine similarity at 100 / 1k / 10k vectors.
@@ -10,23 +10,30 @@
 //! 4. **recall_spreading** — spreading-activation fallback enabled vs disabled.
 //! 5. **consolidate_dirty** — Jaccard dedup on a corpus seeded with near-duplicates.
 //! 6. **consolidate_clean** — scan-and-skip path on a corpus with no duplicates.
+//! 7. **daemon_admin_api** — desktop-facing admin routes over the local daemon router.
 //!
 //! All benchmarks use deterministic synthetic data (LCG-seeded vectors and
 //! NATO-alphabet text) so results are reproducible across runs.
 
 use std::hint::black_box;
+use std::path::Path;
 use std::sync::Arc;
 
+use axum::body::{to_bytes, Body};
+use axum::http::{header, Method, Request, StatusCode};
+use axum::Router;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use openmemory_core::clock::{Clock, FixedClock};
 use openmemory_core::config::Config;
 use openmemory_core::testing::{Embedder, FakeEmbedder};
+use openmemory_daemon::{build_router, AdminToken, DaemonConfig};
 use openmemory_graph::{
     ConsolidateConfig, EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput,
 };
 use openmemory_index::{
     FlatVectorIndex, Fts5Store, HybridSearchEngine, IndexEntry, SearchMode, VectorStore,
 };
+use tower::ServiceExt;
 
 const WORDS: &[&str] = &[
     "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet",
@@ -445,6 +452,137 @@ fn bench_consolidate_clean(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
+// 5. Daemon admin API routes used by the desktop shell
+// ---------------------------------------------------------------------------
+
+struct DaemonBenchContext {
+    _home: tempfile::TempDir,
+    app: Router,
+    backup_destination: std::path::PathBuf,
+    total_observations: usize,
+}
+
+fn populated_daemon_context(n_entities: usize, obs_per_entity: usize) -> DaemonBenchContext {
+    let home = tempfile::tempdir().unwrap();
+    let config = Config::default();
+    config.save(home.path().join("config.toml")).unwrap();
+    let data_dir = home.path().join("data").join("default");
+    seed_daemon_profile(&config, &data_dir, n_entities, obs_per_entity);
+
+    let daemon_config = DaemonConfig::new(
+        "127.0.0.1:0".parse().unwrap(),
+        AdminToken::new("bench-secret").unwrap(),
+        home.path().to_path_buf(),
+        "default",
+    )
+    .unwrap();
+
+    DaemonBenchContext {
+        backup_destination: home.path().join("backups"),
+        total_observations: n_entities * obs_per_entity,
+        app: build_router(daemon_config),
+        _home: home,
+    }
+}
+
+fn seed_daemon_profile(config: &Config, data_dir: &Path, n_entities: usize, obs_per_entity: usize) {
+    let store = MemoryStore::open(config, data_dir).unwrap();
+    for i in 0..n_entities {
+        let observations: Vec<ObservationInput> = (0..obs_per_entity)
+            .map(|j| {
+                ObservationInput::new(synthetic_text((10_000 + i * obs_per_entity + j) as u64, 14))
+            })
+            .collect();
+        let relations = if i > 0 && i % 10 == 0 {
+            vec![RelationInput::new(
+                "related_to",
+                format!("daemon_entity_{}", i - 1),
+                EntityType::Concept,
+            )]
+        } else {
+            Vec::new()
+        };
+        store
+            .remember(
+                &format!("daemon_entity_{i}"),
+                EntityType::Concept,
+                &observations,
+                &relations,
+                "bench-daemon",
+            )
+            .unwrap();
+    }
+}
+
+async fn daemon_request(app: Router, method: Method, uri: &str, body: Option<String>) -> usize {
+    let mut builder = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(header::AUTHORIZATION, "Bearer bench-secret");
+    let body = if let Some(body) = body {
+        builder = builder.header(header::CONTENT_TYPE, "application/json");
+        Body::from(body)
+    } else {
+        Body::empty()
+    };
+    let response = app.oneshot(builder.body(body).unwrap()).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap()
+        .len()
+}
+
+fn bench_daemon_admin_api(c: &mut Criterion) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let context = populated_daemon_context(1_000, 2);
+    let backup_body = serde_json::json!({
+        "destination_dir": context.backup_destination.display().to_string(),
+    })
+    .to_string();
+    let mut group = c.benchmark_group("daemon_admin_api");
+    group.throughput(Throughput::Elements(context.total_observations as u64));
+
+    group.bench_function("entities_page_50", |b| {
+        b.iter(|| {
+            let bytes = runtime.block_on(daemon_request(
+                context.app.clone(),
+                Method::GET,
+                "/admin/entities?limit=50",
+                None,
+            ));
+            black_box(bytes);
+        });
+    });
+
+    group.bench_function("keyword_search_10", |b| {
+        b.iter(|| {
+            let bytes = runtime.block_on(daemon_request(
+                context.app.clone(),
+                Method::GET,
+                "/admin/search?q=alpha%20bravo&limit=10&mode=keyword",
+                None,
+            ));
+            black_box(bytes);
+        });
+    });
+
+    group.bench_function("backup_preflight", |b| {
+        b.iter(|| {
+            let bytes = runtime.block_on(daemon_request(
+                context.app.clone(),
+                Method::POST,
+                "/admin/backup/preflight",
+                Some(backup_body.clone()),
+            ));
+            black_box(bytes);
+        });
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
 
 criterion_group!(
     benches,
@@ -454,5 +592,6 @@ criterion_group!(
     bench_recall_spreading,
     bench_consolidate_dirty,
     bench_consolidate_clean,
+    bench_daemon_admin_api,
 );
 criterion_main!(benches);
