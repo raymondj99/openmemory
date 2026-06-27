@@ -172,9 +172,9 @@ On first MCP `initialize`:
    model in `~/.openmemory/models/`. Startup never downloads model
    files; tool calls are answered keyword-only until the user runs
    `openmemory model download`.
-4. Log to stderr in human-friendly form by default;
-   `OPENMEMORY_LOG=json` switches to JSON lines for OpenClaw's
-   log capture.
+4. Log output is diagnostic only. OpenClaw-facing machine state
+   should come from MCP JSON-RPC responses or daemon/admin JSON
+   routes, not stderr log parsing.
 
 ## Verification
 

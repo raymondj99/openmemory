@@ -42,38 +42,40 @@ openmemory/
 │       ├── eval.yml            # non-gating retrieval-quality eval (v0.3)
 │       └── release.yml         # tagged release tarballs
 └── crates/
+    ├── openmemory-admin/      # typed local admin API contracts
     ├── openmemory-core/       # clock, config, error, migrations, retry
     ├── openmemory-index/      # hybrid search engine: vector + FTS5 + RRF
     ├── openmemory-embed/      # ONNX embeddings (optional)
     ├── openmemory-graph/      # entity/observation/relation knowledge graph
     ├── openmemory-engine/     # concurrency bus: write-behind shards, journal, domains
+    ├── openmemory-daemon/     # loopback admin daemon + durable jobs/events
     ├── openmemory-mcp/        # MCP server + tool router
     ├── openmemory-cli/        # binary `openmemory`
     ├── openmemory-watch/      # filesystem watcher with incremental re-indexing
-    ├── openmemory-bench/      # criterion benchmarks (recall, consolidate, vector)
+    ├── openmemory-bench/      # criterion benchmarks (recall, consolidate, daemon API)
     └── openmemory-eval/       # retrieval-quality harness (R@K, MRR, NDCG@K)  [v0.3]
 ```
 
 ## Crate dependency graph
 
 ```
-                   openmemory-core
-                  ╱       │       ╲
-            ┌────┘        │        └──────────┐
-            ▼             ▼                    ▼
-     openmemory-index    openmemory-embed (optional)
-            │                 │
-            └────────┐   ┌────┘
-                     ▼   ▼
-               openmemory-graph
-              ╱   │      │      ╲       ╲
-             ╱    │      │       ╲       ╲
-            ▼    ▼       ▼        ▼       ▼
-  openmemory-watch  openmemory-mcp  openmemory-eval  openmemory-bench
-            ╲          │                ╲             (dev-only)
-             ╲         ▼                 ╲
-              ╲   openmemory-cli ◀───────┘  (eval re-exported behind `eval` feature)
-               ╲      ╱
+                 openmemory-admin        openmemory-core
+                         │              ╱       │       ╲
+                         │        ┌────┘        │        └──────────┐
+                         ▼        ▼             ▼                    ▼
+                  openmemory-daemon     openmemory-index    openmemory-embed (optional)
+                         │              │                 │
+                         │              └────────┐   ┌────┘
+                         │                       ▼   ▼
+                         └────────────────▶ openmemory-graph
+                                       ╱   │      │      ╲       ╲
+                                      ╱    │      │       ╲       ╲
+                                     ▼    ▼       ▼        ▼       ▼
+                           openmemory-watch  openmemory-mcp  openmemory-eval  openmemory-bench
+                                     ╲          │                ╲             (dev-only)
+                                      ╲         ▼                 ╲
+                                       ╲   openmemory-cli ◀───────┘
+                                        ╲      ╱
                 ╲    ╱
                  ▼  ▼
             (watch is also a direct dep of cli for the
@@ -102,15 +104,17 @@ a mechanical change.
 
 | Crate | Owns | Depends on |
 |-------|------|------------|
+| `openmemory-admin` | Local admin API contracts: stable error envelopes, health/status DTOs, jobs/events, integrations, backup/restore. | (no internal crates) |
+| `openmemory-daemon` | Loopback-only authenticated admin API, runtime discovery, durable daemon jobs/events, health/doctor/logs, integration repair, backup/restore, graceful shutdown. | `openmemory-admin`, `openmemory-core`, `openmemory-engine`, `openmemory-graph`, `openmemory-index`, `openmemory-embed` (optional) |
 | `openmemory-core` | Clock, Config, OmError/OmResult, schema-migration helper, retry helper, test doubles. | (no internal crates) |
 | `openmemory-index` | Vector + FTS5 backends, RRF hybrid engine, LRU cache, metadata store, `open_engine` factory. | `openmemory-core` |
 | `openmemory-embed` | ONNX Runtime wrapper, two-model registry, BLAKE3 embedding cache, SHA-256 integrity verification. | `openmemory-core` |
 | `openmemory-graph` | `MemoryStore`, entity/observation/relation types, atomic remember + `remember_batch`, raw export/import, hybrid recall with decay, forget/forget_entity/prune, consolidate (dedup + decay-prune). | `openmemory-core`, `openmemory-index`, `openmemory-embed` (optional) |
 | `openmemory-engine` | The concurrency bus (see [context-engine.md](context-engine.md)): `ContextEngine` write-behind shards + epoch drains + durability watermarks, crash-durable journals, `DomainStore` partitioning with the facade recall cache, domain-count migration, source adapters. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
 | `openmemory-mcp` | JSON-RPC 2.0 server, eleven `openmemory_*` tools, stdio transport, optional Streamable HTTP transport with bearer-token auth. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
-| `openmemory-cli` | The `openmemory` binary with the eleven subcommands. | every crate above |
+| `openmemory-cli` | The `openmemory` binary with CLI, MCP, daemon lifecycle, setup, status, memory, integration, model, watcher, and eval subcommands. | every runtime crate above |
 | `openmemory-watch` | Filesystem watcher: initial scan, debounced event loop, BLAKE3 dedup, ignore-file precedence. | `openmemory-core`, `openmemory-index`, `openmemory-graph` |
-| `openmemory-bench` | Criterion benchmarks for the recall hot path, consolidation, and the flat vector backend. Dev-only; not published. | `openmemory-core`, `openmemory-graph`, `openmemory-index` |
+| `openmemory-bench` | Criterion benchmarks for the recall hot path, consolidation, daemon admin API routes, and the flat vector backend. Dev-only; not published. | `openmemory-core`, `openmemory-graph`, `openmemory-index`, `openmemory-daemon` |
 | `openmemory-eval` (v0.3) | Retrieval-quality harness: `Dataset` trait, R@K / MRR / NDCG@K metrics, `EvalRunner`, adapters for `longmem-s` and `coding-mem` JSONL fixtures. Driven by the `openmemory eval` CLI subcommand behind the `eval` feature. | `openmemory-core`, `openmemory-graph`, `openmemory-index` |
 
 Per-crate API detail (every public type, trait, and feature flag)
@@ -179,7 +183,7 @@ the per-database schema reference.
 | OpenClaw config keys | Tracks OpenClaw's spec; we follow upstream changes there. |
 | `~/.openmemory/data/<profile>/` directory layout | **Not** stable. Treat the data directory as opaque. |
 | Public Rust crate APIs (any `pub` symbol) | **Not** stable. Pin patch versions. |
-| Log line wording | **Not** stable. `OPENMEMORY_LOG=json` is. |
+| Log line wording/format | **Not** stable. Use MCP/admin JSON responses for machine-readable state. |
 
 The project is pre-1.0. Minor bumps (`0.1 → 0.2`) signal breaking
 changes to any stable surface. v1.0 ships when the MCP tool

@@ -312,5 +312,5 @@ The following are **not** part of the contract:
   consumers should pin patch versions.
 - The on-disk directory layout under `~/.openmemory/data/<profile>/`.
   Treat the data directory as opaque.
-- Log line wording. `OPENMEMORY_LOG=json` is stable; the
-  human-readable text is not.
+- Log line wording and format. Use JSON-RPC responses, MCP tool
+  payloads, or daemon/admin JSON routes for machine-readable state.

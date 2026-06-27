@@ -81,6 +81,15 @@ openmemory list-entities
 openmemory status
 ```
 
+Start the optional local admin daemon for desktop/control-plane
+workflows:
+
+```bash
+openmemory daemon start --foreground
+openmemory daemon status --json
+openmemory daemon stop
+```
+
 Manual configuration (when you want full control over the JSON/TOML
 yourself) lives in [docs/integrations.md](docs/integrations.md).
 
@@ -99,6 +108,9 @@ yourself) lives in [docs/integrations.md](docs/integrations.md).
   bearer-token auth.
 - **Filesystem watcher.** `openmemory watch ~/notes` incrementally
   indexes changed files, BLAKE3-deduped.
+- **Local admin daemon.** Loopback-only, bearer-token-protected admin
+  API for health, memory browse/search, integrations, durable jobs,
+  backup, and restore. CLI/MCP usage does not require it.
 - **Multi-agent concurrency.** Read-only WAL connection pool so
   parallel recall calls scale on multi-agent deployments.
 - **Single binary.** ~8 MB default, ~18 MB with all features. SQLite
@@ -126,14 +138,16 @@ Full schemas and transport details in [`docs/mcp.md`](docs/mcp.md).
 
 ## Architecture
 
-Seven workspace crates with strict layering:
+Workspace crates with strict layering:
 
 ```
+openmemory-admin         (typed local admin API contracts)
 openmemory-core           (clock, config, error, migrations)
 ├── openmemory-index      (vector + FTS5 hybrid search engine)
 ├── openmemory-embed      (ONNX embeddings, optional)
 │
 └── openmemory-graph      (knowledge graph: entities, relations, recall)
+    ├── openmemory-daemon (loopback admin daemon + durable jobs)
     ├── openmemory-mcp    (MCP server + tool router)
     ├── openmemory-watch  (filesystem watcher)
     └── openmemory-cli    (the `openmemory` binary)

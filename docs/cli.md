@@ -82,6 +82,29 @@ Output (human-readable; one short line per fact):
 - Reader-pool size (multi-agent concurrency surface).
 - Last consolidation timestamp.
 
+## `openmemory daemon`
+
+Start, inspect, and gracefully stop the optional local admin daemon.
+The daemon binds loopback only, requires the per-home bearer token on
+admin endpoints, and writes discovery metadata under
+`<home>/run/daemon.json`.
+
+```text
+openmemory daemon start [--foreground] [--addr <ADDR>]
+openmemory daemon status [--json]
+openmemory daemon stop [--json]
+```
+
+| Command | Effect |
+|---------|--------|
+| `start --foreground` | Starts the admin API in the current process. Port `0` lets the OS choose an available loopback port. |
+| `status --json` | Reads runtime discovery, authenticates to `/admin/health`, and emits `running`, `not_started`, or `unreachable`. |
+| `stop --json` | Sends authenticated `POST /admin/shutdown`, waits for graceful server exit, and removes stale runtime metadata. |
+
+The daemon is not required for CLI or stdio MCP usage. It is the
+desktop/admin control plane for health, memory browsing, search,
+integrations, durable jobs/events, backup, and restore.
+
 ## `openmemory mcp`
 
 Start the MCP server.
