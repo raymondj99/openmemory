@@ -66,6 +66,9 @@ pub enum Command {
     Setup(SetupArgs),
     /// Print summary of memory + index state.
     Status,
+    /// Start and inspect the local OpenMemory daemon.
+    #[command(subcommand)]
+    Daemon(DaemonCommand),
     /// Start the MCP server (stdio by default; --http for HTTP).
     Mcp(McpArgs),
     /// Run dedup + decay/prune consolidation once.
@@ -122,6 +125,17 @@ pub enum IntegrateTarget {
     ClaudeDesktop(IntegrateClaudeDesktopArgs),
     /// Register the MCP server in Codex CLI's `~/.codex/config.toml`.
     Codex(IntegrateCodexArgs),
+}
+
+/// Subcommands for `openmemory daemon`.
+#[derive(Debug, Subcommand)]
+pub enum DaemonCommand {
+    /// Start the local daemon. The first implementation runs in the foreground.
+    Start(DaemonStartArgs),
+    /// Report local daemon discovery and health status.
+    Status(DaemonStatusArgs),
+    /// Request graceful shutdown of the local daemon.
+    Stop(DaemonStopArgs),
 }
 
 /// `remember` arguments.
@@ -382,6 +396,34 @@ pub struct McpArgs {
     pub http: Option<std::net::SocketAddr>,
 }
 
+/// `daemon start` arguments.
+#[derive(Debug, Args)]
+pub struct DaemonStartArgs {
+    /// Run in the foreground. Accepted for compatibility with future
+    /// detached mode; foreground is the only mode in this scaffold.
+    #[arg(long)]
+    pub foreground: bool,
+    /// Loopback address for the admin API. Port 0 lets the OS choose.
+    #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:0")]
+    pub addr: std::net::SocketAddr,
+}
+
+/// `daemon status` arguments.
+#[derive(Debug, Args)]
+pub struct DaemonStatusArgs {
+    /// Emit machine-readable daemon status JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `daemon stop` arguments.
+#[derive(Debug, Args)]
+pub struct DaemonStopArgs {
+    /// Emit machine-readable daemon stop JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
 /// `watch` arguments.
 #[cfg(feature = "watch")]
 #[derive(Debug, Args)]
@@ -477,6 +519,7 @@ where
         Command::Init(args) => commands::init::run(&cli.profile, args),
         Command::Setup(args) => commands::setup::run(&cli.profile, args),
         Command::Status => commands::status::run(&cli.profile),
+        Command::Daemon(command) => commands::daemon::run(&cli.profile, command),
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {
@@ -579,6 +622,40 @@ mod tests {
         match cli.command {
             Command::Mcp(args) => assert!(args.http.is_none()),
             other => panic!("expected mcp, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_start_default_is_loopback_ephemeral() {
+        let cli = Cli::parse_from(["openmemory", "daemon", "start", "--foreground"]);
+        match cli.command {
+            Command::Daemon(DaemonCommand::Start(args)) => {
+                assert!(args.foreground);
+                assert_eq!(args.addr.to_string(), "127.0.0.1:0");
+            }
+            other => panic!("expected daemon start, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_status_json() {
+        let cli = Cli::parse_from(["openmemory", "daemon", "status", "--json"]);
+        match cli.command {
+            Command::Daemon(DaemonCommand::Status(args)) => {
+                assert!(args.json);
+            }
+            other => panic!("expected daemon status, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_stop_json() {
+        let cli = Cli::parse_from(["openmemory", "daemon", "stop", "--json"]);
+        match cli.command {
+            Command::Daemon(DaemonCommand::Stop(args)) => {
+                assert!(args.json);
+            }
+            other => panic!("expected daemon stop, got {other:?}"),
         }
     }
 

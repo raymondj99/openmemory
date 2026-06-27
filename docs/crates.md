@@ -1,9 +1,9 @@
 # Crates reference
 
-This document is the per-crate reference for the nine workspace
-members (seven shipping crates plus `openmemory-bench` and the new
-v0.3 `openmemory-eval`). Each section describes the crate's
-purpose, feature flags, public API surface, and source-file map.
+This document is the per-crate reference for the eleven workspace
+members (nine platform/runtime crates plus `openmemory-bench` and
+`openmemory-eval`). Each section describes the crate's purpose,
+feature flags, public API surface, and source-file map.
 
 The Rust crate API is **not** part of the public-stability contract;
 see [architecture.md](architecture.md#public-api-stability). The
@@ -13,9 +13,65 @@ orient quickly.
 Workspace conventions:
 
 - All crates use Rust edition 2021 with MSRV 1.85.0.
-- All crates share the workspace `version = "0.2.1"`.
+- All crates share the workspace `version = "0.4.4"`.
 - All crates inherit the workspace lints (clippy pedantic with a
   pragmatic allow-list, `unsafe_code = "warn"`).
+
+## `openmemory-admin`
+
+**Purpose.** Typed contracts for the local daemon/admin API. This
+crate owns serializable request/response shapes, stable error codes,
+health payloads, job/event DTOs, integration DTOs, backup/restore
+DTOs, and daemon runtime/status envelopes. It does not own transport,
+storage handles, or daemon side effects.
+
+**Cargo.toml summary.**
+
+- Description: "openmemory: local daemon admin API contracts"
+- Dependencies: `serde`, `serde_json`.
+- Features: none.
+
+**Source files.**
+
+- [`src/lib.rs`](../crates/openmemory-admin/src/lib.rs): all DTOs,
+  error codes, pagination helpers, and contract tests.
+
+## `openmemory-daemon`
+
+**Purpose.** Local loopback-only daemon and authenticated admin API
+for desktop/admin workflows. It owns bearer-token auth, runtime
+discovery files, health/doctor/log endpoints, profile/entity/search
+routes, durable jobs/events, integration repair, backup/restore jobs,
+and graceful shutdown.
+
+**Cargo.toml summary.**
+
+- Description: "openmemory: local daemon and admin API"
+- Default features: none.
+- Features: `embeddings` (adds embedding model cache health).
+- Dependencies: `openmemory-admin`, `openmemory-core`,
+  `openmemory-engine`, `openmemory-graph`, `openmemory-index`,
+  optional `openmemory-embed`, plus `axum`, `tokio`, `rusqlite`,
+  `tokio-stream`, `toml_edit`, `rand`, `thiserror`, `tracing`,
+  `serde`, `serde_json`.
+
+**Source files.**
+
+- [`src/lib.rs`](../crates/openmemory-daemon/src/lib.rs): axum
+  router, auth, runtime files, health/doctor/logs, memory routes,
+  jobs/events, shutdown.
+- [`src/state.rs`](../crates/openmemory-daemon/src/state.rs):
+  redacted log ring and durable job/event registry.
+- [`src/product_store.rs`](../crates/openmemory-daemon/src/product_store.rs):
+  SQLite product metadata for daemon jobs/events with explicit schema
+  version checks.
+- [`src/integrations.rs`](../crates/openmemory-daemon/src/integrations.rs):
+  Codex and Claude Code preview/install/verify helpers.
+- [`src/backup.rs`](../crates/openmemory-daemon/src/backup.rs):
+  backup preflight/create and restore preflight/job helpers.
+- [`src/tests.rs`](../crates/openmemory-daemon/src/tests.rs):
+  daemon contract, auth, health, jobs, integration, backup/restore,
+  and shutdown tests.
 
 ## `openmemory-core`
 
@@ -418,20 +474,23 @@ business logic. Each subcommand is a small adapter to a function in
   `mcp-http`.
 - Features: `sqlite`, `fts5`, `hnsw`, `embeddings`, `mcp-http`,
   `completions`, `watch`.
-- Dependencies: every other workspace crate plus `clap`,
+- Dependencies: every runtime workspace crate plus `clap`,
   `clap_complete` (optional), `serde`, `serde_json`, `anyhow`,
-  `tracing`, `tracing-subscriber`, `json5`, `tokio`.
-- Tests: `tests/mcp_e2e.rs` (end-to-end MCP server smoke).
+  `tracing`, `json5`, `toml_edit`, `tokio`,
+  `ureq`.
+- Tests: `tests/mcp_e2e.rs` (end-to-end MCP server smoke) and
+  `tests/cli_output.rs` (human/JSON CLI contract smoke).
 
 **Source files.**
 
 - [`src/main.rs`](../crates/openmemory-cli/src/main.rs):
-  `fn main()` plus tracing init.
+  `fn main()` plus early ONNX Runtime path setup.
 - [`src/cli.rs`](../crates/openmemory-cli/src/cli.rs): the clap
   command tree.
 - [`src/commands/mod.rs`](../crates/openmemory-cli/src/commands/mod.rs): module wiring.
 - [`src/commands/init.rs`](../crates/openmemory-cli/src/commands/init.rs): creates the data directory and config skeleton.
 - [`src/commands/status.rs`](../crates/openmemory-cli/src/commands/status.rs): `MemoryStore::status` printer.
+- [`src/commands/daemon.rs`](../crates/openmemory-cli/src/commands/daemon.rs): daemon start/status/stop lifecycle adapter.
 - [`src/commands/mcp.rs`](../crates/openmemory-cli/src/commands/mcp.rs): stdio or HTTP transport launcher.
 - [`src/commands/consolidate.rs`](../crates/openmemory-cli/src/commands/consolidate.rs): one-shot consolidation.
 - [`src/commands/integrate.rs`](../crates/openmemory-cli/src/commands/integrate.rs): JSON5 OpenClaw config writer.

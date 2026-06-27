@@ -1,12 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/openmemory-admin",
     "crates/openmemory-core",
     "crates/openmemory-index",
     "crates/openmemory-embed",
     "crates/openmemory-graph",
     "crates/openmemory-mcp",
     "crates/openmemory-cli",
+    "crates/openmemory-daemon",
     "crates/openmemory-watch",
     "crates/openmemory-bench",
     "crates/openmemory-eval",
@@ -25,9 +27,11 @@ homepage = "https://github.com/raymondj99/openmemory"
 [workspace.dependencies]
 # Internal crates
 openmemory-core = { path = "crates/openmemory-core", version = "0.4.4" }
+openmemory-admin = { path = "crates/openmemory-admin", version = "0.4.4" }
 openmemory-index = { path = "crates/openmemory-index", version = "0.4.4", default-features = false }
 openmemory-embed = { path = "crates/openmemory-embed", version = "0.4.4", default-features = false }
 openmemory-graph = { path = "crates/openmemory-graph", version = "0.4.4", default-features = false }
+openmemory-daemon = { path = "crates/openmemory-daemon", version = "0.4.4", default-features = false }
 openmemory-engine = { path = "crates/openmemory-engine", version = "0.4.4", default-features = false }
 openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.4.4", default-features = false }
 openmemory-watch = { path = "crates/openmemory-watch", version = "0.4.4", default-features = false }
@@ -41,11 +45,11 @@ toml_edit = "0.22"
 thiserror = "2"
 anyhow = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "std"] }
 
 # Async / IO
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tokio-util = { version = "0.7", features = ["rt"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Storage / search
 rusqlite = { version = "0.32" }

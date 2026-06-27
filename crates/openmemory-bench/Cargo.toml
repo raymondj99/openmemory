@@ -17,11 +17,17 @@ test = false
 
 [dependencies]
 openmemory-core = { workspace = true, features = ["testing"] }
+openmemory-daemon = { workspace = true }
 openmemory-index = { workspace = true, features = ["fts5"] }
 openmemory-graph = { workspace = true, features = ["fts5", "testing"] }
 
 [dev-dependencies]
+axum = { workspace = true }
 criterion.workspace = true
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tower = { workspace = true, features = ["util"] }
 
 [[bench]]
 name = "openmemory"

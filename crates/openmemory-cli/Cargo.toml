@@ -29,6 +29,7 @@ embeddings = [
     "openmemory-graph/embeddings",
     "openmemory-mcp/embeddings",
     "openmemory-engine/embeddings",
+    "openmemory-daemon/embeddings",
     "openmemory-eval?/embeddings",
 ]
 mcp-http = ["openmemory-mcp/mcp-http"]
@@ -42,6 +43,8 @@ openmemory-index = { workspace = true, default-features = false }
 openmemory-graph = { workspace = true, default-features = false }
 openmemory-mcp = { workspace = true, default-features = false }
 openmemory-engine = { workspace = true }
+openmemory-admin = { workspace = true }
+openmemory-daemon = { workspace = true }
 openmemory-embed = { workspace = true, default-features = false, optional = true }
 openmemory-watch = { workspace = true, default-features = false, optional = true }
 openmemory-eval = { workspace = true, default-features = false, optional = true }
@@ -55,10 +58,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 json5 = { workspace = true }
 toml_edit = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "io-util", "io-std"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "io-util", "io-std", "signal"] }
+ureq = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ureq = { workspace = true }
