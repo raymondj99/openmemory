@@ -11,13 +11,40 @@ run() {
 
 check_no_matches() {
   local description="$1"
+  local pattern="$2"
   local matches
   local status
-  shift
+  local -a paths=()
+  local exclude=""
+  shift 2
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --exclude)
+        exclude="$2"
+        shift 2
+        ;;
+      *)
+        paths+=("$1")
+        shift
+        ;;
+    esac
+  done
   matches="$(mktemp)"
   printf '\n[daemon-monitor] checking %s\n' "$description"
   set +e
-  rg "$@" >"$matches"
+  if command -v rg >/dev/null 2>&1; then
+    local -a rg_args=(-n "$pattern")
+    if [[ -n "$exclude" ]]; then
+      rg_args+=(--glob "!$exclude")
+    fi
+    rg "${rg_args[@]}" "${paths[@]}" >"$matches"
+  else
+    local -a grep_args=(-R -n -E "$pattern")
+    if [[ -n "$exclude" ]]; then
+      grep_args+=(--exclude="$exclude")
+    fi
+    grep "${grep_args[@]}" "${paths[@]}" >"$matches"
+  fi
   status=$?
   set -e
   if [[ "$status" -eq 0 ]]; then
@@ -27,7 +54,7 @@ check_no_matches() {
     exit 1
   elif [[ "$status" -ne 1 ]]; then
     rm -f "$matches"
-    printf '[daemon-monitor] rg failed while checking %s\n' "$description" >&2
+    printf '[daemon-monitor] search failed while checking %s\n' "$description" >&2
     exit "$status"
   fi
   rm -f "$matches"
@@ -37,12 +64,12 @@ run git diff --check
 
 check_no_matches \
   "no unfinished daemon wiring markers" \
-  -n "not wired yet|TODO|FIXME" crates/openmemory-admin crates/openmemory-daemon crates/openmemory-cli/src/commands/daemon.rs
+  "not wired yet|TODO|FIXME" crates/openmemory-admin crates/openmemory-daemon crates/openmemory-cli/src/commands/daemon.rs
 
 check_no_matches \
   "no panic/unwrap/expect on daemon non-test request paths" \
-  -n "(\\.unwrap\\(|\\.expect\\(|panic!\\()" crates/openmemory-daemon/src \
-  --glob '!tests.rs'
+  "(\\.unwrap\\(|\\.expect\\(|panic!\\()" crates/openmemory-daemon/src \
+  --exclude tests.rs
 
 run cargo fmt --all -- --check
 run cargo test -p openmemory-admin -p openmemory-daemon --all-features
