@@ -23,8 +23,10 @@ A useful memory layer needs three properties at once:
    not fit a graph, but they still need to be searchable on the
    same surface as the graph.
 3. **A boring deployment story.** A single static binary with
-   SQLite under the hood. No external services, no daemons beyond
-   the MCP server, no network calls in the default install.
+   SQLite under the hood. No external services, no required daemon
+   for CLI/MCP usage, no network calls in the default install. The
+   local daemon is optional desktop/admin infrastructure and binds
+   loopback only.
 
 `openmemory` covers all three. The graph-side API (`remember`,
 `recall`, `forget`, etc.) handles entities and observations; the
@@ -45,6 +47,9 @@ engine internally.
 - **MCP server.** Eleven `openmemory_*` tools served over stdio
   (always) and Streamable HTTP (behind the `mcp-http` feature). See
   [mcp.md](mcp.md).
+- **Local admin daemon.** `openmemory daemon start` exposes a
+  loopback-only, bearer-token-protected admin API for desktop health,
+  memory browsing, search, integrations, jobs, backup, and restore.
 - **OpenClaw integration.** `openmemory integrate openclaw` writes
   the config entry idempotently, JSON5-aware, and gets out of your
   way. See [openclaw.md](openclaw.md).
@@ -84,7 +89,7 @@ engine internally.
 ## Non-goals
 
 The following are **explicitly out of scope**. Some may return
-behind feature flags later; none blocked v0.2.
+behind feature flags later; none block the current platform surface.
 
 - **File scanning and file-format parsers.** No PDF, no DOCX, no
   PPTX, no email, no archive extraction. Callers feed text in via
@@ -100,9 +105,9 @@ behind feature flags later; none blocked v0.2.
 - **Vendor-specific virtual-filesystem memory adapters** (e.g.
   Anthropic's `memory_20250818` shape). The MCP tool surface is the
   contract.
-- **LLM-powered observation extraction.** v0.2 does not call out to
-  any LLM provider. May return as an optional `llm` feature in a
-  later release.
+- **LLM-powered observation extraction.** `openmemory` does not call
+  out to any LLM provider. This may return as an optional `llm`
+  feature in a later release.
 - **Vision and audio embeddings.** Text only.
 - **Fuzzers, performance corpora.** Criterion micro-benchmarks for
   hot paths ship in `openmemory-bench`. The v0.3 `openmemory-eval`
@@ -110,7 +115,7 @@ behind feature flags later; none blocked v0.2.
   JSONL fixture trees. Broader perf and accuracy scaffolding (fuzz
   corpora, regression infrastructure) is not in scope.
 - **Cross-architecture release pipelines beyond what is
-  shipped.** v0.2 builds tarballs for `aarch64-apple-darwin`,
+  shipped.** Release tarballs cover `aarch64-apple-darwin`,
   `x86_64-apple-darwin`, and `x86_64-unknown-linux-gnu`. Homebrew
   tap and `install.sh` are tracked for a future release.
 
@@ -130,6 +135,8 @@ detail.
 
 | Crate | Purpose |
 |-------|---------|
+| `openmemory-admin` | Typed local admin API contracts: error envelopes, health/status DTOs, jobs/events, integrations, backup/restore. |
+| `openmemory-daemon` | Loopback-only authenticated daemon for desktop/admin health, memory browsing, search, integrations, durable jobs/events, backup, restore, and shutdown. |
 | `openmemory-core` | Clock trait, config loader, error types, SQLite migration helper, retry helper. |
 | `openmemory-index` | Hybrid (vector + FTS5) search engine with RRF fusion, LRU cache, and a metadata store. |
 | `openmemory-embed` | ONNX Runtime text embeddings with model registry, BLAKE3 cache, and SHA-256 integrity verification. Optional. |
@@ -137,7 +144,7 @@ detail.
 | `openmemory-mcp` | MCP server with the eleven `openmemory_*` tools, stdio transport always, optional Streamable HTTP behind `mcp-http`. |
 | `openmemory-cli` | The `openmemory` binary. Tiny `clap` surface; dispatches to the other crates. |
 | `openmemory-watch` | Filesystem watcher: initial-tree walk plus `notify-debouncer-full` event loop, BLAKE3-deduped against the metadata store. |
-| `openmemory-bench` | Dev-only criterion benchmarks (recall, consolidate, vector). Not published. |
+| `openmemory-bench` | Dev-only criterion benchmarks (recall, consolidate, vector, daemon admin API). Not published. |
 | `openmemory-eval` (v0.3) | Retrieval-quality harness behind the optional `eval` feature: R@K, MRR, NDCG@K with adapters for `longmem-s` and `coding-mem`. |
 
 Per-crate detail lives in [crates.md](crates.md). The workspace

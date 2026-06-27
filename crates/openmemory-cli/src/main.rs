@@ -7,7 +7,6 @@ mod commands;
 mod ui;
 
 fn main() -> std::process::ExitCode {
-    init_tracing();
     init_ort_dylib_path();
 
     let args = std::env::args_os();
@@ -78,10 +77,4 @@ fn parse_home_arg() -> Option<std::path::PathBuf> {
         }
     }
     None
-}
-
-fn init_tracing() {
-    let _ = tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .try_init();
 }

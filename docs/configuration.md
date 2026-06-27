@@ -98,7 +98,7 @@ weights to old content.
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
 | `decay_rate` | f64 | `0.01` per day | Lambda in `exp(-lambda * days)`. Higher = faster forgetting. |
-| `consolidation_interval` | u64 (secs) | `1800` | Minimum spacing between automatic consolidate runs (no in-process scheduler ships in v0.2; this is for future use). |
+| `consolidation_interval` | u64 (secs) | `1800` | Minimum spacing between automatic consolidate runs. No in-process scheduler currently ships; this remains reserved for a future scheduler. |
 | `dedup_threshold` | f32 | `0.95` | Jaccard text-similarity threshold for the consolidation dedup pass. |
 | `prune_floor` | f32 | `0.05` | Score floor for the consolidation decay-prune pass. |
 
@@ -188,7 +188,6 @@ partitioned profiles yet.
 |----------|---------|--------|
 | `OPENMEMORY_HOME` | every subcommand | Override the data root. Defaults to `~/.openmemory`. The OpenClaw integrator writes this into the MCP entry's `env` block so re-locating the config does not silently break the integration. |
 | `OPENMEMORY_PROFILE` | every subcommand (informational) | The OpenClaw integrator writes this so a multi-profile OpenClaw user can pin which memory store is attached to which OpenClaw profile. The CLI's `--profile` flag is what actually selects the data subdirectory at runtime. |
-| `OPENMEMORY_LOG` | tracing initialisation | Set to `json` for one JSON object per log line (suitable for OpenClaw log capture). Anything else (or unset) gives the human-readable text output. |
 | `OPENMEMORY_HTTP_TOKEN` | `mcp --http` (with `mcp-http` feature) | Bearer token for the Streamable HTTP transport. When set, `/mcp` requires `Authorization: Bearer <token>`. When unset, the server logs a warning and serves unauthenticated. See [mcp.md](mcp.md#bearer-token-authentication). |
 | `OPENCLAW_CONFIG_PATH` | `integrate openclaw` | Override the OpenClaw config path. Defaults to `~/.openclaw/openclaw.json`. |
 

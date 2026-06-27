@@ -12,10 +12,8 @@ allow = [
     "ISC",
     "Zlib",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "CC0-1.0",
     "BSL-1.0",
-    "OpenSSL",
     "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
@@ -26,6 +24,40 @@ ignore = false
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"
+skip = [
+    # Accepted transitive duplicates. Keep duplicate detection enabled so new
+    # duplicate crates still warn, but avoid re-reporting these reviewed cases.
+    { crate = "base64@0.13.1", reason = "pulled by tokenizers/spm_precompiled; 0.22 is pulled by ureq" },
+    { crate = "cpufeatures@0.2.17", reason = "pulled by sha2 while blake3 uses 0.3" },
+    { crate = "getrandom@0.3.4", reason = "pulled by tempfile/proptest while uuid uses getrandom 0.4" },
+    { crate = "getrandom@0.2.17", reason = "pulled by rand 0.8/ring/tokenizers while newer test/runtime crates use 0.3/0.4" },
+    { crate = "hashbrown@0.14.5", reason = "pulled by rusqlite/hashlink while indexmap/lru use newer hashbrown" },
+    { crate = "itertools@0.11.0", reason = "pulled by tokenizers/rayon-cond while tokenizers also uses 0.12" },
+    { crate = "r-efi@5.3.0", reason = "paired with getrandom 0.3 while getrandom 0.4 uses r-efi 6" },
+    { crate = "thiserror@1.0.69", reason = "pulled by tokenizers while workspace crates use thiserror 2" },
+    { crate = "thiserror-impl@1.0.69", reason = "proc macro paired with tokenizers' thiserror 1 dependency" },
+    { crate = "windows-sys@0.52.0", reason = "pulled by ring/windows-targets compatibility" },
+    { crate = "windows-sys@0.60.2", reason = "pulled by notify while newer dependencies use 0.61" },
+    { crate = "windows-targets@0.52.6", reason = "pulled by older windows-sys compatibility crates" },
+    { crate = "windows-targets@0.53.5", reason = "pulled by windows-sys 0.60 compatibility" },
+    { crate = "windows_aarch64_gnullvm@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_aarch64_gnullvm@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_aarch64_msvc@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_aarch64_msvc@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_i686_gnu@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_i686_gnu@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_i686_gnullvm@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_i686_gnullvm@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_i686_msvc@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_i686_msvc@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_x86_64_gnu@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_x86_64_gnu@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_x86_64_gnullvm@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_x86_64_gnullvm@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "windows_x86_64_msvc@0.52.6", reason = "target crate paired with windows-targets 0.52" },
+    { crate = "windows_x86_64_msvc@0.53.1", reason = "target crate paired with windows-targets 0.53" },
+    { crate = "wit-bindgen@0.51.0", reason = "pulled by wasip3 while wasip2 uses newer wit-bindgen" },
+]
 
 [advisories]
 db-path = "~/.cargo/advisory-db"

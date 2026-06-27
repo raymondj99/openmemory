@@ -25,6 +25,20 @@ Get the full set green locally before pushing;
 `--no-default-features` in particular has caught feature-gated
 import bugs that the default-features matrix misses.
 
+Daemon/admin changes also run the feature-specific production gate:
+
+```bash
+./scripts/daemon_quality_monitor.sh
+```
+
+Set `OPENMEMORY_DAEMON_MONITOR_BENCH=1` to include the local
+`daemon_admin_api` Criterion run. The monitor saves that run under a
+per-run `daemon-monitor-*` baseline so stale local Criterion baselines
+do not turn the production gate into unrelated comparison noise. CI
+runs the same monitor without the local benchmark; the CodSpeed
+benchmark workflow runs the daemon admin API group with the rest of
+`openmemory-bench`.
+
 ## CI matrix
 
 The `.github/workflows/ci.yml` workflow runs on every push and
@@ -41,6 +55,7 @@ merging to `main`.
 | `clippy-no-default` | ubuntu-latest | 1.85.0 | `--no-default-features` | `cargo clippy --locked --no-default-features --all-targets -- -D warnings` |
 | `doc-default` | ubuntu-latest | 1.85.0 | default | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` |
 | `doc-all-features` | ubuntu-latest | 1.85.0 | `--all-features` | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features` |
+| `daemon-production-gate` | ubuntu-latest | 1.85.0 | daemon gate | `./scripts/daemon_quality_monitor.sh` |
 
 The `audit` workflow (`.github/workflows/audit.yml`) runs
 `cargo-deny check` weekly (Monday 06:00 UTC) and on every push.
@@ -151,16 +166,19 @@ deterministically.
 
 ### Fuzz targets
 
-Not in v0.2. The schema migration runner and the MCP request
-decoder are the natural targets when a fuzz harness lands.
+No fuzz targets currently ship. The schema migration runner and the
+MCP request decoder are the natural targets when a fuzz harness lands.
 
 ## Performance gates
 
 `cargo bench -p openmemory-index` runs the criterion benches in
-`benches/vector_search.rs` and `benches/hybrid_search.rs`. The
-canonical reference hardware is Apple M-series with 8 GB RAM. We
-do **not** gate CI on absolute numbers; we do compare regressions
-of 50% or more against the previous release.
+`benches/vector_search.rs` and `benches/hybrid_search.rs`.
+`cargo bench -p openmemory-bench` runs the workspace-level
+benchmarks, including `daemon_admin_api` for desktop-facing health,
+entity-list, search, and backup-preflight paths. The canonical
+reference hardware is Apple M-series with 8 GB RAM. We do **not**
+gate CI on absolute numbers; we do compare regressions of 50% or
+more against the previous release.
 
 ## Production-hardening pass
 
@@ -200,20 +218,23 @@ the standing definition-of-done:
 ## Security review checklist
 
 - **No `unsafe` in workspace code.** `unsafe_code = "warn"` makes
-  any new use surface in CI; expect zero in v0.2.
+  any new use surface in CI; expect zero in the current release.
 - **`cargo deny check` clean.** License allowlist is MIT,
   Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0,
-  CC0-1.0, BSL-1.0, OpenSSL.
+  CC0-1.0, BSL-1.0, and CDLA-Permissive-2.0. Reviewed duplicate
+  transitive crates are documented in `deny.toml`; new duplicates
+  still warn.
 - **Dependency footprint reviewed.** Every workspace dependency
   has a one-line comment in the workspace `Cargo.toml`.
 - **No transitive deps with C/C++ build toolchains required by
   default.** `usearch` (C++) is gated behind `--features hnsw`;
   `ort` (loads ONNX Runtime as a dynamic library, not built from
   source) is gated behind `--features embeddings`.
-- **Secrets handling.** The only env var read is
-  `OPENMEMORY_HTTP_TOKEN`. The bearer-token comparison is
-  constant-time over the byte payload; the `BearerToken` type's
-  `Debug` impl never logs the secret.
+- **Secrets handling.** The only secret-bearing env var read by the
+  runtime is `OPENMEMORY_HTTP_TOKEN` for MCP HTTP auth; daemon admin
+  tokens live in owner-only runtime files. Bearer-token comparisons
+  are constant-time over the byte payload, and token `Debug` impls
+  never log the secret.
 - **Model integrity verification.** `OnnxEmbedder::load_for_model`
   verifies SHA-256 against the registered hash before handing the
   file to ONNX Runtime. Mismatches surface as
