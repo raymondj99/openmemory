@@ -82,8 +82,11 @@ Two sets bypass the configurable allowlist entirely:
 - `ALWAYS_IGNORE_DIRS = [".git", "target", "node_modules", ".venv", "__pycache__"]`.
   the watcher never enters these directories regardless of
   `.gitignore` content.
-- `ALWAYS_IGNORE_GLOBS = ["*.lock", "*.lockb"]`: lock files are
-  uninteresting for memory and they churn often.
+- `ALWAYS_IGNORE_GLOBS`: lock files, Python bytecode, editor
+  swap/autosave files, `.DS_Store`, and `watchexec.*.log`. These
+  names are filtered before extension matching, so permissive custom
+  extension lists still do not route scratch files into hashing,
+  UTF-8 decoding, SQLite writes, or embedding.
 
 Repository owners can add per-tree rules via a
 `.openmemory-ignore` file (`IGNORE_FILE_NAME`). It uses the same

@@ -14,6 +14,7 @@ jobs:
   build-test:
     name: build + test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +29,7 @@ jobs:
   test-no-default-features:
     name: test (--no-default-features)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -39,6 +41,7 @@ jobs:
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -49,6 +52,7 @@ jobs:
   clippy:
     name: clippy (default features)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -60,6 +64,7 @@ jobs:
   clippy-no-default-features:
     name: clippy (--no-default-features)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -73,6 +78,7 @@ jobs:
   doc:
     name: rustdoc (default features)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       RUSTDOCFLAGS: "-D warnings"
     steps:
@@ -84,6 +90,7 @@ jobs:
   doc-all-features:
     name: rustdoc (--all-features)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       RUSTDOCFLAGS: "-D warnings"
     steps:
@@ -97,6 +104,7 @@ jobs:
   daemon-production-gate:
     name: daemon production gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:

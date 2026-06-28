@@ -25,12 +25,11 @@ use axum::{Json, Router};
 use openmemory_admin::{
     AdminBackupRequest, AdminConsolidateReport, AdminConsolidateRequest, AdminDiagnostic,
     AdminDoctorResponse, AdminEntityDetail, AdminEntitySummary, AdminError, AdminErrorCode,
-    AdminErrorResponse, AdminEvent, AdminEventType, AdminIntegrationRequest, AdminJob,
-    AdminJobKind, AdminJobState, AdminLogLevel, AdminLogsResponse, AdminObservation,
-    AdminProfileSummary, AdminProfilesResponse, AdminRelation, AdminRestorePreflightRequest,
-    AdminRestoreRequest, AdminSearchResult, AdminShutdownResponse, AdminTokenRotationResponse,
-    ComponentHealth, DaemonRuntimeInfo, HealthResponse, IntegrationSummary, Page, PageRequest,
-    ADMIN_API_VERSION,
+    AdminErrorResponse, AdminEvent, AdminEventType, AdminIntegrationRequest, AdminJobKind,
+    AdminLogLevel, AdminLogsResponse, AdminObservation, AdminProfileSummary, AdminProfilesResponse,
+    AdminRelation, AdminRestorePreflightRequest, AdminRestoreRequest, AdminSearchResult,
+    AdminShutdownResponse, AdminTokenRotationResponse, ComponentHealth, DaemonRuntimeInfo,
+    HealthResponse, IntegrationSummary, Page, PageRequest, ADMIN_API_VERSION,
 };
 use openmemory_core::config::Config;
 #[cfg(feature = "embeddings")]
@@ -38,7 +37,7 @@ use openmemory_embed::{ModelManager, ModelRegistry};
 use openmemory_engine::partition::DomainStore;
 use openmemory_graph::recall::RecallFilters;
 use openmemory_graph::ConsolidateConfig;
-use openmemory_graph::{new_id, Entity, EntityListRow, EntityType, Observation, Relation};
+use openmemory_graph::{Entity, EntityListRow, EntityType, Observation, Relation};
 use openmemory_index::traits::SearchMode;
 use rand::RngCore;
 use serde::Deserialize;
@@ -59,7 +58,7 @@ use integrations::{
     integration_install, integration_preview, integrations_response, parse_integration_client,
     spawn_integration_verify_job,
 };
-use state::{AdminState, JobRegistry, RedactedLogRing};
+use state::{AdminState, JobMessages, JobRegistry, RedactedLogRing};
 
 pub const RUN_DIR: &str = "run";
 pub const ADMIN_TOKEN_FILE: &str = "admin-token";
@@ -709,56 +708,16 @@ fn spawn_consolidate_job(
     job_id: String,
     jobs: Arc<JobRegistry>,
 ) {
-    tokio::spawn(async move {
-        let _ = jobs.update(&job_id, |job| {
-            job.state = AdminJobState::Running;
-            job.started_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-            job.message = Some("consolidation running".into());
-        });
-
-        let blocking_config = config.clone();
-        let result = tokio::task::spawn_blocking(move || {
-            run_consolidate_blocking(&blocking_config, request)
-        })
-        .await;
-
-        match result {
-            Ok(Ok(report)) => {
-                let result = serde_json::to_value(&report).unwrap_or(serde_json::Value::Null);
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Succeeded;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("consolidation completed".into());
-                    job.result = result;
-                    job.error = None;
-                });
-            }
-            Ok(Err(error)) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("consolidation failed".into());
-                    job.error = Some(error);
-                });
-            }
-            Err(error) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("consolidation worker failed".into());
-                    job.error = Some(
-                        AdminError::new(
-                            AdminErrorCode::Internal,
-                            "consolidation worker failed",
-                            Option::<String>::None,
-                            true,
-                        )
-                        .with_details(serde_json::json!({ "error": error.to_string() })),
-                    );
-                });
-            }
-        }
-    });
+    jobs.spawn_blocking_job(
+        job_id,
+        JobMessages {
+            running: "consolidation running",
+            succeeded: "consolidation completed",
+            failed: "consolidation failed",
+            worker_failed: "consolidation worker failed",
+        },
+        move || run_consolidate_blocking(&config, request),
+    );
 }
 
 fn run_consolidate_blocking(
@@ -1316,20 +1275,11 @@ async fn handle_consolidate(
     }
 
     let request = body.map_or_else(AdminConsolidateRequest::default, |Json(body)| body);
-    let now = unix_now_secs().unwrap_or(0);
-    let job = AdminJob {
-        id: new_id(),
-        kind: AdminJobKind::Consolidate,
-        state: AdminJobState::Queued,
-        profile: state.config.active_profile().to_string(),
-        created_at_unix_secs: now,
-        started_at_unix_secs: None,
-        finished_at_unix_secs: None,
-        message: Some("consolidation queued".into()),
-        result: serde_json::Value::Null,
-        error: None,
-    };
-    let job = state.jobs.insert(job);
+    let job = state.jobs.enqueue(
+        AdminJobKind::Consolidate,
+        state.config.active_profile(),
+        "consolidation queued",
+    );
     spawn_consolidate_job(
         state.config.clone(),
         request,
@@ -1493,20 +1443,11 @@ async fn handle_integration_verify(
         Err(error) => return json_error(StatusCode::NOT_FOUND, AdminErrorResponse::new(error)),
     };
     let request = body.map_or_else(AdminIntegrationRequest::default, |Json(body)| body);
-    let now = unix_now_secs().unwrap_or(0);
-    let job = AdminJob {
-        id: new_id(),
-        kind: AdminJobKind::IntegrationVerify,
-        state: AdminJobState::Queued,
-        profile: state.config.active_profile().to_string(),
-        created_at_unix_secs: now,
-        started_at_unix_secs: None,
-        finished_at_unix_secs: None,
-        message: Some("integration verification queued".into()),
-        result: serde_json::Value::Null,
-        error: None,
-    };
-    let job = state.jobs.insert(job);
+    let job = state.jobs.enqueue(
+        AdminJobKind::IntegrationVerify,
+        state.config.active_profile(),
+        "integration verification queued",
+    );
     spawn_integration_verify_job(
         state.config.clone(),
         client,
@@ -1556,19 +1497,11 @@ async fn handle_backup_create(
         );
     }
 
-    let job = AdminJob {
-        id: new_id(),
-        kind: AdminJobKind::BackupCreate,
-        state: AdminJobState::Queued,
-        profile: state.config.active_profile().to_string(),
-        created_at_unix_secs: unix_now_secs().unwrap_or(0),
-        started_at_unix_secs: None,
-        finished_at_unix_secs: None,
-        message: Some("backup queued".into()),
-        result: serde_json::Value::Null,
-        error: None,
-    };
-    let job = state.jobs.insert(job);
+    let job = state.jobs.enqueue(
+        AdminJobKind::BackupCreate,
+        state.config.active_profile(),
+        "backup queued",
+    );
     spawn_backup_create_job(
         state.config.clone(),
         request,
@@ -1655,19 +1588,9 @@ async fn handle_restore(
         );
     }
 
-    let job = AdminJob {
-        id: new_id(),
-        kind: AdminJobKind::Restore,
-        state: AdminJobState::Queued,
-        profile: target_profile,
-        created_at_unix_secs: unix_now_secs().unwrap_or(0),
-        started_at_unix_secs: None,
-        finished_at_unix_secs: None,
-        message: Some("restore queued".into()),
-        result: serde_json::Value::Null,
-        error: None,
-    };
-    let job = state.jobs.insert(job);
+    let job = state
+        .jobs
+        .enqueue(AdminJobKind::Restore, target_profile, "restore queued");
     spawn_restore_job(
         state.config.clone(),
         request,

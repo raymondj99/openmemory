@@ -435,6 +435,12 @@ impl DomainStore {
         requests: &[RememberRequest],
         opts: &BatchOptions,
     ) -> MemoryResult<Vec<RememberOutcome>> {
+        if self.stores.len() == 1 {
+            let outcomes = self.stores[domain].remember_batch(requests, opts)?;
+            self.bump_write_version();
+            return Ok(outcomes);
+        }
+
         let (home_requests, stub_requests, mirrors) = self.plan_batch(domain, requests);
 
         // Mirrors first (see doc comment). Failures here are
@@ -461,7 +467,7 @@ impl DomainStore {
         // ensure_entity finds them by exact match.
         let mut combined = stub_requests;
         let caller_start = combined.len();
-        combined.extend_from_slice(&home_requests);
+        combined.extend(home_requests);
         let mut outcomes = self.stores[domain].remember_batch(&combined, opts)?;
         self.bump_write_version();
         Ok(outcomes.split_off(caller_start))
@@ -974,10 +980,24 @@ impl DomainStore {
 /// Entity-name (or URI) to domain hash. The exact scheme the context
 /// engine uses for shards: lowercase, `DefaultHasher`, modulo.
 pub(crate) fn domain_for(key: &str, domains: usize) -> usize {
-    use std::hash::{Hash, Hasher};
+    (hash_lowercase_key(key) as usize) % domains.max(1)
+}
+
+/// Hash a key exactly like `key.to_lowercase().hash(DefaultHasher)`,
+/// without allocating the lowercase `String`.
+pub(crate) fn hash_lowercase_key(key: &str) -> u64 {
+    use std::hash::Hasher;
+
     let mut h = std::hash::DefaultHasher::new();
-    key.to_lowercase().hash(&mut h);
-    (h.finish() as usize) % domains.max(1)
+    for ch in key.chars().flat_map(char::to_lowercase) {
+        let mut buf = [0u8; 4];
+        h.write(ch.encode_utf8(&mut buf).as_bytes());
+    }
+    // `Hash for str` terminates with 0xff so adjacent string fields do
+    // not collide (`("ab", "c")` vs `("a", "bc")`). Preserve that
+    // byte to keep partition routing bit-for-bit compatible.
+    h.write_u8(0xff);
+    h.finish()
 }
 
 /// Facade recall cache key. Unlike the per-store search cache (which
@@ -1028,6 +1048,43 @@ mod tests {
 
     fn obs(content: &str) -> ObservationInput {
         ObservationInput::new(content)
+    }
+
+    #[test]
+    fn allocation_free_partition_hash_matches_existing_lowercase_hash() {
+        use std::hash::{Hash, Hasher};
+
+        for key in [
+            "",
+            "Alpha",
+            "Project Alpha",
+            "STRASSE",
+            "Straße",
+            "İstanbul",
+            "alpha\0bravo",
+        ] {
+            let mut old = std::hash::DefaultHasher::new();
+            key.to_lowercase().hash(&mut old);
+            assert_eq!(
+                hash_lowercase_key(key),
+                old.finish(),
+                "hash changed for {key:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn domain_hash_stays_case_insensitive() {
+        for domains in [1, 2, 3, 8, 32] {
+            assert_eq!(
+                domain_for("Project Alpha", domains),
+                domain_for("project alpha", domains)
+            );
+            assert_eq!(
+                domain_for("STRASSE", domains),
+                domain_for("strasse", domains)
+            );
+        }
     }
 
     /// A name pair guaranteed to live in different domains at the given

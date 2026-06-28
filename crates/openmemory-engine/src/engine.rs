@@ -19,7 +19,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use openmemory_graph::batch::BatchOptions;
-use openmemory_graph::{MemoryError, MemoryResult, MemoryStore, RememberRequest};
+use openmemory_graph::{EntityType, MemoryError, MemoryResult, MemoryStore, RememberRequest};
 
 use crate::partition::DomainStore;
 
@@ -30,6 +30,23 @@ use crate::partition::DomainStore;
 #[repr(align(128))]
 #[derive(Default)]
 struct PaddedAtomicU64(AtomicU64);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct DrainGroupKey {
+    name_lower: String,
+    entity_type: EntityType,
+    source: String,
+}
+
+impl DrainGroupKey {
+    fn from_request(req: &RememberRequest) -> Self {
+        Self {
+            name_lower: req.name.to_lowercase(),
+            entity_type: req.entity_type,
+            source: req.source.clone(),
+        }
+    }
+}
 
 /// Receipt for a submitted write. `seq` is the shard-local sequence
 /// number; the write is durable once the shard's watermark reaches it.
@@ -42,16 +59,21 @@ pub struct Ticket {
 /// Tuning knobs for [`ContextEngine`].
 #[derive(Debug, Clone)]
 pub struct EngineOptions {
-    /// Number of shards. Submissions hash by entity name.
+    /// Number of shards. Submissions hash by entity name. Direct API
+    /// callers that pass `0` get one shard.
     pub shards: usize,
-    /// Epoch length: how often flushers drain idle shards.
+    /// Epoch length: how often flushers drain idle shards. Direct API
+    /// callers that pass zero get a 1 ms interval to avoid a busy loop.
     pub flush_interval: Duration,
     /// Per-shard queue capacity. `submit` applies backpressure (blocks)
-    /// when a shard is full, bounding memory under a write storm.
+    /// when a shard is full, bounding memory under a write storm. Direct
+    /// API callers that pass `0` get capacity 1.
     pub shard_capacity: usize,
     /// Background flusher threads. The store has a single writer mutex,
     /// so >2 rarely helps; 2 lets one thread group/serialise the next
-    /// batch while the other is inside SQLite.
+    /// batch while the other is inside SQLite. Effective workers are
+    /// clamped to `[1, shards]` because each worker owns static shard
+    /// lanes.
     pub flush_threads: usize,
     /// Run the store's fuzzy entity-name normalization per drained
     /// group. Trusted bulk sources can turn this off; offline
@@ -65,7 +87,7 @@ pub struct EngineOptions {
     /// fully-committed journals. The engine disables SQLite's
     /// auto-checkpoint while it runs (checkpoint fsyncs move out of
     /// commit paths onto this tick), so this interval also bounds WAL
-    /// growth.
+    /// growth. Direct API callers that pass zero get a 1 ms interval.
     pub checkpoint_interval: Duration,
 }
 
@@ -196,7 +218,8 @@ impl ContextEngine {
     /// previous process stopped. Journals are reclaimed by the first
     /// maintenance pass once a WAL checkpoint covers the replay.
     pub fn start_partitioned(domains: Arc<DomainStore>, opts: EngineOptions) -> MemoryResult<Self> {
-        let shard_count = opts.shards.max(1);
+        let opts = normalize_options(opts);
+        let shard_count = opts.shards;
         if shard_count % domains.domains() != 0 {
             return Err(MemoryError::InvalidInput(format!(
                 "engine shards ({shard_count}) must be a multiple of the domain \
@@ -278,7 +301,7 @@ impl ContextEngine {
         // and reclaims any journals they fully cover.
         maintenance(&inner);
 
-        let threads = opts.flush_threads.max(1);
+        let threads = opts.flush_threads;
         let flushers = (0..threads)
             .map(|worker| {
                 let inner = Arc::clone(&inner);
@@ -295,10 +318,7 @@ impl ContextEngine {
     /// Hash an entity name onto its shard. Same partition idea as
     /// flux-rs domains: writes to different shards share no locks.
     fn shard_for(&self, entity: &str) -> usize {
-        use std::hash::{Hash, Hasher};
-        let mut h = std::hash::DefaultHasher::new();
-        entity.to_lowercase().hash(&mut h);
-        (h.finish() as usize) % self.inner.shards.len()
+        (crate::partition::hash_lowercase_key(entity) as usize) % self.inner.shards.len()
     }
 
     /// Enqueue a write. Returns immediately with a [`Ticket`] unless the
@@ -411,6 +431,23 @@ impl ContextEngine {
             }
         }
     }
+}
+
+fn normalize_options(mut opts: EngineOptions) -> EngineOptions {
+    opts.shards = opts.shards.max(1);
+    opts.shard_capacity = opts.shard_capacity.max(1);
+    opts.flush_threads = effective_flush_threads(opts.flush_threads, opts.shards);
+    if opts.flush_interval.is_zero() {
+        opts.flush_interval = Duration::from_millis(1);
+    }
+    if opts.checkpoint_interval.is_zero() {
+        opts.checkpoint_interval = Duration::from_millis(1);
+    }
+    opts
+}
+
+fn effective_flush_threads(requested: usize, shard_count: usize) -> usize {
+    requested.max(1).min(shard_count.max(1))
 }
 
 fn flusher_loop(inner: &Arc<Inner>, worker: usize, total_workers: usize) {
@@ -534,28 +571,24 @@ fn drain_shard(inner: &Inner, idx: usize) {
         .max_drain
         .fetch_max(drained.len() as u64, Ordering::Relaxed);
 
-    let max_seq = drained.iter().map(|(seq, _)| *seq).max().unwrap_or(0);
+    let max_seq = drained.last().map_or(0, |(seq, _)| *seq);
     let drained_len = drained.len() as u64;
 
     // Group by entity so N requests about one entity become one group;
     // the whole drain then commits as one transaction.
-    let mut order: Vec<(String, openmemory_graph::EntityType, String)> = Vec::new();
-    let mut groups: HashMap<(String, openmemory_graph::EntityType, String), RememberRequest> =
-        HashMap::new();
+    let mut batch: Vec<RememberRequest> = Vec::with_capacity(drained.len());
+    let mut groups: HashMap<DrainGroupKey, usize> = HashMap::with_capacity(drained.len());
     for (_, req) in drained {
-        let key = (req.name.to_lowercase(), req.entity_type, req.source.clone());
-        if let Some(existing) = groups.get_mut(&key) {
+        let key = DrainGroupKey::from_request(&req);
+        if let Some(existing_idx) = groups.get(&key).copied() {
+            let existing = &mut batch[existing_idx];
             existing.observations.extend(req.observations);
             existing.relations.extend(req.relations);
         } else {
-            order.push(key.clone());
-            groups.insert(key, req);
+            groups.insert(key, batch.len());
+            batch.push(req);
         }
     }
-    let batch: Vec<RememberRequest> = order
-        .iter()
-        .map(|key| groups.remove(key).expect("group present"))
-        .collect();
 
     let domain = inner.domain_of_shard(idx);
     let key = crate::journal::checkpoint_key(idx);
@@ -644,6 +677,58 @@ mod tests {
         RememberRequest::new(entity, EntityType::Fact)
             .with_observations(vec![ObservationInput::new(content)])
             .with_source("test")
+    }
+
+    #[test]
+    fn direct_options_are_normalized_at_engine_boundary() {
+        let store = test_store();
+        let engine = ContextEngine::start(
+            Arc::clone(&store),
+            EngineOptions {
+                shards: 0,
+                flush_interval: Duration::ZERO,
+                shard_capacity: 0,
+                flush_threads: 0,
+                checkpoint_interval: Duration::ZERO,
+                ..EngineOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(engine.inner.shards.len(), 1);
+        assert_eq!(engine.inner.opts.shards, 1);
+        assert_eq!(engine.inner.opts.shard_capacity, 1);
+        assert_eq!(engine.inner.opts.flush_threads, 1);
+        assert_eq!(engine.inner.opts.flush_interval, Duration::from_millis(1));
+        assert_eq!(
+            engine.inner.opts.checkpoint_interval,
+            Duration::from_millis(1)
+        );
+        assert_eq!(engine.flushers.len(), 1);
+
+        let ticket = engine.submit(req("normalized-options", "still accepts writes"));
+        engine.wait_durable(ticket);
+        assert_eq!(store.status().unwrap().total_observations, 1);
+        engine.shutdown();
+    }
+
+    #[test]
+    fn flush_threads_are_capped_to_owned_shards() {
+        let store = test_store();
+        let engine = ContextEngine::start(
+            Arc::clone(&store),
+            EngineOptions {
+                shards: 2,
+                flush_threads: 128,
+                ..EngineOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(engine.inner.shards.len(), 2);
+        assert_eq!(engine.inner.opts.flush_threads, 2);
+        assert_eq!(engine.flushers.len(), 2);
+        engine.shutdown();
     }
 
     #[test]
@@ -993,6 +1078,36 @@ mod tests {
         Arc::new(
             crate::partition::DomainStore::open(&Config::default(), &dir, k).expect("open domains"),
         )
+    }
+
+    #[test]
+    fn shard_hash_agrees_with_domain_hash() {
+        let domains = test_domains(4);
+        let engine = ContextEngine::start_partitioned(
+            Arc::clone(&domains),
+            EngineOptions {
+                shards: 16,
+                ..EngineOptions::default()
+            },
+        )
+        .unwrap();
+
+        for name in [
+            "Alpha",
+            "Project Alpha",
+            "STRASSE",
+            "Straße",
+            "İstanbul",
+            "alpha\0bravo",
+        ] {
+            let shard = engine.shard_for(name);
+            assert_eq!(
+                engine.inner.domain_of_shard(shard),
+                domains.domain_for(name),
+                "routing mismatch for {name:?}"
+            );
+        }
+        engine.shutdown();
     }
 
     #[test]

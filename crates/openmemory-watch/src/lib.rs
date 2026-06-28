@@ -16,9 +16,9 @@
 //!
 //! Standard ignore-file precedence via the [`ignore`] crate, plus a
 //! per-tree `.openmemory-ignore` file with the same syntax. The
-//! `.git/`, `target/`, `node_modules/`, and `*.lock` directories /
-//! patterns are always skipped, regardless of explicit configuration —
-//! they are noise for an agent-memory index.
+//! `.git/`, `target/`, `node_modules/`, lock files, and common
+//! editor/OS scratch files are always skipped, regardless of explicit
+//! configuration — they are noise for an agent-memory index.
 //!
 //! # Concurrency
 //!
@@ -64,7 +64,21 @@ pub const ALWAYS_IGNORE_DIRS: &[&str] = &[".git", "target", "node_modules", ".ve
 
 /// Always-skip glob patterns. Applied via the `ignore::WalkBuilder`
 /// override layer in commit 9b.
-pub const ALWAYS_IGNORE_GLOBS: &[&str] = &["*.lock", "*.lockb"];
+pub const ALWAYS_IGNORE_GLOBS: &[&str] = &[
+    "*.lock",
+    "*.lockb",
+    "*.pyc",
+    "*.pyo",
+    "*.swp",
+    "*.swo",
+    "*.swpx",
+    ".*.kate-swp",
+    "*~",
+    ".#*",
+    "#*#",
+    ".DS_Store",
+    "watchexec.*.log",
+];
 
 /// Per-tree ignore-file name layered on top of `.gitignore`. Same
 /// syntax; entries here win over standard ignore files.
@@ -85,6 +99,15 @@ pub struct WatchOptions {
     /// `true`; the test suite flips it off to isolate event-loop
     /// correctness.
     pub initial_scan: bool,
+}
+
+pub(crate) fn has_indexable_extension(path: &std::path::Path, extensions: &[String]) -> bool {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        return false;
+    };
+    extensions
+        .iter()
+        .any(|allowed| ext.eq_ignore_ascii_case(allowed.trim_start_matches('.')))
 }
 
 impl WatchOptions {
@@ -233,6 +256,31 @@ mod tests {
         assert!(ALWAYS_IGNORE_DIRS.contains(&".git"));
         assert!(ALWAYS_IGNORE_DIRS.contains(&"target"));
         assert!(ALWAYS_IGNORE_DIRS.contains(&"node_modules"));
+    }
+
+    #[test]
+    fn always_ignore_globs_include_editor_and_os_noise() {
+        assert!(ALWAYS_IGNORE_GLOBS.contains(&".DS_Store"));
+        assert!(ALWAYS_IGNORE_GLOBS.contains(&".#*"));
+        assert!(ALWAYS_IGNORE_GLOBS.contains(&"#*#"));
+        assert!(ALWAYS_IGNORE_GLOBS.contains(&"watchexec.*.log"));
+    }
+
+    #[test]
+    fn extension_matching_is_case_insensitive_and_allows_dot_prefix() {
+        let extensions = vec!["md".to_string(), ".txt".to_string()];
+        assert!(has_indexable_extension(
+            std::path::Path::new("README.MD"),
+            &extensions
+        ));
+        assert!(has_indexable_extension(
+            std::path::Path::new("notes.Txt"),
+            &extensions
+        ));
+        assert!(!has_indexable_extension(
+            std::path::Path::new("archive.json"),
+            &extensions
+        ));
     }
 
     #[test]

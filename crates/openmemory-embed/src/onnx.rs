@@ -107,6 +107,17 @@ impl OnnxEmbedder {
             model.name,
             verify_sha256(&tokenizer_path, model.tokenizer_sha256)?,
         );
+        if model.has_external_data() {
+            let data_path = model_dir.join("model.onnx_data");
+            if !data_path.exists() {
+                return Err(EmbedError::ModelNotFound(data_path.display().to_string()));
+            }
+            log_verification(
+                "model.onnx_data",
+                model.name,
+                verify_sha256(&data_path, model.onnx_data_sha256)?,
+            );
+        }
 
         Self::load_with_options(
             model_dir,
@@ -527,6 +538,18 @@ mod tests {
         }
     }
 
+    fn fake_external_data_model(
+        onnx_sha256: &'static str,
+        tokenizer_sha256: &'static str,
+        onnx_data_sha256: &'static str,
+    ) -> Model {
+        Model {
+            onnx_data_url: "https://example.invalid/model.onnx_data",
+            onnx_data_sha256,
+            ..fake_model(onnx_sha256, tokenizer_sha256)
+        }
+    }
+
     const ALL_ZEROS_64: &str = "0000000000000000000000000000000000000000000000000000000000000000";
     const ALL_F_64: &str = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -593,6 +616,37 @@ mod tests {
         match err {
             EmbedError::ModelNotFound(p) => assert!(p.contains("tokenizer.json"), "path was {p}"),
             other => panic!("expected ModelNotFound, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_for_model_returns_model_not_found_when_external_data_absent() {
+        let dir = fake_model_dir(b"not actually onnx", b"{\"tok\": true}");
+        let model = fake_external_data_model("", "", "");
+        let Err(err) = OnnxEmbedder::load_for_model(dir.path(), &model) else {
+            panic!("expected ModelNotFound error");
+        };
+        match err {
+            EmbedError::ModelNotFound(p) => {
+                assert!(p.contains("model.onnx_data"), "path was {p}");
+            }
+            other => panic!("expected ModelNotFound, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_for_model_rejects_mismatched_external_data_sha256() {
+        let dir = fake_model_dir(b"not actually onnx", b"{\"tok\": true}");
+        std::fs::write(dir.path().join("model.onnx_data"), b"bad weights").unwrap();
+        let model = fake_external_data_model("", "", ALL_ZEROS_64);
+        let Err(err) = OnnxEmbedder::load_for_model(dir.path(), &model) else {
+            panic!("expected ChecksumMismatch error");
+        };
+        match err {
+            EmbedError::ChecksumMismatch { path, .. } => {
+                assert!(path.contains("model.onnx_data"), "path was {path}");
+            }
+            other => panic!("expected ChecksumMismatch, got {other:?}"),
         }
     }
 

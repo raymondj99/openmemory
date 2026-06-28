@@ -19,7 +19,10 @@ use std::path::{Path, PathBuf};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 
 use crate::error::{WatchError, WatchResult};
-use crate::{WatchOptions, ALWAYS_IGNORE_DIRS, ALWAYS_IGNORE_GLOBS, IGNORE_FILE_NAME};
+use crate::{
+    has_indexable_extension, WatchOptions, ALWAYS_IGNORE_DIRS, ALWAYS_IGNORE_GLOBS,
+    IGNORE_FILE_NAME,
+};
 
 /// Build a configured `ignore::Walk` rooted at `root`. Returns the
 /// pre-built walker; callers iterate it via [`iter_indexable`] to apply
@@ -80,14 +83,6 @@ pub fn iter_indexable(
             Some(Ok(path.to_path_buf()))
         }
     })
-}
-
-fn has_indexable_extension(path: &Path, extensions: &[String]) -> bool {
-    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-        return false;
-    };
-    let ext_lower = ext.to_lowercase();
-    extensions.iter().any(|allowed| allowed == &ext_lower)
 }
 
 #[cfg(test)]
@@ -165,6 +160,24 @@ mod tests {
             .collect();
         assert!(names.contains("real.txt"));
         assert!(!names.contains("Cargo.lock"));
+    }
+
+    #[test]
+    fn iter_skips_editor_and_tool_noise_even_when_extensions_are_allowed() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("#draft.md#"), "emacs autosave").unwrap();
+        fs::write(dir.path().join("draft.md~"), "backup").unwrap();
+        fs::write(dir.path().join("watchexec.42.log"), "tool log").unwrap();
+        fs::write(dir.path().join("cache.pyc"), "bytecode").unwrap();
+        fs::write(dir.path().join("real.md"), "ok").unwrap();
+
+        let walker = build_walker(dir.path()).unwrap();
+        let found = collect(walker, &opts_with(&["md", "md#", "md~", "log", "pyc"]));
+        let names: HashSet<_> = found
+            .iter()
+            .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(str::to_string))
+            .collect();
+        assert_eq!(names, HashSet::from(["real.md".to_string()]));
     }
 
     #[test]

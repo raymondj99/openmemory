@@ -4,11 +4,11 @@ use axum::http::{HeaderValue, Method, Request, StatusCode};
 use openmemory_admin::{
     AdminBackupCreateReport, AdminBackupManifest, AdminBackupPreflightResponse,
     AdminIntegrationClient, AdminIntegrationInstallResponse, AdminIntegrationOutcome,
-    AdminIntegrationPreview, AdminIntegrationsResponse, AdminProfilesResponse,
-    AdminRestorePreflightResponse, AdminRestoreReport, AdminShutdownResponse, ComponentState, Page,
-    PageRequest,
+    AdminIntegrationPreview, AdminIntegrationsResponse, AdminJob, AdminJobKind, AdminJobState,
+    AdminProfilesResponse, AdminRestorePreflightResponse, AdminRestoreReport,
+    AdminShutdownResponse, ComponentState, Page, PageRequest,
 };
-use openmemory_graph::{EntityType, ObservationInput, RelationInput};
+use openmemory_graph::{new_id, EntityType, ObservationInput, RelationInput};
 use tower::ServiceExt;
 
 fn test_config() -> DaemonConfig {
@@ -1571,6 +1571,9 @@ async fn backup_create_job_writes_manifest_and_artifact_opens_after_copy() {
     let restore_report: AdminRestoreReport = serde_json::from_value(restore_job.result).unwrap();
     assert_eq!(restore_report.restored_profile, "restored");
     assert!(!restore_report.replaced_existing);
+    assert!(!Path::new(&restore_report.restored_dir)
+        .join("openmemory-backup.json")
+        .exists());
 
     let restored_store =
         DomainStore::open_existing(&Config::default(), Path::new(&restore_report.restored_dir))
