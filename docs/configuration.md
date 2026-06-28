@@ -158,7 +158,7 @@ crash and replay exactly-once on the next start. Used by the MCP
 | `shards` | usize | `32` | Shard count. Contention divides by this. Must be a multiple of `domains`. |
 | `flush_interval_ms` | u64 | `20` | Epoch length: how often idle shards are drained and committed. |
 | `shard_capacity` | usize | `4096` | Per-shard queue bound; submission blocks (backpressure) when a shard is full. |
-| `flush_threads` | usize | `2` | Background flusher threads. Raise toward `domains` when partitioned so domain commits actually run in parallel. |
+| `flush_threads` | usize | `2` | Background flusher threads. Raise toward `domains` when partitioned so domain commits actually run in parallel. Effective workers are capped at `shards`; extra workers cannot own shard lanes. |
 | `durable_ack` | bool | `true` | MCP remember waits for the SQLite commit (read-your-writes; costs up to one epoch). Per-call `durable: false` opts out. |
 | `normalize` | bool | `true` | Run fuzzy entity-name normalization on drained batches. |
 | `journal` | bool | `true` | Keep per-shard crash-recovery journals under `<data_dir>/engine-journal/`. Journals are fsynced before each commit and reclaimed only after a WAL checkpoint makes the commit power-loss durable. |
