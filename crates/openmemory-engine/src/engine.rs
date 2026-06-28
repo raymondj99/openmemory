@@ -19,7 +19,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use openmemory_graph::batch::BatchOptions;
-use openmemory_graph::{MemoryError, MemoryResult, MemoryStore, RememberRequest};
+use openmemory_graph::{EntityType, MemoryError, MemoryResult, MemoryStore, RememberRequest};
 
 use crate::partition::DomainStore;
 
@@ -30,6 +30,23 @@ use crate::partition::DomainStore;
 #[repr(align(128))]
 #[derive(Default)]
 struct PaddedAtomicU64(AtomicU64);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct DrainGroupKey {
+    name_lower: String,
+    entity_type: EntityType,
+    source: String,
+}
+
+impl DrainGroupKey {
+    fn from_request(req: &RememberRequest) -> Self {
+        Self {
+            name_lower: req.name.to_lowercase(),
+            entity_type: req.entity_type,
+            source: req.source.clone(),
+        }
+    }
+}
 
 /// Receipt for a submitted write. `seq` is the shard-local sequence
 /// number; the write is durable once the shard's watermark reaches it.
@@ -559,23 +576,19 @@ fn drain_shard(inner: &Inner, idx: usize) {
 
     // Group by entity so N requests about one entity become one group;
     // the whole drain then commits as one transaction.
-    let mut order: Vec<(String, openmemory_graph::EntityType, String)> = Vec::new();
-    let mut groups: HashMap<(String, openmemory_graph::EntityType, String), RememberRequest> =
-        HashMap::new();
+    let mut batch: Vec<RememberRequest> = Vec::with_capacity(drained.len());
+    let mut groups: HashMap<DrainGroupKey, usize> = HashMap::with_capacity(drained.len());
     for (_, req) in drained {
-        let key = (req.name.to_lowercase(), req.entity_type, req.source.clone());
-        if let Some(existing) = groups.get_mut(&key) {
+        let key = DrainGroupKey::from_request(&req);
+        if let Some(existing_idx) = groups.get(&key).copied() {
+            let existing = &mut batch[existing_idx];
             existing.observations.extend(req.observations);
             existing.relations.extend(req.relations);
         } else {
-            order.push(key.clone());
-            groups.insert(key, req);
+            groups.insert(key, batch.len());
+            batch.push(req);
         }
     }
-    let batch: Vec<RememberRequest> = order
-        .iter()
-        .map(|key| groups.remove(key).expect("group present"))
-        .collect();
 
     let domain = inner.domain_of_shard(idx);
     let key = crate::journal::checkpoint_key(idx);

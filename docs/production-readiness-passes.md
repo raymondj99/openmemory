@@ -184,3 +184,50 @@ References:
 
 - `fd` source: https://github.com/sharkdp/fd/blob/master/src/main.rs
 - `fd` repository: https://github.com/sharkdp/fd
+
+## 2026-06-28 - Engine Drain Grouping Without Key Rewalk
+
+Domain reviewed: `openmemory-engine` shard draining and request grouping. Every
+submitted write eventually passes through this path, where a drained shard is
+collapsed from N requests into per-entity `RememberRequest` groups before one
+batched store transaction.
+
+Production reference: Cargo's resolver and compiler job queue code. The
+relevant pattern is using known input cardinality to size hot-path collections
+and avoiding extra map work in queue/graph drains. Cargo's resolver, for
+example, sizes visited sets from `resolve.len()` before walking a known graph.
+
+Applied changes:
+
+- Replaced the drain path's `order: Vec<key>` plus
+  `HashMap<key, RememberRequest>` plus final `remove` pass with
+  `Vec<RememberRequest>` plus `HashMap<DrainGroupKey, usize>`.
+- Preserved first-seen group order while avoiding a cloned group key for the
+  order vector and avoiding the second lookup/remove pass.
+- Pre-sized both the batch vector and group map from `drained.len()`, matching
+  the known upper bound for unique groups in one shard drain.
+- Kept case-insensitive grouping semantics unchanged by retaining the lowercased
+  entity-name key.
+
+Tests and load checks:
+
+- `cargo fmt --all -- --check`
+- `cargo test -p openmemory-engine normalize_off_is_passed_through_to_the_store -- --nocapture`
+- `cargo test -p openmemory-engine concurrent_submitters_lose_nothing -- --nocapture`
+- `cargo test -p openmemory-engine partitioned_engine_routes_shards_to_domains_and_loses_nothing -- --nocapture`
+- `cargo test -p openmemory-engine --all-features`
+- `cargo clippy -p openmemory-engine --all-targets --all-features -- -D warnings`
+- `cargo test -p openmemory-engine --no-default-features`
+- `cargo clippy -p openmemory-engine --all-targets --no-default-features -- -D warnings`
+- Release context-engine stress: `1000` agents x `10` ops, `4` readers,
+  journal enabled; verified no lost writes, `0` backpressure waits, `0` engine
+  errors, `35` flushes, `540` max drain, and `28733` durable writes/s.
+
+Performance note: this is a small allocation and map-work cleanup in the
+per-shard drain loop. It does not change submit ordering, grouping semantics,
+journal checkpointing, or durable watermark publication.
+
+References:
+
+- Cargo resolver source: https://github.com/rust-lang/cargo/blob/master/src/cargo/core/resolver/mod.rs
+- Cargo job queue source: https://github.com/rust-lang/cargo/blob/master/src/cargo/core/compiler/job_queue/mod.rs
