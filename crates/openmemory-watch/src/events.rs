@@ -32,7 +32,7 @@ use tracing::warn;
 
 use crate::error::WatchResult;
 use crate::index::{process_file, remove_path, ScanReport};
-use crate::{WatchOptions, ALWAYS_IGNORE_DIRS, ALWAYS_IGNORE_GLOBS};
+use crate::{has_indexable_extension, WatchOptions, ALWAYS_IGNORE_DIRS, ALWAYS_IGNORE_GLOBS};
 
 /// Process one debounced batch. Mutates `report` in-place.
 pub fn process_batch(
@@ -159,23 +159,44 @@ pub(crate) fn is_runtime_indexable(path: &Path, root: &Path, options: &WatchOpti
             }
         }
     }
-    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-        return false;
-    };
-    let ext_lower = ext.to_lowercase();
-    options.extensions.iter().any(|e| e == &ext_lower)
+    has_indexable_extension(path, &options.extensions)
 }
 
-/// Tiny shell-glob matcher for the always-ignore globs (`*.lock`,
-/// `*.lockb`). Supports a single leading `*` only, which is enough for
-/// the constants we ship; broader pattern support lives in the
-/// `ignore` crate which the initial scan already uses.
+/// Tiny shell-glob matcher for the always-ignore file-name globs.
+/// Supports `*` and `?`, which is enough for the constants we ship;
+/// broader pattern support lives in the `ignore` crate which the
+/// initial scan already uses.
 fn matches_simple_glob(pattern: &str, name: &str) -> bool {
-    if let Some(suffix) = pattern.strip_prefix('*') {
-        name.ends_with(suffix)
-    } else {
-        pattern == name
+    let pattern = pattern.as_bytes();
+    let name = name.as_bytes();
+    let (mut pat_idx, mut name_idx) = (0usize, 0usize);
+    let mut star_idx = None;
+    let mut star_match_idx = 0usize;
+
+    while name_idx < name.len() {
+        if pat_idx < pattern.len()
+            && (pattern[pat_idx] == b'?' || pattern[pat_idx] == name[name_idx])
+        {
+            pat_idx += 1;
+            name_idx += 1;
+        } else if pat_idx < pattern.len() && pattern[pat_idx] == b'*' {
+            star_idx = Some(pat_idx);
+            star_match_idx = name_idx;
+            pat_idx += 1;
+        } else if let Some(star) = star_idx {
+            pat_idx = star + 1;
+            star_match_idx += 1;
+            name_idx = star_match_idx;
+        } else {
+            return false;
+        }
     }
+
+    while pat_idx < pattern.len() && pattern[pat_idx] == b'*' {
+        pat_idx += 1;
+    }
+
+    pat_idx == pattern.len()
 }
 
 #[cfg(test)]
@@ -410,10 +431,72 @@ mod tests {
     }
 
     #[test]
+    fn noisy_editor_batch_is_filtered_before_indexing() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let store = store();
+        let mut o = opts();
+        o.extensions.extend(
+            [
+                "kate-swp", "lock", "lockb", "log", "md#", "md~", "pyc", "pyo", "swo", "swp",
+                "swpx",
+            ]
+            .into_iter()
+            .map(str::to_string),
+        );
+
+        let mut events = Vec::new();
+        for i in 0..50 {
+            for name in [
+                format!(".#draft-{i}.md"),
+                format!("#draft-{i}.md#"),
+                format!(".draft-{i}.swp"),
+                format!(".draft-{i}.swo"),
+                format!(".draft-{i}.swpx"),
+                format!(".draft-{i}.kate-swp"),
+                format!("draft-{i}.md~"),
+                format!("Cargo-{i}.lock"),
+                format!("package-{i}.lockb"),
+                format!("cache-{i}.pyc"),
+                format!("cache-{i}.pyo"),
+                format!("watchexec.{i}.log"),
+            ] {
+                let path = root.join(name);
+                std::fs::write(&path, "scratch").unwrap();
+                events.push(make_event(EventKind::Create(CreateKind::File), vec![path]));
+            }
+        }
+
+        let real = root.join("real.md");
+        std::fs::write(&real, "real memory").unwrap();
+        events.push(make_event(
+            EventKind::Create(CreateKind::File),
+            vec![real.clone()],
+        ));
+
+        let mut report = ScanReport::default();
+        process_batch(&store, &root, &o, &events, &mut report).unwrap();
+
+        assert_eq!(report.inserted, 1);
+        assert_eq!(store.engine().metadata.stats().unwrap().total_sources, 1);
+        assert!(store
+            .engine()
+            .metadata
+            .get(&format!("file://{}", real.display()))
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
     fn matches_simple_glob_handles_star_prefix() {
         assert!(matches_simple_glob("*.lock", "Cargo.lock"));
         assert!(matches_simple_glob("*.lockb", "package.lockb"));
         assert!(!matches_simple_glob("*.lock", "Cargo.toml"));
+        assert!(matches_simple_glob(".#*", ".#draft.md"));
+        assert!(matches_simple_glob("#*#", "#draft.md#"));
+        assert!(matches_simple_glob("*.sw?", ".draft.swp"));
+        assert!(matches_simple_glob("watchexec.*.log", "watchexec.42.log"));
+        assert!(!matches_simple_glob("watchexec.*.log", "watchexec.log"));
         assert!(matches_simple_glob("exact", "exact"));
     }
 }
