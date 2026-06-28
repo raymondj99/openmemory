@@ -92,7 +92,7 @@ tar = { version = "0.4", default-features = false }
 
 # Filesystem helpers
 tempfile = "3"
-fs4 = "0.12"
+fs4 = "1.1"
 json5 = "0.4"
 
 # File watcher (Phase 9 — openmemory-watch crate). MSRV 1.85 for both

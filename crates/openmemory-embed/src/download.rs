@@ -7,7 +7,9 @@
 
 use crate::error::{EmbedError, EmbedResult};
 use crate::models::Model;
+use fs4::FileExt;
 use std::fmt;
+use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -75,6 +77,7 @@ impl ModelManager {
     pub fn download(&self, model: &Model) -> EmbedResult<()> {
         let dir = self.model_dir(model.name);
         std::fs::create_dir_all(&dir)?;
+        let _lock = DownloadLock::acquire(&dir)?;
 
         let mut files: Vec<(&str, &str, &str, u64)> = vec![
             (
@@ -109,13 +112,13 @@ impl ModelManager {
 
         for (filename, url, expected_sha256, max_bytes) in files {
             let dest = dir.join(filename);
-            if has_required_file(&dest) {
-                info!("{filename} already exists, skipping");
+            if cached_file_ready(&dest, expected_sha256)? {
+                info!("{filename} already exists and passed integrity check, skipping");
                 continue;
             }
             if dest.exists() {
-                info!("{filename} exists but is incomplete, replacing");
-                std::fs::remove_file(&dest)?;
+                info!("{filename} exists but is incomplete or corrupt, replacing");
+                remove_cached_path(&dest)?;
             }
             clean_part_file(&dest);
 
@@ -127,13 +130,40 @@ impl ModelManager {
             .map_err(DownloadAttemptError::into_error)?;
 
             if !expected_sha256.is_empty() {
-                crate::integrity::verify_sha256(&dest, expected_sha256)?;
+                if let Err(e) = crate::integrity::verify_sha256(&dest, expected_sha256) {
+                    let _ = std::fs::remove_file(&dest);
+                    return Err(e);
+                }
             }
 
             info!("Saved {filename} ({written} bytes)");
         }
 
         Ok(())
+    }
+}
+
+struct DownloadLock {
+    file: File,
+}
+
+impl DownloadLock {
+    fn acquire(dir: &Path) -> EmbedResult<Self> {
+        let path = dir.join(".download.lock");
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(&path)?;
+        <File as FileExt>::lock(&file)?;
+        Ok(Self { file })
+    }
+}
+
+impl Drop for DownloadLock {
+    fn drop(&mut self) {
+        let _ = <File as FileExt>::unlock(&self.file);
     }
 }
 
@@ -171,6 +201,29 @@ impl fmt::Display for DownloadAttemptError {
 
 fn has_required_file(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+}
+
+fn cached_file_ready(path: &Path, expected_sha256: &str) -> EmbedResult<bool> {
+    if !has_required_file(path) {
+        return Ok(false);
+    }
+    if expected_sha256.trim().is_empty() {
+        return Ok(true);
+    }
+    match crate::integrity::verify_sha256(path, expected_sha256) {
+        Ok(_) => Ok(true),
+        Err(EmbedError::ChecksumMismatch { .. }) => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+fn remove_cached_path(path: &Path) -> std::io::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_dir() => std::fs::remove_dir_all(path),
+        Ok(_) => std::fs::remove_file(path),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 fn part_path(dest: &Path) -> PathBuf {
@@ -270,8 +323,25 @@ fn fetch_to_file(
         let _ = std::fs::remove_file(&tmp);
         DownloadAttemptError::permanent(format!("{filename} rename failed: {e}"))
     })?;
+    sync_parent_dir(dest).map_err(|e| {
+        let _ = std::fs::remove_file(dest);
+        DownloadAttemptError::permanent(format!("{filename} directory sync failed: {e}"))
+    })?;
 
     Ok(total)
+}
+
+#[cfg(unix)]
+fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn sync_parent_dir(_path: &Path) -> std::io::Result<()> {
+    Ok(())
 }
 
 fn classify_io_error(filename: &str, e: &std::io::Error) -> DownloadAttemptError {
@@ -298,6 +368,37 @@ fn is_retryable_status(status: u16) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        let digest = Sha256::digest(bytes);
+        let mut out = String::with_capacity(digest.len() * 2);
+        for byte in digest {
+            use std::fmt::Write as _;
+            write!(out, "{byte:02x}").unwrap();
+        }
+        out
+    }
+
+    fn fake_external_data_model() -> Model {
+        Model {
+            name: "external-fixture",
+            aliases: &[],
+            repo_id: "test/external-fixture",
+            dimensions: 768,
+            max_tokens: 8192,
+            pooling: crate::PoolingStrategy::MeanPooling,
+            output_tensor: "last_hidden_state",
+            search_prefix: "",
+            document_prefix: "",
+            onnx_url: "https://example.invalid/model.onnx",
+            tokenizer_url: "https://example.invalid/tokenizer.json",
+            onnx_sha256: "",
+            tokenizer_sha256: "",
+            onnx_data_url: "https://example.invalid/model.onnx_data",
+            onnx_data_sha256: "",
+        }
+    }
 
     #[test]
     fn downloaded_model_dir_returns_none_when_empty() {
@@ -357,6 +458,51 @@ mod tests {
 
         let mgr = ModelManager::new(tmp.path().to_path_buf());
         assert!(mgr.downloaded_model_dir(model).is_none());
+    }
+
+    #[test]
+    fn downloaded_model_dir_requires_external_data_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let model = fake_external_data_model();
+        let dir = tmp.path().join(model.name);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("model.onnx"), b"fake").unwrap();
+        std::fs::write(dir.join("tokenizer.json"), b"{}").unwrap();
+
+        let mgr = ModelManager::new(tmp.path().to_path_buf());
+        assert!(mgr.downloaded_model_dir(&model).is_none());
+
+        std::fs::write(dir.join("model.onnx_data"), b"weights").unwrap();
+        assert_eq!(mgr.downloaded_model_dir(&model).unwrap(), dir);
+    }
+
+    #[test]
+    fn cached_file_ready_accepts_matching_hash() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("model.onnx");
+        let payload = b"verified model bytes";
+        std::fs::write(&path, payload).unwrap();
+        let expected = sha256_hex(payload);
+
+        assert!(cached_file_ready(&path, &expected).unwrap());
+    }
+
+    #[test]
+    fn cached_file_ready_rejects_mismatched_hash() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("model.onnx");
+        std::fs::write(&path, b"corrupt model bytes").unwrap();
+
+        assert!(!cached_file_ready(&path, &"0".repeat(64)).unwrap());
+    }
+
+    #[test]
+    fn cached_file_ready_rejects_empty_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("model.onnx");
+        std::fs::write(&path, b"").unwrap();
+
+        assert!(!cached_file_ready(&path, "").unwrap());
     }
 
     #[test]
