@@ -295,10 +295,7 @@ impl ContextEngine {
     /// Hash an entity name onto its shard. Same partition idea as
     /// flux-rs domains: writes to different shards share no locks.
     fn shard_for(&self, entity: &str) -> usize {
-        use std::hash::{Hash, Hasher};
-        let mut h = std::hash::DefaultHasher::new();
-        entity.to_lowercase().hash(&mut h);
-        (h.finish() as usize) % self.inner.shards.len()
+        (crate::partition::hash_lowercase_key(entity) as usize) % self.inner.shards.len()
     }
 
     /// Enqueue a write. Returns immediately with a [`Ticket`] unless the
@@ -534,7 +531,7 @@ fn drain_shard(inner: &Inner, idx: usize) {
         .max_drain
         .fetch_max(drained.len() as u64, Ordering::Relaxed);
 
-    let max_seq = drained.iter().map(|(seq, _)| *seq).max().unwrap_or(0);
+    let max_seq = drained.last().map_or(0, |(seq, _)| *seq);
     let drained_len = drained.len() as u64;
 
     // Group by entity so N requests about one entity become one group;
@@ -993,6 +990,36 @@ mod tests {
         Arc::new(
             crate::partition::DomainStore::open(&Config::default(), &dir, k).expect("open domains"),
         )
+    }
+
+    #[test]
+    fn shard_hash_agrees_with_domain_hash() {
+        let domains = test_domains(4);
+        let engine = ContextEngine::start_partitioned(
+            Arc::clone(&domains),
+            EngineOptions {
+                shards: 16,
+                ..EngineOptions::default()
+            },
+        )
+        .unwrap();
+
+        for name in [
+            "Alpha",
+            "Project Alpha",
+            "STRASSE",
+            "Straße",
+            "İstanbul",
+            "alpha\0bravo",
+        ] {
+            let shard = engine.shard_for(name);
+            assert_eq!(
+                engine.inner.domain_of_shard(shard),
+                domains.domain_for(name),
+                "routing mismatch for {name:?}"
+            );
+        }
+        engine.shutdown();
     }
 
     #[test]

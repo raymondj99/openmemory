@@ -30,6 +30,12 @@ pub(crate) struct JournalRecord {
     pub(crate) req: RememberRequest,
 }
 
+#[derive(Serialize)]
+struct BorrowedJournalRecord<'a> {
+    seq: u64,
+    req: &'a RememberRequest,
+}
+
 /// Checkpoint key for a shard's journal watermark in `memory_meta`.
 pub(crate) fn checkpoint_key(shard: usize) -> String {
     format!("engine:journal:{shard}")
@@ -43,10 +49,7 @@ pub(crate) fn journal_path(dir: &Path, shard: usize) -> PathBuf {
 /// flush/fsync cadence. Best-effort by design: a journal I/O error
 /// degrades durability, never availability.
 pub(crate) fn append(journal: &mut BufWriter<File>, seq: u64, req: &RememberRequest) {
-    let record = JournalRecord {
-        seq,
-        req: req.clone(),
-    };
+    let record = BorrowedJournalRecord { seq, req };
     if let Ok(line) = serde_json::to_string(&record) {
         let _ = journal.write_all(line.as_bytes());
         let _ = journal.write_all(b"\n");

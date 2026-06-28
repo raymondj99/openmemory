@@ -4,13 +4,13 @@ use std::sync::Arc;
 use openmemory_admin::{
     AdminError, AdminErrorCode, AdminIntegrationClient, AdminIntegrationInstallResponse,
     AdminIntegrationOutcome, AdminIntegrationPreview, AdminIntegrationRequest,
-    AdminIntegrationStatus, AdminIntegrationVerifyReport, AdminIntegrationsResponse, AdminJobState,
+    AdminIntegrationStatus, AdminIntegrationVerifyReport, AdminIntegrationsResponse,
     ComponentHealth, IntegrationSummary,
 };
 use toml_edit::{value, Array, DocumentMut, Item, Table, Value as TomlValue};
 
-use crate::state::JobRegistry;
-use crate::{unix_now_secs, write_atomic, DaemonConfig};
+use crate::state::{JobMessages, JobRegistry};
+use crate::{write_atomic, DaemonConfig};
 
 pub(crate) fn parse_integration_client(value: &str) -> Result<AdminIntegrationClient, AdminError> {
     match value {
@@ -500,53 +500,16 @@ pub(crate) fn spawn_integration_verify_job(
     job_id: String,
     jobs: Arc<JobRegistry>,
 ) {
-    tokio::spawn(async move {
-        let _ = jobs.update(&job_id, |job| {
-            job.state = AdminJobState::Running;
-            job.started_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-            job.message = Some("integration verification running".into());
-        });
-        let result = tokio::task::spawn_blocking(move || {
-            integration_verify_blocking(&config, client, &request)
-        })
-        .await;
-        match result {
-            Ok(Ok(report)) => {
-                let result = serde_json::to_value(&report).unwrap_or(serde_json::Value::Null);
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Succeeded;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("integration verification completed".into());
-                    job.result = result;
-                    job.error = None;
-                });
-            }
-            Ok(Err(error)) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("integration verification failed".into());
-                    job.error = Some(error);
-                });
-            }
-            Err(error) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("integration verification worker failed".into());
-                    job.error = Some(
-                        AdminError::new(
-                            AdminErrorCode::Internal,
-                            "integration verification worker failed",
-                            Option::<String>::None,
-                            true,
-                        )
-                        .with_details(serde_json::json!({ "error": error.to_string() })),
-                    );
-                });
-            }
-        }
-    });
+    jobs.spawn_blocking_job(
+        job_id,
+        JobMessages {
+            running: "integration verification running",
+            succeeded: "integration verification completed",
+            failed: "integration verification failed",
+            worker_failed: "integration verification worker failed",
+        },
+        move || integration_verify_blocking(&config, client, &request),
+    );
 }
 
 fn integration_verify_blocking(

@@ -4,14 +4,16 @@ use std::sync::Arc;
 
 use openmemory_admin::{
     AdminBackupCreateReport, AdminBackupManifest, AdminBackupPreflightResponse, AdminBackupRequest,
-    AdminDiagnostic, AdminError, AdminErrorCode, AdminJobState, AdminRestorePreflightRequest,
+    AdminDiagnostic, AdminError, AdminErrorCode, AdminRestorePreflightRequest,
     AdminRestorePreflightResponse, AdminRestoreReport, AdminRestoreRequest, ADMIN_API_VERSION,
 };
 use openmemory_engine::partition::DomainStore;
 use openmemory_graph::new_id;
 
-use crate::state::JobRegistry;
+use crate::state::{JobMessages, JobRegistry};
 use crate::{load_config, profile_data_dir, store_admin_error, unix_now_secs, DaemonConfig};
+
+const BACKUP_MANIFEST_FILE: &str = "openmemory-backup.json";
 
 pub(crate) fn backup_preflight(
     config: &DaemonConfig,
@@ -94,7 +96,7 @@ pub(crate) fn restore_preflight(
     request: &AdminRestorePreflightRequest,
 ) -> AdminRestorePreflightResponse {
     let backup_dir = PathBuf::from(&request.backup_dir);
-    let manifest_path = backup_dir.join("openmemory-backup.json");
+    let manifest_path = backup_dir.join(BACKUP_MANIFEST_FILE);
     let mut diagnostics = Vec::new();
     if !backup_dir.is_dir() {
         diagnostics.push(AdminDiagnostic {
@@ -189,51 +191,16 @@ pub(crate) fn spawn_backup_create_job(
     job_id: String,
     jobs: Arc<JobRegistry>,
 ) {
-    tokio::spawn(async move {
-        let _ = jobs.update(&job_id, |job| {
-            job.state = AdminJobState::Running;
-            job.started_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-            job.message = Some("backup running".into());
-        });
-        let result =
-            tokio::task::spawn_blocking(move || backup_create_blocking(&config, &request)).await;
-        match result {
-            Ok(Ok(report)) => {
-                let result = serde_json::to_value(&report).unwrap_or(serde_json::Value::Null);
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Succeeded;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("backup completed".into());
-                    job.result = result;
-                    job.error = None;
-                });
-            }
-            Ok(Err(error)) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("backup failed".into());
-                    job.error = Some(error);
-                });
-            }
-            Err(error) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("backup worker failed".into());
-                    job.error = Some(
-                        AdminError::new(
-                            AdminErrorCode::Internal,
-                            "backup worker failed",
-                            Option::<String>::None,
-                            true,
-                        )
-                        .with_details(serde_json::json!({ "error": error.to_string() })),
-                    );
-                });
-            }
-        }
-    });
+    jobs.spawn_blocking_job(
+        job_id,
+        JobMessages {
+            running: "backup running",
+            succeeded: "backup completed",
+            failed: "backup failed",
+            worker_failed: "backup worker failed",
+        },
+        move || backup_create_blocking(&config, &request),
+    );
 }
 
 pub(crate) fn spawn_restore_job(
@@ -242,50 +209,16 @@ pub(crate) fn spawn_restore_job(
     job_id: String,
     jobs: Arc<JobRegistry>,
 ) {
-    tokio::spawn(async move {
-        let _ = jobs.update(&job_id, |job| {
-            job.state = AdminJobState::Running;
-            job.started_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-            job.message = Some("restore running".into());
-        });
-        let result = tokio::task::spawn_blocking(move || restore_blocking(&config, &request)).await;
-        match result {
-            Ok(Ok(report)) => {
-                let result = serde_json::to_value(&report).unwrap_or(serde_json::Value::Null);
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Succeeded;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("restore completed".into());
-                    job.result = result;
-                    job.error = None;
-                });
-            }
-            Ok(Err(error)) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("restore failed".into());
-                    job.error = Some(error);
-                });
-            }
-            Err(error) => {
-                let _ = jobs.update(&job_id, |job| {
-                    job.state = AdminJobState::Failed;
-                    job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
-                    job.message = Some("restore worker failed".into());
-                    job.error = Some(
-                        AdminError::new(
-                            AdminErrorCode::Internal,
-                            "restore worker failed",
-                            Option::<String>::None,
-                            true,
-                        )
-                        .with_details(serde_json::json!({ "error": error.to_string() })),
-                    );
-                });
-            }
-        }
-    });
+    jobs.spawn_blocking_job(
+        job_id,
+        JobMessages {
+            running: "restore running",
+            succeeded: "restore completed",
+            failed: "restore failed",
+            worker_failed: "restore worker failed",
+        },
+        move || restore_blocking(&config, &request),
+    );
 }
 
 fn backup_create_blocking(
@@ -344,7 +277,7 @@ fn backup_create_blocking(
         files_copied,
         bytes_copied,
     };
-    let manifest_path = staging_dir.join("openmemory-backup.json");
+    let manifest_path = staging_dir.join(BACKUP_MANIFEST_FILE);
     let manifest_text = serde_json::to_string_pretty(&manifest)
         .map(|text| format!("{text}\n"))
         .map_err(|error| {
@@ -374,10 +307,7 @@ fn backup_create_blocking(
     fsync_dir(&destination_dir).map_err(admin_backup_io)?;
     Ok(AdminBackupCreateReport {
         backup_dir: final_dir.display().to_string(),
-        manifest_path: final_dir
-            .join("openmemory-backup.json")
-            .display()
-            .to_string(),
+        manifest_path: final_dir.join(BACKUP_MANIFEST_FILE).display().to_string(),
         manifest,
     })
 }
@@ -443,7 +373,7 @@ fn restore_blocking(
         std::fs::remove_dir_all(&staging_dir).map_err(admin_restore_io)?;
     }
     let result = (|| {
-        copy_dir_recursive(&backup_dir, &staging_dir)?;
+        copy_backup_payload(&backup_dir, &staging_dir)?;
         fsync_dir(&staging_dir)?;
         Ok::<(), std::io::Error>(())
     })();
@@ -624,12 +554,36 @@ pub(crate) fn copy_dir_recursive(source: &Path, destination: &Path) -> std::io::
         if file_type.is_dir() {
             copy_dir_recursive(&source_path, &destination_path)?;
         } else if file_type.is_file() {
-            std::fs::copy(&source_path, &destination_path)?;
-            std::fs::File::open(&destination_path)?.sync_all()?;
+            copy_file_sync(&source_path, &destination_path)?;
         }
     }
     fsync_dir(destination)?;
     Ok(())
+}
+
+fn copy_backup_payload(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(destination)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        if entry.file_name() == std::ffi::OsStr::new(BACKUP_MANIFEST_FILE) {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            copy_dir_recursive(&source_path, &destination_path)?;
+        } else if file_type.is_file() {
+            copy_file_sync(&source_path, &destination_path)?;
+        }
+    }
+    fsync_dir(destination)?;
+    Ok(())
+}
+
+fn copy_file_sync(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::fs::copy(source, destination)?;
+    std::fs::File::open(destination)?.sync_all()
 }
 
 fn write_backup_manifest(path: &Path, content: &[u8]) -> std::io::Result<()> {

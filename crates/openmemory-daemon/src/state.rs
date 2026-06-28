@@ -3,9 +3,10 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
 use openmemory_admin::{
-    AdminErrorCode, AdminEvent, AdminEventType, AdminJob, AdminJobState, AdminLogEntry,
-    AdminLogLevel, ComponentHealth,
+    AdminError, AdminErrorCode, AdminEvent, AdminEventType, AdminJob, AdminJobKind, AdminJobState,
+    AdminLogEntry, AdminLogLevel, ComponentHealth,
 };
+use openmemory_graph::new_id;
 use tokio::sync::{broadcast, watch};
 
 use crate::product_store::{ProductStore, ProductStoreError};
@@ -19,6 +20,14 @@ pub(crate) struct AdminState {
     pub(crate) logs: Arc<RedactedLogRing>,
     pub(crate) jobs: Arc<JobRegistry>,
     pub(crate) shutdown: Option<watch::Sender<bool>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct JobMessages {
+    pub(crate) running: &'static str,
+    pub(crate) succeeded: &'static str,
+    pub(crate) failed: &'static str,
+    pub(crate) worker_failed: &'static str,
 }
 
 #[derive(Debug)]
@@ -126,6 +135,69 @@ impl JobRegistry {
         }
     }
 
+    pub(crate) fn enqueue(
+        &self,
+        kind: AdminJobKind,
+        profile: impl Into<String>,
+        message: impl Into<String>,
+    ) -> AdminJob {
+        let now = unix_now_secs().unwrap_or(0);
+        self.insert(AdminJob {
+            id: new_id(),
+            kind,
+            state: AdminJobState::Queued,
+            profile: profile.into(),
+            created_at_unix_secs: now,
+            started_at_unix_secs: None,
+            finished_at_unix_secs: None,
+            message: Some(message.into()),
+            result: serde_json::Value::Null,
+            error: None,
+        })
+    }
+
+    pub(crate) fn spawn_blocking_job<T, F>(
+        self: Arc<Self>,
+        job_id: String,
+        messages: JobMessages,
+        worker: F,
+    ) where
+        T: serde::Serialize + Send + 'static,
+        F: FnOnce() -> Result<T, AdminError> + Send + 'static,
+    {
+        tokio::spawn(async move {
+            self.mark_running(&job_id, messages.running);
+            match tokio::task::spawn_blocking(worker).await {
+                Ok(Ok(report)) => match serde_json::to_value(report) {
+                    Ok(result) => self.mark_succeeded(&job_id, messages.succeeded, result),
+                    Err(error) => self.mark_failed(
+                        &job_id,
+                        "job result encoding failed",
+                        AdminError::new(
+                            AdminErrorCode::Internal,
+                            "job result could not be encoded",
+                            Option::<String>::None,
+                            true,
+                        )
+                        .with_details(serde_json::json!({ "error": error.to_string() })),
+                    ),
+                },
+                Ok(Err(error)) => self.mark_failed(&job_id, messages.failed, error),
+                Err(error) => self.mark_failed(
+                    &job_id,
+                    messages.worker_failed,
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        messages.worker_failed,
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
+            };
+        });
+    }
+
     pub(crate) fn insert(&self, job: AdminJob) -> AdminJob {
         let _event_order = self.event_order.lock().unwrap_or_else(|e| e.into_inner());
         let event = {
@@ -153,6 +225,33 @@ impl JobRegistry {
         self.persist_event(&event);
         let _ = self.events.send(event);
         Some(job)
+    }
+
+    fn mark_running(&self, id: &str, message: &'static str) {
+        let _ = self.update(id, |job| {
+            job.state = AdminJobState::Running;
+            job.started_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
+            job.message = Some(message.into());
+        });
+    }
+
+    fn mark_succeeded(&self, id: &str, message: &'static str, result: serde_json::Value) {
+        let _ = self.update(id, |job| {
+            job.state = AdminJobState::Succeeded;
+            job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
+            job.message = Some(message.into());
+            job.result = result;
+            job.error = None;
+        });
+    }
+
+    fn mark_failed(&self, id: &str, message: &'static str, error: AdminError) {
+        let _ = self.update(id, |job| {
+            job.state = AdminJobState::Failed;
+            job.finished_at_unix_secs = Some(unix_now_secs().unwrap_or(0));
+            job.message = Some(message.into());
+            job.error = Some(error);
+        });
     }
 
     pub(crate) fn get(&self, id: &str) -> Option<AdminJob> {
