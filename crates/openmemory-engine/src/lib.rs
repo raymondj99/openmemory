@@ -56,6 +56,7 @@
 
 pub mod adapter;
 pub mod engine;
+pub mod evidence;
 pub mod journal;
 pub mod migrate;
 pub mod partition;

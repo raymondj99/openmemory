@@ -1,21 +1,23 @@
-//! Source adapters: turn external data into [`RememberRequest`] streams.
+//! Source adapters for `openmemory ingest`.
 //!
-//! The contract is deliberately thin: an adapter understands one source
-//! shape (meeting notes, chat exports, transcripts, ...) and yields
-//! batches of requests; the engine stays a dumb, fast, ordered ingestion
-//! lane. Chunking, entity extraction, and relation heuristics all live
-//! on this side of the seam.
+//! The compatibility [`SourceAdapter`] contract still turns external
+//! data into [`RememberRequest`] streams. New adapter work should start
+//! one step earlier with [`EvidenceAdapter`]: preserve raw source
+//! evidence, stable URIs, source metadata, and BLAKE3 content hashes,
+//! then let an extractor/validator decide what becomes graph memory.
+//! The engine stays a dumb, fast, ordered ingestion lane.
 //!
 //! Two reference adapters ship here:
 //!
-//! - [`MarkdownNotesAdapter`] — a directory of meeting-note Markdown
-//!   files. One entity per file (H1 title or file stem), one observation
-//!   per `##` section, `Attendees:` lines become `has_participant`
-//!   relations to `Person` entities.
-//! - [`ChatJsonlAdapter`] — a JSONL chat export (one message per line:
-//!   `{"channel", "user", "ts", "text"}`). One entity per channel, one
-//!   observation per message stamped with the message timestamp,
-//!   `has_participant` relations to the sending user.
+//! - [`MarkdownEvidenceAdapter`] emits one evidence record per non-empty
+//!   Markdown file. [`MarkdownNotesAdapter`] wraps it and preserves the
+//!   historical deterministic graph write shape: one entity per file
+//!   (H1 title or file stem), one observation per `##` section, and
+//!   `Attendees:` lines as `has_participant` relations.
+//! - [`ChatJsonlEvidenceAdapter`] emits one evidence record per non-empty
+//!   JSONL row. [`ChatJsonlAdapter`] wraps it and preserves the
+//!   historical deterministic graph write shape: one entity per channel,
+//!   one timestamped observation per message, and a sender relation.
 //!
 //! Audio and similar media are expected to pass through an external
 //! transcription step first and enter as one of the text shapes above.
@@ -27,6 +29,12 @@ use openmemory_graph::{
     EntityType, MemoryError, MemoryResult, ObservationInput, RelationInput, RememberRequest,
 };
 use serde::Deserialize;
+use serde_json::{json, Value};
+
+pub use crate::evidence::{
+    EvidenceAdapter, EvidenceBatch, EvidenceCheckpoint, EvidenceOutcome, EvidenceRecord,
+    EvidenceSkipReason,
+};
 
 use crate::ContextEngine;
 
@@ -39,6 +47,19 @@ pub trait SourceAdapter {
     /// Produce the next batch of requests. `Ok(vec![])` means exhausted.
     fn next_batch(&mut self) -> MemoryResult<Vec<RememberRequest>>;
 }
+
+/// Version for the evidence envelope emitted by this module's built-in
+/// adapters. Bump when the canonical evidence fields or hash payload
+/// semantics change.
+pub const EVIDENCE_ADAPTER_VERSION: &str = "1";
+
+/// Source type for Markdown evidence records.
+pub const SOURCE_TYPE_MARKDOWN: &str = "file:markdown";
+/// Source type for chat JSONL evidence records.
+pub const SOURCE_TYPE_CHAT_JSONL: &str = "chat:jsonl";
+
+const MARKDOWN_CHUNKING_VERSION: &str = "markdown-file-v1";
+const CHAT_JSONL_CHUNKING_VERSION: &str = "chat-jsonl-row-v1";
 
 /// Outcome of [`ingest_all`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,14 +99,14 @@ pub fn ingest_all(
 // Markdown meeting notes
 // ---------------------------------------------------------------------------
 
-/// Adapter over a directory of Markdown meeting notes. Processes one
-/// file per [`SourceAdapter::next_batch`] call.
-pub struct MarkdownNotesAdapter {
+/// Evidence adapter over a directory of Markdown notes. Processes one
+/// file per [`EvidenceAdapter::next_batch`] call.
+pub struct MarkdownEvidenceAdapter {
     files: Vec<PathBuf>,
     cursor: usize,
 }
 
-impl MarkdownNotesAdapter {
+impl MarkdownEvidenceAdapter {
     /// Collect every `.md` / `.markdown` file under `dir` (recursive,
     /// sorted for determinism).
     pub fn open(dir: &Path) -> MemoryResult<Self> {
@@ -93,6 +114,24 @@ impl MarkdownNotesAdapter {
         collect_markdown(dir, &mut files)?;
         files.sort();
         Ok(Self { files, cursor: 0 })
+    }
+}
+
+/// Compatibility adapter over Markdown meeting notes. It delegates to
+/// [`MarkdownEvidenceAdapter`] and then applies the historical
+/// deterministic note parser so current ingest behavior does not
+/// change while the evidence pipeline is introduced.
+pub struct MarkdownNotesAdapter {
+    inner: MarkdownEvidenceAdapter,
+}
+
+impl MarkdownNotesAdapter {
+    /// Collect every `.md` / `.markdown` file under `dir` (recursive,
+    /// sorted for determinism).
+    pub fn open(dir: &Path) -> MemoryResult<Self> {
+        Ok(Self {
+            inner: MarkdownEvidenceAdapter::open(dir)?,
+        })
     }
 }
 
@@ -111,24 +150,99 @@ fn collect_markdown(dir: &Path, out: &mut Vec<PathBuf>) -> MemoryResult<()> {
     Ok(())
 }
 
-impl SourceAdapter for MarkdownNotesAdapter {
+impl EvidenceAdapter for MarkdownEvidenceAdapter {
     fn name(&self) -> &'static str {
         "markdown-notes"
     }
 
+    fn next_batch(&mut self) -> MemoryResult<EvidenceBatch> {
+        while let Some(path) = self.files.get(self.cursor) {
+            self.cursor += 1;
+            let text = std::fs::read_to_string(path)?;
+            if text.trim().is_empty() {
+                continue;
+            }
+            let record = markdown_evidence_record(path, text)?;
+            return Ok(EvidenceBatch::one(record));
+        }
+        Ok(EvidenceBatch::empty())
+    }
+}
+
+impl SourceAdapter for MarkdownNotesAdapter {
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+
     fn next_batch(&mut self) -> MemoryResult<Vec<RememberRequest>> {
-        let Some(path) = self.files.get(self.cursor) else {
-            return Ok(Vec::new());
-        };
-        self.cursor += 1;
-        let text = std::fs::read_to_string(path)?;
-        match parse_markdown_note(path, &text) {
-            Some(request) => Ok(vec![request]),
-            // Empty file: skip to the next one rather than signalling
-            // exhaustion.
-            None => self.next_batch(),
+        loop {
+            let batch = self.inner.next_batch()?;
+            if batch.is_empty() {
+                return Ok(Vec::new());
+            }
+            let requests: Vec<RememberRequest> = batch
+                .records
+                .iter()
+                .filter_map(markdown_record_to_request)
+                .collect();
+            if !requests.is_empty() {
+                return Ok(requests);
+            }
         }
     }
+}
+
+fn markdown_evidence_record(path: &Path, text: String) -> MemoryResult<EvidenceRecord> {
+    let file_path = path.display().to_string();
+    let uri = file_chunk_uri(path, 0);
+    let mut record = EvidenceRecord::new(
+        uri,
+        SOURCE_TYPE_MARKDOWN,
+        text,
+        EVIDENCE_ADAPTER_VERSION,
+        MARKDOWN_CHUNKING_VERSION,
+    )?;
+    record.parent_uri = Some(file_uri(path));
+    record.chunk_index = 0;
+    record.title = first_markdown_h1(&record.text);
+    record.source_files = vec![file_path];
+    record.metadata_json = json!({
+        "adapter_version": EVIDENCE_ADAPTER_VERSION,
+        "chunking_version": MARKDOWN_CHUNKING_VERSION,
+        "file_stem": path.file_stem().and_then(|s| s.to_str()),
+    });
+    record.refresh_content_hash()?;
+    Ok(record)
+}
+
+fn markdown_record_to_request(record: &EvidenceRecord) -> Option<RememberRequest> {
+    let path = record
+        .source_files
+        .first()
+        .map_or_else(|| Path::new("note"), Path::new);
+    parse_markdown_note(path, &record.text)
+}
+
+fn first_markdown_h1(text: &str) -> Option<String> {
+    text.lines().find_map(|line| {
+        line.trim()
+            .strip_prefix("# ")
+            .map(str::trim)
+            .filter(|title| !title.is_empty())
+            .map(str::to_string)
+    })
+}
+
+fn file_uri(path: &Path) -> String {
+    format!("file://{}", stable_path(path).display())
+}
+
+fn file_chunk_uri(path: &Path, chunk_index: u32) -> String {
+    format!("{}#chunk={chunk_index}", file_uri(path))
+}
+
+fn stable_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
 /// Parse one Markdown meeting note into a request.
@@ -171,11 +285,9 @@ fn parse_markdown_note(path: &Path, text: &str) -> Option<RememberRequest> {
             );
             continue;
         }
-        sections
-            .last_mut()
-            .expect("seeded with one section")
-            .1
-            .push(line);
+        if let Some((_, lines)) = sections.last_mut() {
+            lines.push(line);
+        }
     }
 
     let entity = entity_name.unwrap_or(file_stem);
@@ -214,8 +326,8 @@ fn parse_markdown_note(path: &Path, text: &str) -> Option<RememberRequest> {
 
 /// Case-insensitive prefix strip.
 fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
-    if s.len() >= prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
-        Some(&s[prefix.len()..])
+    if s.get(..prefix.len())?.eq_ignore_ascii_case(prefix) {
+        s.get(prefix.len()..)
     } else {
         None
     }
@@ -236,32 +348,53 @@ struct ChatMessage {
     text: String,
 }
 
-/// Adapter over a Slack-style JSONL chat export: one JSON object per
-/// line with `channel`, `user`, optional `ts`, and `text` fields.
-/// Yields up to `batch_size` requests per [`SourceAdapter::next_batch`].
-pub struct ChatJsonlAdapter {
+/// Evidence adapter over a Slack-style JSONL chat export: one JSON
+/// object per line with `channel`, `user`, optional `ts`, and `text`
+/// fields. Yields up to `batch_size` evidence records per
+/// [`EvidenceAdapter::next_batch`].
+pub struct ChatJsonlEvidenceAdapter {
     reader: std::io::Lines<std::io::BufReader<std::fs::File>>,
     batch_size: usize,
     line_no: u64,
+    source_file: String,
+    parent_uri: String,
 }
 
-impl ChatJsonlAdapter {
+impl ChatJsonlEvidenceAdapter {
     pub fn open(path: &Path) -> MemoryResult<Self> {
         let file = std::fs::File::open(path)?;
         Ok(Self {
             reader: std::io::BufReader::new(file).lines(),
             batch_size: 256,
             line_no: 0,
+            source_file: path.display().to_string(),
+            parent_uri: chat_parent_uri(path),
         })
     }
 }
 
-impl SourceAdapter for ChatJsonlAdapter {
+/// Compatibility adapter over chat JSONL. It delegates to
+/// [`ChatJsonlEvidenceAdapter`] and then applies the historical
+/// deterministic row parser so current ingest behavior does not change
+/// while the evidence pipeline is introduced.
+pub struct ChatJsonlAdapter {
+    inner: ChatJsonlEvidenceAdapter,
+}
+
+impl ChatJsonlAdapter {
+    pub fn open(path: &Path) -> MemoryResult<Self> {
+        Ok(Self {
+            inner: ChatJsonlEvidenceAdapter::open(path)?,
+        })
+    }
+}
+
+impl EvidenceAdapter for ChatJsonlEvidenceAdapter {
     fn name(&self) -> &'static str {
         "chat-jsonl"
     }
 
-    fn next_batch(&mut self) -> MemoryResult<Vec<RememberRequest>> {
+    fn next_batch(&mut self) -> MemoryResult<EvidenceBatch> {
         let mut batch = Vec::with_capacity(self.batch_size);
         while batch.len() < self.batch_size {
             let Some(line) = self.reader.next() else {
@@ -278,25 +411,112 @@ impl SourceAdapter for ChatJsonlAdapter {
             if msg.text.trim().is_empty() {
                 continue;
             }
-
-            let mut obs = ObservationInput::new(msg.text)
-                .with_source(format!("chat:{}", msg.user))
-                .with_source_kind("chat-message");
-            obs.valid_from = msg.ts;
-
-            batch.push(
-                RememberRequest::new(format!("#{}", msg.channel), EntityType::Concept)
-                    .with_observations(vec![obs])
-                    .with_relations(vec![RelationInput::new(
-                        "has_participant",
-                        msg.user,
-                        EntityType::Person,
-                    )])
-                    .with_source("chat-jsonl"),
-            );
+            batch.push(chat_evidence_record(
+                &self.parent_uri,
+                &self.source_file,
+                self.line_no,
+                msg,
+            )?);
         }
-        Ok(batch)
+        Ok(EvidenceBatch {
+            records: batch,
+            checkpoint: None,
+        })
     }
+}
+
+impl SourceAdapter for ChatJsonlAdapter {
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+
+    fn next_batch(&mut self) -> MemoryResult<Vec<RememberRequest>> {
+        loop {
+            let batch = self.inner.next_batch()?;
+            if batch.is_empty() {
+                return Ok(Vec::new());
+            }
+            let mut requests = Vec::with_capacity(batch.records.len());
+            for record in &batch.records {
+                if let Some(request) = chat_record_to_request(record)? {
+                    requests.push(request);
+                }
+            }
+            if !requests.is_empty() {
+                return Ok(requests);
+            }
+        }
+    }
+}
+
+fn chat_parent_uri(path: &Path) -> String {
+    format!("chat-jsonl://{}", stable_path(path).display())
+}
+
+fn chat_line_uri(parent_uri: &str, line_no: u64) -> String {
+    format!("{parent_uri}#line={line_no}")
+}
+
+fn chat_evidence_record(
+    parent_uri: &str,
+    source_file: &str,
+    line_no: u64,
+    msg: ChatMessage,
+) -> MemoryResult<EvidenceRecord> {
+    let mut record = EvidenceRecord::new(
+        chat_line_uri(parent_uri, line_no),
+        SOURCE_TYPE_CHAT_JSONL,
+        msg.text,
+        EVIDENCE_ADAPTER_VERSION,
+        CHAT_JSONL_CHUNKING_VERSION,
+    )?;
+    record.parent_uri = Some(parent_uri.to_string());
+    record.chunk_index = u32::try_from(line_no.saturating_sub(1)).unwrap_or(u32::MAX);
+    record.author = Some(msg.user.clone());
+    record.observed_at = msg.ts;
+    record.valid_from = msg.ts;
+    record.source_files = vec![source_file.to_string()];
+    record.metadata_json = json!({
+        "adapter_version": EVIDENCE_ADAPTER_VERSION,
+        "chunking_version": CHAT_JSONL_CHUNKING_VERSION,
+        "channel": msg.channel,
+        "user": msg.user,
+        "line": line_no,
+    });
+    record.refresh_content_hash()?;
+    Ok(record)
+}
+
+fn chat_record_to_request(record: &EvidenceRecord) -> MemoryResult<Option<RememberRequest>> {
+    if record.text.trim().is_empty() {
+        return Ok(None);
+    }
+    let channel = record
+        .metadata_json
+        .get("channel")
+        .and_then(Value::as_str)
+        .ok_or_else(|| MemoryError::InvalidInput(format!("{} missing channel", record.uri)))?;
+    let user = record
+        .metadata_json
+        .get("user")
+        .and_then(Value::as_str)
+        .ok_or_else(|| MemoryError::InvalidInput(format!("{} missing user", record.uri)))?;
+
+    let mut obs = ObservationInput::new(record.text.clone())
+        .with_source(format!("chat:{user}"))
+        .with_source_kind("chat-message");
+    obs.valid_from = record.valid_from;
+
+    Ok(Some(
+        RememberRequest::new(format!("#{channel}"), EntityType::Concept)
+            .with_observations(vec![obs])
+            .with_relations(vec![RelationInput::new(
+                "has_participant",
+                user,
+                EntityType::Person,
+            )])
+            .with_source("chat-jsonl"),
+    ))
 }
 
 #[cfg(test)]
@@ -367,6 +587,59 @@ We will ship the context engine behind a feature flag.
     }
 
     #[test]
+    fn markdown_attendee_prefix_strip_is_unicode_safe() {
+        assert_eq!(
+            strip_prefix_ci("Attendees: Raymond", "attendees:"),
+            Some(" Raymond")
+        );
+        assert_eq!(strip_prefix_ci("🙂🙂🙂attendees: nope", "attendees:"), None);
+    }
+
+    #[test]
+    fn markdown_evidence_adapter_emits_stable_file_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("q3.md");
+        std::fs::write(&path, NOTE).unwrap();
+
+        let mut first = MarkdownEvidenceAdapter::open(dir.path()).unwrap();
+        let record = first.next_batch().unwrap().records.pop().unwrap();
+        assert_eq!(record.source_type, SOURCE_TYPE_MARKDOWN);
+        assert_eq!(record.title.as_deref(), Some("Q3 Planning Sync"));
+        assert_eq!(record.source_files, vec![path.display().to_string()]);
+        assert!(record.uri.starts_with("file://"));
+        assert!(record.uri.ends_with("#chunk=0"));
+        assert_eq!(record.adapter_version, EVIDENCE_ADAPTER_VERSION);
+        assert_eq!(record.chunking_version, MARKDOWN_CHUNKING_VERSION);
+
+        let mut second = MarkdownEvidenceAdapter::open(dir.path()).unwrap();
+        let same = second.next_batch().unwrap().records.pop().unwrap();
+        assert_eq!(same.uri, record.uri);
+        assert_eq!(same.content_hash, record.content_hash);
+    }
+
+    #[test]
+    fn evidence_hash_tracks_adapter_and_chunking_versions() {
+        let mut record = EvidenceRecord::new(
+            "file:///tmp/note.md#chunk=0",
+            SOURCE_TYPE_MARKDOWN,
+            "hello",
+            EVIDENCE_ADAPTER_VERSION,
+            MARKDOWN_CHUNKING_VERSION,
+        )
+        .unwrap();
+        let first = record.content_hash;
+
+        record.chunking_version = "markdown-file-v2".into();
+        record.refresh_content_hash().unwrap();
+        assert_ne!(record.content_hash, first);
+
+        let second = record.content_hash;
+        record.adapter_version = "2".into();
+        record.refresh_content_hash().unwrap();
+        assert_ne!(record.content_hash, second);
+    }
+
+    #[test]
     fn chat_jsonl_parses_messages_with_timestamps() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("export.jsonl");
@@ -386,6 +659,47 @@ We will ship the context engine behind a feature flag.
         assert_eq!(batch[0].observations[0].source, "chat:raymond");
         assert_eq!(batch[1].relations[0].target_name, "dana");
         assert!(adapter.next_batch().unwrap().is_empty(), "exhausted");
+    }
+
+    #[test]
+    fn chat_jsonl_evidence_uses_line_uris_and_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("export.jsonl");
+        std::fs::write(
+            &path,
+            r#"{"channel":"eng-infra","user":"raymond","ts":1750000000,"text":"rolling out the context engine"}
+{"channel":"eng-infra","user":"dana","text":"load test passed"}
+"#,
+        )
+        .unwrap();
+
+        let mut adapter = ChatJsonlEvidenceAdapter::open(&path).unwrap();
+        let batch = adapter.next_batch().unwrap();
+        assert_eq!(batch.records.len(), 2);
+        let first = &batch.records[0];
+        assert_eq!(first.source_type, SOURCE_TYPE_CHAT_JSONL);
+        assert!(first.uri.starts_with("chat-jsonl://"));
+        assert!(first.uri.ends_with("#line=1"));
+        assert_eq!(
+            first.parent_uri.as_deref(),
+            Some(adapter.parent_uri.as_str())
+        );
+        assert_eq!(first.author.as_deref(), Some("raymond"));
+        assert_eq!(first.valid_from, Some(1750000000));
+        assert_eq!(first.source_files, vec![path.display().to_string()]);
+        assert_eq!(
+            first.metadata_json.get("channel").and_then(Value::as_str),
+            Some("eng-infra")
+        );
+        assert_eq!(
+            first.metadata_json.get("line").and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let mut again = ChatJsonlEvidenceAdapter::open(&path).unwrap();
+        let same = again.next_batch().unwrap();
+        assert_eq!(same.records[0].uri, first.uri);
+        assert_eq!(same.records[0].content_hash, first.content_hash);
     }
 
     #[test]
