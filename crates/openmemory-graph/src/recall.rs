@@ -148,6 +148,7 @@ impl MemoryStore {
 
         let valid_at = filters.valid_at.unwrap_or_else(|| self.clock().now_secs());
         let lambda = self.decay_rate();
+        let entity_name_filter = normalize_entity_name_filter(filters);
 
         // Extract the (obs_id, raw_score) pairs from the engine response so
         // we can fetch every candidate observation in a single SQL call
@@ -231,11 +232,8 @@ impl MemoryStore {
                         continue;
                     }
                 }
-                if let Some(ref names) = filters.entity_names {
-                    let name_lower = entity_name.to_lowercase();
-                    if !names.iter().any(|n| n.to_lowercase() == name_lower) {
-                        continue;
-                    }
+                if !entity_name_matches_filter(&entity_name, entity_name_filter.as_ref()) {
+                    continue;
                 }
 
                 let score = compute_score(&obs, *raw_score, valid_at, lambda);
@@ -262,7 +260,14 @@ impl MemoryStore {
 
         if hits.len() < top_k && filters.spreading_activation {
             let slots = top_k - hits.len();
-            let related = self.spread_activation(&hits, slots, filters, valid_at, lambda)?;
+            let related = self.spread_activation(
+                &hits,
+                slots,
+                filters,
+                entity_name_filter.as_ref(),
+                valid_at,
+                lambda,
+            )?;
             hits.extend(related);
         }
 
@@ -285,6 +290,7 @@ impl MemoryStore {
         seeds: &[RecallResult],
         max_extra: usize,
         filters: &RecallFilters,
+        entity_name_filter: Option<&HashSet<String>>,
         valid_at: i64,
         lambda: f64,
     ) -> MemoryResult<Vec<RecallResult>> {
@@ -390,6 +396,9 @@ impl MemoryStore {
                                 continue;
                             }
                         }
+                        if !entity_name_matches_filter(&entity_name, entity_name_filter) {
+                            continue;
+                        }
                         if !seen.insert(obs.id.clone()) {
                             continue;
                         }
@@ -436,6 +445,20 @@ impl MemoryStore {
         }
         tx.commit()?;
         Ok(())
+    }
+}
+
+fn normalize_entity_name_filter(filters: &RecallFilters) -> Option<HashSet<String>> {
+    filters
+        .entity_names
+        .as_ref()
+        .map(|names| names.iter().map(|n| n.to_lowercase()).collect())
+}
+
+fn entity_name_matches_filter(entity_name: &str, filter: Option<&HashSet<String>>) -> bool {
+    match filter {
+        Some(names) => names.contains(&entity_name.to_lowercase()),
+        None => true,
     }
 }
 
@@ -833,5 +856,62 @@ mod tests {
         filters.entity_names = Some(vec!["alice".to_string()]);
         let r = store.recall("alpha", 5, &filters).unwrap();
         assert!(r.iter().all(|h| h.entity_name == "Alice"));
+    }
+
+    #[test]
+    fn entity_name_filter_is_case_insensitive() {
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "Alice",
+                EntityType::Person,
+                &[ObservationInput::new("alpha mention")],
+                &[],
+                "t",
+            )
+            .unwrap();
+
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        filters.entity_names = Some(vec!["ALICE".to_string()]);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+
+        assert!(!r.is_empty());
+        assert!(r.iter().all(|h| h.entity_name == "Alice"));
+    }
+
+    #[test]
+    fn entity_name_filter_applies_to_spreading_activation() {
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "Alice",
+                EntityType::Person,
+                &[ObservationInput::new("alpha mention")],
+                &[RelationInput::new(
+                    "works_on",
+                    "ProjectX",
+                    EntityType::Project,
+                )],
+                "t",
+            )
+            .unwrap();
+        store
+            .remember(
+                "ProjectX",
+                EntityType::Project,
+                &[ObservationInput::new("project detail")],
+                &[],
+                "t",
+            )
+            .unwrap();
+
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        filters.entity_names = Some(vec!["Alice".to_string()]);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+
+        assert!(!r.is_empty());
+        assert!(r.iter().all(|h| h.entity_name == "Alice"), "{r:?}");
     }
 }

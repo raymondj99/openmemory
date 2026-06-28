@@ -127,3 +127,60 @@ References:
 
 - `watchexec` filterer source: https://github.com/watchexec/watchexec/blob/main/crates/cli/src/filterer.rs
 - `watchexec` repository: https://github.com/watchexec/watchexec
+
+## 2026-06-28 - Recall Filter Preparation And Spread Scope
+
+Domain reviewed: `openmemory-graph` recall filtering, specifically
+case-insensitive `RecallFilters::entity_names` handling in the direct-hit path
+and the spreading-activation fallback. This code is on the read hot path for
+agents that scope recall to one or more entities.
+
+Production reference: `fd`, a production Rust file-search CLI. `fd` builds
+regex and extension filter state once while constructing its search config, then
+the walker uses that prepared state in the hot loop. The relevant principle is
+to normalize or compile caller filters once per command/query, not once per
+candidate.
+
+Applied changes:
+
+- Normalized the optional `entity_names` filter once per `MemoryStore::recall`
+  call into a `HashSet<String>` instead of lowercasing every requested name for
+  every candidate row.
+- Reused the same prepared filter in both direct hits and relation spreading.
+- Fixed the spreading-activation scope gap: entity-name filters now constrain
+  spread results just like they constrain direct search results.
+- Added regression coverage for case-insensitive entity-name filtering and for
+  spreading activation not returning a related entity outside the requested
+  entity-name set.
+- Updated the search docs to state that spreading expands candidate sources but
+  does not bypass caller filters.
+
+Tests and load checks:
+
+- `cargo fmt --all -- --check`
+- `cargo test -p openmemory-graph entity_name_filter -- --nocapture`
+- `cargo test -p openmemory-graph recall::tests -- --nocapture`
+- `cargo test -p openmemory-graph --all-features`
+- `cargo clippy -p openmemory-graph --all-targets --all-features -- -D warnings`
+- `cargo test -p openmemory-graph --no-default-features`
+- `cargo clippy -p openmemory-graph --all-targets --no-default-features -- -D warnings`
+- `cargo clippy -p openmemory-bench --bench openmemory --all-features -- -D warnings`
+- `cargo bench -p openmemory-bench --bench openmemory -- recall --sample-size 10`
+  - Added and ran `recall/keyword_entity_names_100/{150,1000,2500}`:
+    `41.438us`, `47.242us`, `47.563us` median estimates.
+  - Added and ran `recall_spreading/enabled_entity_name_scope`: `116.00us`
+    median estimate.
+- Release context-engine stress: `1000` agents x `10` ops, `4` readers,
+  journal enabled; verified no lost writes, `0` backpressure waits, `0` engine
+  errors, and about `156k` recalls/s under write load.
+- `scripts/daemon_quality_monitor.sh`
+
+Performance note: this removes repeated `to_lowercase()` work proportional to
+`candidate_count * requested_entity_names` from scoped recall. The semantic fix
+can also avoid fetching and scoring spread results the caller is not allowed to
+see. The change is intentionally narrow and does not alter unfiltered recall.
+
+References:
+
+- `fd` source: https://github.com/sharkdp/fd/blob/master/src/main.rs
+- `fd` repository: https://github.com/sharkdp/fd

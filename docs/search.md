@@ -187,6 +187,11 @@ direct hit's raw search score is low.
 Spreading activation is on by default; turn it off via
 `RecallFilters::spreading_activation = false`.
 
+All recall filters still apply to spread results. That includes
+`entity_type`, `source`, `min_confidence`, `memory_tier`, temporal
+validity, and case-insensitive `entity_names`; spreading activation
+expands the candidate source, not the caller's visibility scope.
+
 ## Temporal validity
 
 Observations carry three timestamps:

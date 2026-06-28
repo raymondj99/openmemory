@@ -236,6 +236,28 @@ fn bench_recall(c: &mut Criterion) {
                 black_box(r);
             });
         });
+
+        let mut scoped = RecallFilters::new();
+        scoped.mode = Some(SearchMode::KeywordOnly);
+        scoped.spreading_activation = false;
+        scoped.entity_names = Some(
+            (0..n_entities.min(100))
+                .map(entity_name)
+                .collect::<Vec<_>>(),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("keyword_entity_names_100", total_obs),
+            &total_obs,
+            |b, _| {
+                b.iter(|| {
+                    let r = store
+                        .recall(black_box("alpha bravo charlie"), black_box(10), &scoped)
+                        .unwrap();
+                    black_box(r);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -306,6 +328,9 @@ fn bench_recall_spreading(c: &mut Criterion) {
     without.mode = Some(SearchMode::KeywordOnly);
     without.spreading_activation = false;
 
+    let mut scoped = with.clone();
+    scoped.entity_names = Some(vec!["seed_entity".to_string()]);
+
     // "zebra" matches the seed's single observation; top_k=20 underflows
     // direct hits, so the enabled case traverses relations.
     group.bench_function("enabled", |b| {
@@ -321,6 +346,15 @@ fn bench_recall_spreading(c: &mut Criterion) {
         b.iter(|| {
             let r = store
                 .recall(black_box("zebra"), black_box(20), &without)
+                .unwrap();
+            black_box(r);
+        });
+    });
+
+    group.bench_function("enabled_entity_name_scope", |b| {
+        b.iter(|| {
+            let r = store
+                .recall(black_box("zebra"), black_box(20), &scoped)
                 .unwrap();
             black_box(r);
         });
