@@ -91,6 +91,7 @@ impl EvidenceRecord {
 
     /// Compute the BLAKE3 content hash without mutating the record.
     pub fn compute_content_hash(&self) -> MemoryResult<[u8; 32]> {
+        let metadata_json = canonical_json_value(&self.metadata_json);
         let payload = EvidenceHashPayload {
             schema_version: 1,
             source_type: &self.source_type,
@@ -103,7 +104,7 @@ impl EvidenceRecord {
             observed_at: self.observed_at,
             valid_from: self.valid_from,
             valid_until: self.valid_until,
-            metadata_json: &self.metadata_json,
+            metadata_json: &metadata_json,
             adapter_version: &self.adapter_version,
             chunking_version: &self.chunking_version,
         };
@@ -128,6 +129,25 @@ struct EvidenceHashPayload<'a> {
     metadata_json: &'a Value,
     adapter_version: &'a str,
     chunking_version: &'a str,
+}
+
+fn canonical_json_value(value: &Value) -> Value {
+    match value {
+        Value::Array(items) => Value::Array(items.iter().map(canonical_json_value).collect()),
+        Value::Object(map) => {
+            let mut keys: Vec<_> = map.keys().collect();
+            keys.sort_unstable();
+
+            let mut sorted = serde_json::Map::new();
+            for key in keys {
+                if let Some(value) = map.get(key) {
+                    sorted.insert(key.clone(), canonical_json_value(value));
+                }
+            }
+            Value::Object(sorted)
+        }
+        value => value.clone(),
+    }
 }
 
 /// Optional cursor for streaming evidence sources.
@@ -197,4 +217,60 @@ pub trait EvidenceAdapter {
     fn name(&self) -> &'static str;
     /// Produce the next evidence batch. An empty batch means exhausted.
     fn next_batch(&mut self) -> MemoryResult<EvidenceBatch>;
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{json, Map, Value};
+
+    use super::EvidenceRecord;
+
+    #[test]
+    fn evidence_hash_ignores_metadata_object_insertion_order() {
+        let mut first_metadata = Map::new();
+        first_metadata.insert("channel".to_string(), json!("eng-infra"));
+        first_metadata.insert("line".to_string(), json!(1));
+        first_metadata.insert(
+            "nested".to_string(),
+            json!({
+                "b": ["second", {"z": true, "a": false}],
+                "a": "first",
+            }),
+        );
+
+        let mut second_metadata = Map::new();
+        second_metadata.insert(
+            "nested".to_string(),
+            json!({
+                "a": "first",
+                "b": ["second", {"a": false, "z": true}],
+            }),
+        );
+        second_metadata.insert("line".to_string(), json!(1));
+        second_metadata.insert("channel".to_string(), json!("eng-infra"));
+
+        let mut first = EvidenceRecord::new(
+            "chat-jsonl:///tmp/export.jsonl#line=1",
+            "chat:jsonl",
+            "same text",
+            "1",
+            "row-v1",
+        )
+        .unwrap();
+        first.metadata_json = Value::Object(first_metadata);
+        first.refresh_content_hash().unwrap();
+
+        let mut second = EvidenceRecord::new(
+            "chat-jsonl:///tmp/export.jsonl#line=1",
+            "chat:jsonl",
+            "same text",
+            "1",
+            "row-v1",
+        )
+        .unwrap();
+        second.metadata_json = Value::Object(second_metadata);
+        second.refresh_content_hash().unwrap();
+
+        assert_eq!(first.content_hash, second.content_hash);
+    }
 }

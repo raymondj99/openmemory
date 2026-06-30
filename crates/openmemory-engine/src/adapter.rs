@@ -137,17 +137,24 @@ impl MarkdownNotesAdapter {
 
 fn collect_markdown(dir: &Path, out: &mut Vec<PathBuf>) -> MemoryResult<()> {
     for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
-        if path.is_dir() {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let path = entry.path();
+        if file_type.is_dir() {
             collect_markdown(&path, out)?;
-        } else if matches!(
-            path.extension().and_then(|e| e.to_str()),
-            Some("md" | "markdown")
-        ) {
+        } else if path.is_file() && has_markdown_extension(&path) {
             out.push(path);
         }
     }
     Ok(())
+}
+
+fn has_markdown_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("md") || extension.eq_ignore_ascii_case("markdown")
+        })
 }
 
 impl EvidenceAdapter for MarkdownEvidenceAdapter {
@@ -207,8 +214,6 @@ fn markdown_evidence_record(path: &Path, text: String) -> MemoryResult<EvidenceR
     record.title = first_markdown_h1(&record.text);
     record.source_files = vec![file_path];
     record.metadata_json = json!({
-        "adapter_version": EVIDENCE_ADAPTER_VERSION,
-        "chunking_version": MARKDOWN_CHUNKING_VERSION,
         "file_stem": path.file_stem().and_then(|s| s.to_str()),
     });
     record.refresh_content_hash()?;
@@ -477,8 +482,6 @@ fn chat_evidence_record(
     record.valid_from = msg.ts;
     record.source_files = vec![source_file.to_string()];
     record.metadata_json = json!({
-        "adapter_version": EVIDENCE_ADAPTER_VERSION,
-        "chunking_version": CHAT_JSONL_CHUNKING_VERSION,
         "channel": msg.channel,
         "user": msg.user,
         "line": line_no,
@@ -615,6 +618,36 @@ We will ship the context engine behind a feature flag.
         let same = second.next_batch().unwrap().records.pop().unwrap();
         assert_eq!(same.uri, record.uri);
         assert_eq!(same.content_hash, record.content_hash);
+    }
+
+    #[test]
+    fn markdown_evidence_adapter_accepts_case_insensitive_extensions() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("README.MARKDOWN");
+        std::fs::write(&path, NOTE).unwrap();
+
+        let mut adapter = MarkdownEvidenceAdapter::open(dir.path()).unwrap();
+        let record = adapter.next_batch().unwrap().records.pop().unwrap();
+
+        assert_eq!(record.source_files, vec![path.display().to_string()]);
+        assert!(adapter.next_batch().unwrap().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn markdown_evidence_adapter_does_not_follow_symlinked_directories() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        std::fs::create_dir(&real).unwrap();
+        let note = real.join("note.md");
+        std::fs::write(&note, NOTE).unwrap();
+        symlink(dir.path(), dir.path().join("loop")).unwrap();
+
+        let adapter = MarkdownEvidenceAdapter::open(dir.path()).unwrap();
+
+        assert_eq!(adapter.files, vec![note]);
     }
 
     #[test]
