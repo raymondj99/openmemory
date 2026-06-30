@@ -190,6 +190,7 @@ impl EvidenceBatch {
 /// Evidence upsert outcome. The first implementation slice exposes
 /// the type before wiring a durable ledger behind it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum EvidenceOutcome {
     Inserted,
     Updated,
@@ -200,6 +201,7 @@ pub enum EvidenceOutcome {
 
 /// Structured reason an adapter skipped a source unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum EvidenceSkipReason {
     TooLarge,
     EmptyContent,
