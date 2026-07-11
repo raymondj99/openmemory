@@ -96,7 +96,7 @@ fn init_ort_env() {
 /// caller should continue in keyword-only mode.
 ///
 /// To download the model first, use [`ensure_model`].
-pub fn load_embedder(models_dir: &Path) -> Option<OnnxEmbedder> {
+pub fn load_embedder(models_dir: &Path) -> Option<crate::CachedEmbedder> {
     init_ort_env();
 
     let manager = ModelManager::new(models_dir.to_path_buf());
@@ -116,7 +116,21 @@ pub fn load_embedder(models_dir: &Path) -> Option<OnnxEmbedder> {
     match OnnxEmbedder::load_for_model(&model_dir, model) {
         Ok(embedder) => {
             info!("Loaded embedding model: {}", model.name);
-            Some(embedder)
+            let cache_path = models_dir.join("embeddings").join("cache.sqlite");
+            let cache = crate::EmbeddingCache::open(&cache_path).or_else(|error| {
+                warn!(
+                    "Failed to open embedding cache at {}: {error}; using an in-memory cache",
+                    cache_path.display()
+                );
+                crate::EmbeddingCache::in_memory()
+            });
+            match cache {
+                Ok(cache) => Some(crate::CachedEmbedder::new(embedder, cache)),
+                Err(error) => {
+                    warn!("Failed to initialize embedding cache: {error}");
+                    None
+                }
+            }
         }
         Err(e) => {
             warn!(
@@ -164,7 +178,7 @@ pub fn ensure_model(models_dir: &Path) -> bool {
 
 /// Convenience wrapper: resolve `~/.openmemory/models/` from the
 /// config and call [`load_embedder`].
-pub fn load_default_embedder() -> Option<OnnxEmbedder> {
+pub fn load_default_embedder() -> Option<crate::CachedEmbedder> {
     let models_dir = openmemory_core::config::Config::models_dir().ok()?;
     load_embedder(&models_dir)
 }

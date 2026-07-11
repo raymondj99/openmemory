@@ -1,8 +1,8 @@
 //! SQLite FTS5 keyword backend.
 //!
-//! Default `FullTextStore`. Wraps an FTS5 virtual table over a single
-//! connection guarded by a [`Mutex`]. BM25 ranking is computed by SQLite via
-//! the built-in `rank` alias.
+//! Default `FullTextStore`. Mutations use one WAL writer while on-disk stores
+//! serve searches from a bounded read-only connection pool. BM25 ranking is
+//! computed by SQLite via the built-in `rank` alias.
 //!
 //! User queries are escaped before being passed to FTS5: each whitespace
 //! token becomes a quoted exact match, with a bare prefix variant for
@@ -20,9 +20,9 @@
 //! single-column `rank` rankfn.
 
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Condvar, Mutex};
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OpenFlags};
 
 use crate::error::{IndexError, IndexResult};
 use crate::traits::{ExportEntry, FullTextStore, IndexEntry, SearchResult};
@@ -50,7 +50,17 @@ pub const WEIGHT_SCALE: f32 = 2.0;
 #[derive(Debug)]
 pub struct Fts5Store {
     conn: Mutex<Connection>,
+    readers: FtsReaders,
     field_weights: FieldWeights,
+}
+
+#[derive(Debug)]
+enum FtsReaders {
+    Multi {
+        available: Mutex<Vec<Connection>>,
+        ready: Condvar,
+    },
+    SharedWriter,
 }
 
 impl Fts5Store {
@@ -70,8 +80,30 @@ impl Fts5Store {
         let conn = Connection::open(path)?;
         Self::configure(&conn)?;
         Self::init_schema(&conn)?;
+        let reader_count = std::thread::available_parallelism()
+            .map_or(2, std::num::NonZero::get)
+            .clamp(1, 4);
+        let mut readers = Vec::with_capacity(reader_count);
+        for _ in 0..reader_count {
+            let reader = Connection::open_with_flags(
+                path,
+                OpenFlags::SQLITE_OPEN_READ_ONLY
+                    | OpenFlags::SQLITE_OPEN_URI
+                    | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            )?;
+            reader.execute_batch(
+                "PRAGMA busy_timeout=5000;
+                 PRAGMA cache_size=-4000;
+                 PRAGMA query_only=1;",
+            )?;
+            readers.push(reader);
+        }
         Ok(Self {
             conn: Mutex::new(conn),
+            readers: FtsReaders::Multi {
+                available: Mutex::new(readers),
+                ready: Condvar::new(),
+            },
             field_weights,
         })
     }
@@ -87,6 +119,7 @@ impl Fts5Store {
         Self::init_schema(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
+            readers: FtsReaders::SharedWriter,
             field_weights,
         })
     }
@@ -117,6 +150,35 @@ impl Fts5Store {
         self.conn
             .lock()
             .map_err(|e| IndexError::Lock(e.to_string()))
+    }
+
+    fn with_reader<T>(&self, f: impl FnOnce(&Connection) -> IndexResult<T>) -> IndexResult<T> {
+        match &self.readers {
+            FtsReaders::SharedWriter => {
+                let conn = self.lock()?;
+                f(&conn)
+            }
+            FtsReaders::Multi { available, ready } => {
+                let mut slots = available
+                    .lock()
+                    .map_err(|error| IndexError::Lock(error.to_string()))?;
+                let conn = loop {
+                    if let Some(conn) = slots.pop() {
+                        break conn;
+                    }
+                    slots = ready
+                        .wait(slots)
+                        .map_err(|error| IndexError::Lock(error.to_string()))?;
+                };
+                drop(slots);
+                let guard = FtsReaderGuard {
+                    available,
+                    ready,
+                    conn: Some(conn),
+                };
+                f(guard.conn.as_ref().expect("reader guard owns connection"))
+            }
+        }
     }
 
     /// Run a PASSIVE WAL checkpoint. FTS5 commits on every mutation, so
@@ -221,29 +283,31 @@ impl FullTextStore for Fts5Store {
         if escaped.is_empty() {
             return Ok(Vec::new());
         }
-        let conn = self.lock()?;
-        let mut stmt = conn.prepare(
-            "SELECT uri, text, chunk_index, -rank
-             FROM chunks_fts WHERE chunks_fts MATCH ?1
-             ORDER BY rank LIMIT ?2",
-        )?;
-        let rows = stmt.query_map(params![escaped, top_k as i64], |row| {
-            let uri: String = row.get(0)?;
-            let text: String = row.get(1)?;
-            let chunk_index: i64 = row.get(2)?;
-            let score: f64 = row.get(3)?;
-            Ok((uri, text, chunk_index as u32, score as f32))
+        let mut out = self.with_reader(|conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT uri, text, chunk_index, -rank
+                 FROM chunks_fts WHERE chunks_fts MATCH ?1
+                 ORDER BY rank LIMIT ?2",
+            )?;
+            let rows = stmt.query_map(params![escaped, top_k as i64], |row| {
+                let uri: String = row.get(0)?;
+                let text: String = row.get(1)?;
+                let chunk_index: i64 = row.get(2)?;
+                let score: f64 = row.get(3)?;
+                Ok((uri, text, chunk_index as u32, score as f32))
+            })?;
+            let mut out = Vec::new();
+            for row in rows {
+                let (uri, text, chunk_index, score) = row?;
+                out.push(SearchResult {
+                    uri,
+                    text,
+                    chunk_index,
+                    score,
+                });
+            }
+            Ok(out)
         })?;
-        let mut out = Vec::new();
-        for row in rows {
-            let (uri, text, chunk_index, score) = row?;
-            out.push(SearchResult {
-                uri,
-                text,
-                chunk_index,
-                score,
-            });
-        }
 
         // Tiny corpora collapse FTS5 BM25 toward zero. Rescale so the top
         // result reads as 1.0 when scores would otherwise be near-zero.
@@ -265,26 +329,47 @@ impl FullTextStore for Fts5Store {
     }
 
     fn count(&self) -> IndexResult<u64> {
-        let conn = self.lock()?;
-        let n: i64 = conn.query_row("SELECT COUNT(*) FROM chunks_fts", [], |row| row.get(0))?;
-        Ok(n as u64)
+        self.with_reader(|conn| {
+            let n: i64 = conn.query_row("SELECT COUNT(*) FROM chunks_fts", [], |row| row.get(0))?;
+            Ok(n as u64)
+        })
     }
 
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
-        let conn = self.lock()?;
-        let mut stmt = conn.prepare("SELECT uri, text, chunk_index FROM chunks_fts")?;
-        let mut rows = stmt.query([])?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next()? {
-            let chunk_index: i64 = row.get(2)?;
-            out.push(ExportEntry {
-                uri: row.get(0)?,
-                text: row.get(1)?,
-                chunk_index: chunk_index as u32,
-                vector: Vec::new(),
-            });
+        self.with_reader(|conn| {
+            let mut stmt = conn.prepare("SELECT uri, text, chunk_index FROM chunks_fts")?;
+            let mut rows = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows.next()? {
+                let chunk_index: i64 = row.get(2)?;
+                out.push(ExportEntry {
+                    uri: row.get(0)?,
+                    text: row.get(1)?,
+                    chunk_index: chunk_index as u32,
+                    vector: Vec::new(),
+                });
+            }
+            Ok(out)
+        })
+    }
+}
+
+struct FtsReaderGuard<'a> {
+    available: &'a Mutex<Vec<Connection>>,
+    ready: &'a Condvar,
+    conn: Option<Connection>,
+}
+
+impl Drop for FtsReaderGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(conn) = self.conn.take() {
+            let mut available = self
+                .available
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            available.push(conn);
+            self.ready.notify_one();
         }
-        Ok(out)
     }
 }
 
@@ -446,6 +531,44 @@ mod tests {
         let r = store.search("persistent search", 10).unwrap();
         assert!(!r.is_empty());
         assert_eq!(r[0].uri, "u://a");
+    }
+
+    #[test]
+    fn concurrent_disk_searches_and_writes_do_not_block_or_fail() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = std::sync::Arc::new(Fts5Store::open(&dir.path().join("fts5.db")).unwrap());
+        store
+            .insert(&[entry("u://seed", "persistent concurrent search token", 0)])
+            .unwrap();
+
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(5));
+        let readers: Vec<_> = (0..4)
+            .map(|_| {
+                let store = std::sync::Arc::clone(&store);
+                let barrier = std::sync::Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    for _ in 0..100 {
+                        let results = store.search("concurrent token", 10).unwrap();
+                        assert!(results.iter().any(|result| result.uri == "u://seed"));
+                    }
+                })
+            })
+            .collect();
+        barrier.wait();
+        for i in 0..100 {
+            store
+                .insert(&[entry(
+                    &format!("u://writer/{i}"),
+                    "unrelated writer payload",
+                    i,
+                )])
+                .unwrap();
+        }
+        for reader in readers {
+            reader.join().unwrap();
+        }
+        assert_eq!(store.count().unwrap(), 101);
     }
 
     #[test]

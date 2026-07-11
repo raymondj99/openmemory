@@ -3,7 +3,7 @@
 //! Seven benchmark groups covering the read hot paths and maintenance
 //! operations that dominate real-world workloads:
 //!
-//! 1. **flat_vector_search** — brute-force cosine similarity at 100 / 1k / 10k vectors.
+//! 1. **vector_search** — exact flat versus HNSW at 100 / 1k / 10k vectors.
 //! 2. **hybrid_search** — RRF fusion of vector + FTS5 keyword results at 500 / 5k docs.
 //! 3. **recall** — end-to-end `MemoryStore::recall` (keyword and hybrid modes) at
 //!    three corpus sizes, including Ebbinghaus decay scoring.
@@ -31,7 +31,7 @@ use openmemory_graph::{
     ConsolidateConfig, EntityType, MemoryStore, ObservationInput, RecallFilters, RelationInput,
 };
 use openmemory_index::{
-    FlatVectorIndex, Fts5Store, HybridSearchEngine, IndexEntry, SearchMode, VectorStore,
+    FlatVectorIndex, Fts5Store, HnswIndex, HybridSearchEngine, IndexEntry, SearchMode, VectorStore,
 };
 use tower::ServiceExt;
 
@@ -91,16 +91,35 @@ fn populated_vector_index(n: usize) -> FlatVectorIndex {
     store
 }
 
+fn populated_hnsw_index(n: usize) -> HnswIndex {
+    let entries: Vec<IndexEntry> = (0..n)
+        .map(|i| {
+            IndexEntry::new(format!("u://{i}"), format!("doc {i}"))
+                .with_vector(synthetic_vector(i as u64 + 1, VEC_DIM))
+        })
+        .collect();
+    let store = HnswIndex::new();
+    store.insert(&entries).unwrap();
+    store
+}
+
 fn bench_flat_vector_search(c: &mut Criterion) {
-    let mut group = c.benchmark_group("flat_vector_search");
+    let mut group = c.benchmark_group("vector_search");
     for size in [100usize, 1_000, 10_000] {
-        let store = populated_vector_index(size);
+        let flat = populated_vector_index(size);
+        let hnsw = populated_hnsw_index(size);
         let query = synthetic_vector(0, VEC_DIM);
 
         group.throughput(Throughput::Elements(size as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
+        group.bench_with_input(BenchmarkId::new("flat", size), &size, |b, _| {
             b.iter(|| {
-                let r = store.search(black_box(&query), black_box(TOP_K)).unwrap();
+                let r = flat.search(black_box(&query), black_box(TOP_K)).unwrap();
+                black_box(r);
+            });
+        });
+        group.bench_with_input(BenchmarkId::new("hnsw", size), &size, |b, _| {
+            b.iter(|| {
+                let r = hnsw.search(black_box(&query), black_box(TOP_K)).unwrap();
                 black_box(r);
             });
         });

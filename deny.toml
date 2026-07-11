@@ -29,11 +29,9 @@ skip = [
     # duplicate crates still warn, but avoid re-reporting these reviewed cases.
     { crate = "base64@0.13.1", reason = "pulled by tokenizers/spm_precompiled; 0.22 is pulled by ureq" },
     { crate = "cpufeatures@0.2.17", reason = "pulled by sha2 while blake3 uses 0.3" },
-    { crate = "getrandom@0.3.4", reason = "pulled by tempfile/proptest while uuid uses getrandom 0.4" },
     { crate = "getrandom@0.2.17", reason = "pulled by rand 0.8/ring/tokenizers while newer test/runtime crates use 0.3/0.4" },
     { crate = "hashbrown@0.14.5", reason = "pulled by rusqlite/hashlink while indexmap/lru use newer hashbrown" },
     { crate = "itertools@0.11.0", reason = "pulled by tokenizers/rayon-cond while tokenizers also uses 0.12" },
-    { crate = "r-efi@5.3.0", reason = "paired with getrandom 0.3 while getrandom 0.4 uses r-efi 6" },
     { crate = "thiserror@1.0.69", reason = "pulled by tokenizers while workspace crates use thiserror 2" },
     { crate = "thiserror-impl@1.0.69", reason = "proc macro paired with tokenizers' thiserror 1 dependency" },
     { crate = "windows-sys@0.52.0", reason = "pulled by ring/windows-targets compatibility" },

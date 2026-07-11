@@ -26,7 +26,7 @@
 //! it under any tokio-friendly server.
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
@@ -46,11 +46,11 @@ use crate::OpenMemoryMcpServer;
 pub const BEARER_TOKEN_ENV: &str = "OPENMEMORY_HTTP_TOKEN";
 
 /// Optional shared secret required on the `Authorization: Bearer …`
-/// header for every `/mcp` request. Cloning is cheap (`Arc<str>`); the
-/// stored token is compared against incoming headers in constant time.
+/// header for every `/mcp` request. Clones share a tiny read/write-locked
+/// token cell so live rotation is atomic; comparisons are constant time.
 #[derive(Clone)]
 pub struct BearerToken {
-    expected: Arc<str>,
+    expected: Arc<RwLock<Arc<str>>>,
 }
 
 impl BearerToken {
@@ -59,7 +59,7 @@ impl BearerToken {
     #[must_use]
     pub fn new(token: impl Into<String>) -> Self {
         Self {
-            expected: Arc::from(token.into()),
+            expected: Arc::new(RwLock::new(Arc::from(token.into()))),
         }
     }
 
@@ -86,7 +86,11 @@ impl BearerToken {
     /// is acceptable for a server-side bearer-token check.
     #[must_use]
     pub fn matches(&self, candidate: &str) -> bool {
-        let expected = self.expected.as_bytes();
+        let expected = self
+            .expected
+            .read()
+            .unwrap_or_else(|error| error.into_inner());
+        let expected = expected.as_bytes();
         let provided = candidate.as_bytes();
         if expected.len() != provided.len() {
             return false;
@@ -96,6 +100,16 @@ impl BearerToken {
             diff |= x ^ y;
         }
         diff == 0
+    }
+
+    /// Atomically replace the shared secret for this token and all clones.
+    /// Existing requests finish against either the old or new complete value;
+    /// subsequent requests observe the replacement.
+    pub fn replace(&self, token: impl Into<String>) {
+        *self
+            .expected
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = Arc::from(token.into());
     }
 }
 
@@ -269,6 +283,16 @@ mod tests {
     fn server() -> OpenMemoryMcpServer {
         let store = MemoryStore::open_in_memory(&Config::default()).unwrap();
         OpenMemoryMcpServer::from_memory(Config::default(), Arc::new(store))
+    }
+
+    #[test]
+    fn bearer_token_replacement_is_shared_by_clones() {
+        let token = BearerToken::new("before");
+        let clone = token.clone();
+        assert!(clone.matches("before"));
+        token.replace("after");
+        assert!(!clone.matches("before"));
+        assert!(clone.matches("after"));
     }
 
     fn unauth_router() -> Router {

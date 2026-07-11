@@ -4,7 +4,7 @@
 memory stores: it accepts writes in microseconds, journals them for
 crash safety, routes them by entity hash onto shards and storage
 domains, commits whole epochs as single batched transactions, and
-publishes durability through lock-free watermarks. Reads run against
+publishes durability through atomic watermarks with targeted wakeups. Reads run against
 the same partitioned facade with a write-version-invalidated merged
 cache. This document covers the architecture, the measured results
 behind each design decision, and the alternatives that were tried and
@@ -48,7 +48,7 @@ ingestion:
 | Local buffer (relaxed writes) | Per-shard in-memory queue behind a short per-shard lock |
 | Synchronization point | Epoch flush: flusher threads drain whole shards on an interval or when a shard fills |
 | Remote buffer (published snapshot) | SQLite WAL + read-only connection pool; readers always see the last flushed epoch, never a torn write |
-| Cacheline-aligned per-domain epoch counters | 128-byte-aligned per-shard durability watermark (`AtomicU64`), advanced with `fetch_max(Release)` after commit, read with `Acquire` by `wait_durable` |
+| Cacheline-aligned per-domain epoch counters | 128-byte-aligned per-shard durability watermark (`AtomicU64`), advanced with `fetch_max(Release)` after commit; waiters park on a per-shard condition variable and recheck with `Acquire` |
 
 ## Implemented
 
@@ -63,11 +63,19 @@ ingestion:
   write-behind queue. `submit(RememberRequest)` returns a `Ticket` in
   microseconds; each epoch, a drain commits the whole shard as one
   batched transaction (requests grouped by entity first), then
-  publishes the shard's durability watermark. `wait_durable(ticket)`
-  gives lock-free read-your-writes. Full shards block `submit`
+  publishes the shard's durability watermark. `wait_durable_result(ticket)`
+  gives read-your-writes and exact terminal failures without polling.
+  Full shards block `submit`
   (backpressure, never data loss). Relations pass through. A failed
-  batch retries per group so one poisoned request cannot sink its
-  neighbours.
+  batch retries original requests in sequence order so an error can never
+  move the journal checkpoint past an unresolved write.
+- **Single-owner lease and daemon ownership**: a cross-process file lease
+  prevents overlapping shard sequences or journal truncation. The daemon
+  owns the long-lived store and engine for desktop use, and its authenticated
+  MCP route shares that exact runtime. Stdio MCP proxies to it when present.
+- **Consistent snapshot admission gate**: backup pauses new submissions,
+  drains everything already admitted, and holds the pause through the file
+  copy. Concurrent producers resume automatically when the RAII guard drops.
 - **Crash-durable journal with exactly-once replay**: with
   `journal_dir` set, every accepted request is appended to a per-shard
   JSONL journal before `submit` returns and fsynced at the epoch flush
@@ -148,9 +156,9 @@ writes).
    reached 15.7 s under the storm. With the engine soaking writes,
    reader max stayed near 100 ms.
 4. **The flux watermark pattern transfers cleanly to durability.** A
-   per-shard cacheline-aligned counter with acquire/release ordering
-   gives every caller a precise, lock-free "is my write committed"
-   primitive; the same counter doubles as the journal checkpoint.
+   per-shard cacheline-aligned counter with acquire/release ordering plus
+   targeted condition-variable wakeups gives every caller a precise,
+   non-polling "is my write committed" primitive.
 5. **Journal cost is ~15-20% durable throughput plus tail ack latency**
    (p95 ~25 ms under a full 20k burst; p50 stays ~6 us). The fsync runs
    outside the shard lock; the remaining tail is queue-lock contention
@@ -205,16 +213,14 @@ partition only when sustained ingest demands it.
 
 ## Remaining roadmap
 
-- Per-request error reporting for fire-and-forget submissions (beyond
-  the current per-group retry + error counters) would need result
-  channels on tickets.
+- Persisted dead-letter inspection for fire-and-forget submissions. Durable
+  callers already receive exact per-ticket errors; asynchronous callers can
+  currently observe aggregate error counters and logs.
 - More adapters as the connector surface grows: calendar events,
   ticket systems, transcription pipelines. The `SourceAdapter` trait
   is the seam; openmemory-watch is a natural future adapter (and the
   watch command does not support partitioned profiles yet).
-- Domain-count migration tooling (re-home entities when K changes);
-  today the manifest pins K and a mismatch is a hard error.
-- Fan-out read refinements when partitioned read load matters: a
-  reader thread pool, per-facade merged-result caching, and
-  merge-per-modality-then-RRF for exact cross-domain ranking.
+- Merge-per-modality-then-RRF for exact cross-domain ranking at very large
+  domain counts; fan-out already runs in parallel and merged results are
+  cached with write-version invalidation.
 - TUI support for partitioned profiles.
