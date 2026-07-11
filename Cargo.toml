@@ -40,7 +40,7 @@ openmemory-eval = { path = "crates/openmemory-eval", version = "0.4.4", default-
 # Foundation
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
+toml = "1.1"
 toml_edit = "0.22"
 thiserror = "2"
 anyhow = "1"
