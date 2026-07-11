@@ -47,6 +47,8 @@ pub const RECALL_MIN_SCORE: f32 = 0.05;
 /// Distance decay applied to observations surfaced via 1-hop relation
 /// spreading. They are inherently weaker than direct hits.
 pub const SPREADING_DISTANCE_DECAY: f32 = 0.5;
+const FILTER_OVERFETCH_MULTIPLIER: usize = 32;
+const MAX_FILTER_CANDIDATES: usize = 4_096;
 
 /// Source tags treated as corrections. Plural so callers using either of
 /// sift's conventions (`cortex:correction`) or the openmemory native
@@ -74,6 +76,10 @@ pub struct RecallFilters {
     /// Whether to use the relation-spreading fallback when direct search
     /// underflows. Default: enabled.
     pub spreading_activation: bool,
+    /// Record retrieval-frequency feedback for returned observations.
+    /// Agent recall enables this by default; read-only UI previews can turn
+    /// it off to remain a genuinely read-only path.
+    pub record_access: bool,
 }
 
 impl RecallFilters {
@@ -82,6 +88,7 @@ impl RecallFilters {
     pub fn new() -> Self {
         Self {
             spreading_activation: true,
+            record_access: true,
             ..Self::default()
         }
     }
@@ -119,21 +126,22 @@ impl MemoryStore {
         let vector = self.embed_query(query);
         // Filters run post-search, so we need enough headroom for any
         // filter that may discard a large fraction of the candidate set.
-        // When a memory_tier filter is active we overfetch up to the
-        // total indexed count, since a query may match many higher-
-        // scoring observations from other tiers that would otherwise
-        // crowd valid tier-matching hits out of the candidate window.
+        // Filtered recall uses bounded adaptive headroom. Fetching the entire
+        // corpus made a single sparse tier query O(n) in both the flat and
+        // keyword arms; 32x (capped at 4096) preserves generous recall while
+        // keeping interactive work bounded until filters move into the index.
         let fetch = {
             let base = top_k.saturating_mul(3).max(top_k);
             if filters.memory_tier.is_some() {
-                let total = self
-                    .engine()
-                    .engine
+                let search = &self.engine().engine;
+                let total = search
                     .count()
-                    .ok()
-                    .and_then(|c| usize::try_from(c).ok())
-                    .unwrap_or(base);
-                base.max(total)
+                    .unwrap_or(0)
+                    .max(search.keyword_count().unwrap_or(0));
+                let total = usize::try_from(total).unwrap_or(MAX_FILTER_CANDIDATES);
+                base.max(top_k.saturating_mul(FILTER_OVERFETCH_MULTIPLIER))
+                    .min(total)
+                    .min(MAX_FILTER_CANDIDATES)
             } else {
                 base
             }
@@ -273,7 +281,7 @@ impl MemoryStore {
 
         // Side-effect: increment access_count so future recalls of the same
         // observation get the retrieval-frequency boost.
-        if !hits.is_empty() {
+        if filters.record_access && !hits.is_empty() {
             let ids: Vec<String> = hits.iter().map(|r| r.observation.id.clone()).collect();
             let _ = self.bump_access_counts(&ids);
         }

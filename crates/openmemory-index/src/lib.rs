@@ -7,8 +7,9 @@
 //!
 //! Backends, by feature:
 //!
-//! - [`FlatVectorIndex`] — brute-force cosine similarity (default)
-//! - `HnswIndex` — approximate nearest-neighbour (feature `hnsw`)
+//! - [`FlatVectorIndex`] — brute-force exact cosine similarity
+//! - `AdaptiveVectorIndex` — flat-to-HNSW crossover (feature `hnsw`)
+//! - `HnswIndex` — approximate nearest-neighbour building block (`hnsw`)
 //! - [`Fts5Store`] — SQLite FTS5 BM25 keyword search (feature `fts5`)
 //! - `Bm25Store` — pure-Rust BM25 (when `fts5` is off)
 //! - [`MetadataStore`] — SQLite metadata table (feature `sqlite`)
@@ -17,6 +18,8 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "hnsw")]
+pub mod adaptive;
 #[cfg(not(feature = "fts5"))]
 pub mod bm25;
 pub mod cache;
@@ -32,6 +35,8 @@ pub mod hybrid;
 pub mod metadata;
 pub mod traits;
 
+#[cfg(feature = "hnsw")]
+pub use adaptive::{AdaptiveVectorIndex, DEFAULT_HNSW_MIGRATION_THRESHOLD};
 #[cfg(not(feature = "fts5"))]
 pub use bm25::Bm25Store;
 pub use cache::{CachedSearchEngine, DEFAULT_CACHE_CAPACITY, DEFAULT_CACHE_TTL};
@@ -49,10 +54,10 @@ pub use traits::{
     ExportEntry, FullTextStore, IndexEntry, SearchMode, SearchResult, VectorIndex, VectorStore,
 };
 
-/// The default vector backend selected by feature flags. [`HnswIndex`]
-/// when the `hnsw` feature is enabled, [`FlatVectorIndex`] otherwise.
+/// The default vector backend selected by feature flags. An adaptive
+/// flat-to-HNSW index when `hnsw` is enabled, [`FlatVectorIndex`] otherwise.
 #[cfg(feature = "hnsw")]
-pub type DefaultVectorStore = HnswIndex;
+pub type DefaultVectorStore = AdaptiveVectorIndex;
 #[cfg(not(feature = "hnsw"))]
 pub type DefaultVectorStore = FlatVectorIndex;
 

@@ -4,7 +4,9 @@
 //! `--http <addr>` and the `mcp-http` feature, the server binds an HTTP
 //! listener and serves the same router over `POST /mcp`.
 
+use std::io::{BufRead, Write};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use openmemory_core::config::Config;
@@ -14,6 +16,12 @@ use openmemory_mcp::OpenMemoryMcpServer;
 use crate::cli::McpArgs;
 
 pub fn run(profile: &str, args: McpArgs) -> Result<()> {
+    if args.http.is_none() {
+        if let Some((url, token)) = daemon_mcp_endpoint(profile)? {
+            eprintln!("openmemory mcp: proxying to daemon-owned context engine");
+            return proxy_stdio(&url, &token);
+        }
+    }
     let config = Config::load().unwrap_or_default();
     let data_dir = Config::data_dir(profile).context("resolving data directory")?;
     if !data_dir.exists() {
@@ -71,6 +79,79 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
         engine.quiesce();
     }
     result
+}
+
+fn daemon_mcp_endpoint(profile: &str) -> Result<Option<(String, String)>> {
+    let home = Config::home_dir().context("resolving OpenMemory home")?;
+    let Some(runtime) =
+        openmemory_daemon::read_runtime_info(&home).context("reading daemon runtime metadata")?
+    else {
+        return Ok(None);
+    };
+    if runtime.active_profile != profile {
+        return Ok(None);
+    }
+    let Some(token) =
+        openmemory_daemon::load_admin_token(&home).context("reading daemon admin token")?
+    else {
+        return Ok(None);
+    };
+    let health_url = format!("{}/admin/health", runtime.admin_url.trim_end_matches('/'));
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_millis(500))
+        .build();
+    let healthy = agent
+        .get(&health_url)
+        .set("Authorization", &format!("Bearer {token}"))
+        .call()
+        .is_ok();
+    if !healthy {
+        return Ok(None);
+    }
+    let mcp_ready = agent
+        .get(&format!(
+            "{}/healthz",
+            runtime.admin_url.trim_end_matches('/')
+        ))
+        .call()
+        .is_ok();
+    if !mcp_ready {
+        return Ok(None);
+    }
+    Ok(Some((
+        format!("{}/mcp", runtime.admin_url.trim_end_matches('/')),
+        token,
+    )))
+}
+
+fn proxy_stdio(url: &str, token: &str) -> Result<()> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(30))
+        .build();
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout().lock();
+    for line in stdin.lock().lines() {
+        let line = line.context("reading MCP request from stdin")?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let response = agent
+            .post(url)
+            .set("Authorization", &format!("Bearer {token}"))
+            .set("Content-Type", "application/json")
+            .send_string(&line)
+            .with_context(|| format!("forwarding MCP request to {url}"))?;
+        if response.status() != 204 {
+            let body = response
+                .into_string()
+                .context("reading daemon MCP response")?;
+            if !body.is_empty() {
+                writeln!(stdout, "{body}").context("writing MCP response to stdout")?;
+                stdout.flush().context("flushing MCP response")?;
+            }
+        }
+    }
+    Ok(())
 }
 
 async fn serve(server: OpenMemoryMcpServer, args: McpArgs) -> Result<()> {

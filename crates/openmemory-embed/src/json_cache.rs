@@ -91,6 +91,32 @@ impl EmbeddingCache {
         }
     }
 
+    pub fn get_batch(&self, texts: &[&str]) -> Vec<Option<Vec<f32>>> {
+        let Ok(inner) = self.inner.lock() else {
+            if let Ok(mut misses) = self.misses.lock() {
+                *misses += texts.len() as u64;
+            }
+            return vec![None; texts.len()];
+        };
+        let mut hit_count = 0;
+        let output: Vec<_> = texts
+            .iter()
+            .map(|text| {
+                let value = inner.data.entries.get(&hex_hash(text)).cloned();
+                hit_count += u64::from(value.is_some());
+                value
+            })
+            .collect();
+        drop(inner);
+        if let Ok(mut hits) = self.hits.lock() {
+            *hits += hit_count;
+        }
+        if let Ok(mut misses) = self.misses.lock() {
+            *misses += texts.len() as u64 - hit_count;
+        }
+        output
+    }
+
     pub fn put(&self, text: &str, vector: &[f32]) {
         let key = hex_hash(text);
         if let Ok(mut inner) = self.inner.lock() {
@@ -158,6 +184,17 @@ mod tests {
         assert_eq!(cache.len(), 2);
         assert_eq!(cache.get("a").unwrap(), vec![1.0]);
         assert_eq!(cache.get("b").unwrap(), vec![2.0]);
+    }
+
+    #[test]
+    fn batch_get_preserves_order_and_stats() {
+        let cache = EmbeddingCache::in_memory().unwrap();
+        cache.put_batch(&[("a", &[1.0]), ("b", &[2.0])]);
+        assert_eq!(
+            cache.get_batch(&["b", "missing", "a"]),
+            vec![Some(vec![2.0]), None, Some(vec![1.0])]
+        );
+        assert_eq!(cache.stats(), (2, 1));
     }
 
     #[test]

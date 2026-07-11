@@ -34,8 +34,9 @@
 //!   moved out of the commit path entirely.
 //! - **Publish**: a cacheline-aligned per-shard watermark (the flux-rs
 //!   epoch-counter idea) advances after each commit;
-//!   [`ContextEngine::wait_durable`] gives lock-free read-your-writes,
-//!   and the MCP `remember` tool waits on it by default.
+//!   [`ContextEngine::wait_durable_result`] gives non-polling
+//!   read-your-writes with exact terminal errors, and the MCP `remember`
+//!   tool waits on it by default.
 //!
 //! Reads run against the same [`partition::DomainStore`]: recall fans
 //! out to every domain in parallel, merges by score, and memoises
@@ -60,4 +61,4 @@ pub mod journal;
 pub mod migrate;
 pub mod partition;
 
-pub use engine::{ContextEngine, EngineOptions, EngineStats, Ticket};
+pub use engine::{ContextEngine, EngineOptions, EnginePause, EngineStats, Ticket};

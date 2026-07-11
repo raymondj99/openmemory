@@ -6,7 +6,10 @@ use openmemory_admin::{
     AdminError, AdminErrorCode, AdminEvent, AdminEventType, AdminJob, AdminJobKind, AdminJobState,
     AdminLogEntry, AdminLogLevel, ComponentHealth,
 };
+use openmemory_engine::partition::DomainStore;
+use openmemory_engine::ContextEngine;
 use openmemory_graph::new_id;
+use openmemory_mcp::BearerToken;
 use tokio::sync::{broadcast, watch};
 
 use crate::product_store::{ProductStore, ProductStoreError};
@@ -19,7 +22,19 @@ pub(crate) struct AdminState {
     pub(crate) config: DaemonConfig,
     pub(crate) logs: Arc<RedactedLogRing>,
     pub(crate) jobs: Arc<JobRegistry>,
+    pub(crate) store: Arc<RwLock<StoreRuntime>>,
+    pub(crate) engine: Option<Arc<ContextEngine>>,
+    pub(crate) mcp_auth: Option<BearerToken>,
     pub(crate) shutdown: Option<watch::Sender<bool>>,
+}
+
+/// Long-lived active-profile store state. The daemon opens the profile once
+/// during router construction; request handlers clone the `Arc` instead of
+/// rebuilding SQLite pools and vector indexes on every request.
+#[derive(Debug, Clone)]
+pub(crate) enum StoreRuntime {
+    Ready(Arc<DomainStore>),
+    Unavailable(AdminError),
 }
 
 #[derive(Debug, Clone, Copy)]
