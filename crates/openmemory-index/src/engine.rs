@@ -17,12 +17,12 @@ use std::path::{Path, PathBuf};
 
 use openmemory_core::config::Config;
 
+#[cfg(feature = "hnsw")]
+use crate::adaptive::AdaptiveVectorIndex;
 use crate::cache::CachedSearchEngine;
 use crate::error::IndexResult;
 #[cfg(not(feature = "hnsw"))]
 use crate::flat::FlatVectorIndex;
-#[cfg(feature = "hnsw")]
-use crate::hnsw::HnswIndex;
 use crate::hybrid::HybridSearchEngine;
 #[cfg(feature = "sqlite")]
 use crate::metadata::MetadataStore;
@@ -38,7 +38,7 @@ type DefaultFts = Fts5Store;
 type DefaultFts = Bm25Store;
 
 #[cfg(feature = "hnsw")]
-type DefaultVec = HnswIndex;
+type DefaultVec = AdaptiveVectorIndex;
 #[cfg(not(feature = "hnsw"))]
 type DefaultVec = FlatVectorIndex;
 
@@ -68,7 +68,7 @@ pub fn open_engine(config: &Config, data_dir: &Path) -> IndexResult<OpenEngine> 
     }
 
     #[cfg(feature = "hnsw")]
-    let vector_store = HnswIndex::load_or_create(data_dir)?;
+    let vector_store = AdaptiveVectorIndex::load_or_create(data_dir)?;
     #[cfg(not(feature = "hnsw"))]
     let vector_store = FlatVectorIndex::open(&data_dir.join(VECTORS_FILE))?;
 
@@ -161,11 +161,14 @@ mod tests {
             .engine
             .insert(&[entry("u://a", "hello", vec![1.0, 0.0])])
             .unwrap();
-        // The persisted file name depends on the vector backend: the
-        // default flat index writes VECTORS_FILE; the hnsw backend writes
-        // its multi-file layout next to it.
+        // Small adaptive indexes remain flat; large ones write the HNSW
+        // multi-file layout next to VECTORS_FILE.
         #[cfg(feature = "hnsw")]
-        let vector_file = dir.path().join("vectors.usearch");
+        let vector_file = if opened.engine.inner().vector_store().is_hnsw() {
+            dir.path().join("vectors.usearch")
+        } else {
+            dir.path().join(VECTORS_FILE)
+        };
         #[cfg(not(feature = "hnsw"))]
         let vector_file = dir.path().join(VECTORS_FILE);
 

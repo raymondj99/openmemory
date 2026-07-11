@@ -1033,6 +1033,7 @@ fn recall_cache_key(query: &str, top_k: usize, filters: &RecallFilters) -> u64 {
     filters.mode.unwrap_or_default().hash(&mut h);
     filters.memory_tier.map(|t| t.as_str()).hash(&mut h);
     filters.spreading_activation.hash(&mut h);
+    filters.record_access.hash(&mut h);
     h.finish()
 }
 

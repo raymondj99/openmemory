@@ -98,6 +98,42 @@ impl EmbeddingCache {
         }
     }
 
+    /// Look up many cache keys while holding the SQLite connection once.
+    /// Results preserve input order. Cache failures degrade individual
+    /// entries to misses because embedding remains the authoritative path.
+    pub fn get_batch(&self, texts: &[&str]) -> Vec<Option<Vec<f32>>> {
+        if texts.is_empty() {
+            return Vec::new();
+        }
+        let Ok(conn) = self.conn.lock() else {
+            self.misses.fetch_add(texts.len() as u64, Ordering::Relaxed);
+            return vec![None; texts.len()];
+        };
+        let Ok(mut statement) = conn.prepare_cached("SELECT vector FROM cache WHERE hash = ?1")
+        else {
+            self.misses.fetch_add(texts.len() as u64, Ordering::Relaxed);
+            return vec![None; texts.len()];
+        };
+
+        let mut hits = 0;
+        let mut output = Vec::with_capacity(texts.len());
+        for text in texts {
+            let hash = blake3_hash(text);
+            let vector = statement
+                .query_row(params![hash.as_slice()], |row| row.get::<_, Vec<u8>>(0))
+                .optional()
+                .ok()
+                .flatten()
+                .map(|bytes| bytes_to_f32(&bytes));
+            hits += u64::from(vector.is_some());
+            output.push(vector);
+        }
+        self.hits.fetch_add(hits, Ordering::Relaxed);
+        self.misses
+            .fetch_add(texts.len() as u64 - hits, Ordering::Relaxed);
+        output
+    }
+
     /// Store an embedding. Overwrites any existing entry with the
     /// same content hash.
     pub fn put(&self, text: &str, vector: &[f32]) {
@@ -266,6 +302,19 @@ mod tests {
         let cache = EmbeddingCache::in_memory().unwrap();
         cache.put_batch(&[]);
         assert_eq!(cache.len(), 0);
+    }
+
+    #[test]
+    fn batch_get_preserves_order_duplicates_and_stats() {
+        let cache = EmbeddingCache::in_memory().unwrap();
+        cache.put("alpha", &[1.0, 2.0]);
+        cache.put("beta", &[3.0, 4.0]);
+        let values = cache.get_batch(&["beta", "missing", "alpha", "beta"]);
+        assert_eq!(values[0], Some(vec![3.0, 4.0]));
+        assert_eq!(values[1], None);
+        assert_eq!(values[2], Some(vec![1.0, 2.0]));
+        assert_eq!(values[3], Some(vec![3.0, 4.0]));
+        assert_eq!(cache.stats(), (3, 1));
     }
 
     #[test]

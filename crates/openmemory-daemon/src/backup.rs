@@ -8,6 +8,7 @@ use openmemory_admin::{
     AdminRestorePreflightResponse, AdminRestoreReport, AdminRestoreRequest, ADMIN_API_VERSION,
 };
 use openmemory_engine::partition::DomainStore;
+use openmemory_engine::EnginePause;
 use openmemory_graph::new_id;
 
 use crate::state::{JobMessages, JobRegistry};
@@ -188,6 +189,7 @@ pub(crate) fn restore_preflight(
 pub(crate) fn spawn_backup_create_job(
     config: DaemonConfig,
     request: AdminBackupRequest,
+    pause: Option<EnginePause>,
     job_id: String,
     jobs: Arc<JobRegistry>,
 ) {
@@ -199,7 +201,11 @@ pub(crate) fn spawn_backup_create_job(
             failed: "backup failed",
             worker_failed: "backup worker failed",
         },
-        move || backup_create_blocking(&config, &request),
+        move || {
+            let result = backup_create_blocking(&config, &request);
+            drop(pause);
+            result
+        },
     );
 }
 
