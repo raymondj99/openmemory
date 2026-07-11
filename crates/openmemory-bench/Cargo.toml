@@ -18,7 +18,7 @@ test = false
 [dependencies]
 openmemory-core = { workspace = true, features = ["testing"] }
 openmemory-daemon = { workspace = true }
-openmemory-index = { workspace = true, features = ["fts5"] }
+openmemory-index = { workspace = true, features = ["fts5", "hnsw"] }
 openmemory-graph = { workspace = true, features = ["fts5", "testing"] }
 
 [dev-dependencies]

@@ -24,7 +24,7 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 use crate::error::{IndexError, IndexResult};
 use crate::traits::{ExportEntry, IndexEntry, SearchResult, VectorIndex, VectorStore};
@@ -42,10 +42,10 @@ struct StoredEntry {
 /// In-memory flat vector index using brute-force cosine similarity.
 #[derive(Debug)]
 pub struct FlatVectorIndex {
-    entries: Mutex<Vec<StoredEntry>>,
+    entries: RwLock<Vec<StoredEntry>>,
     /// Set by mutations, cleared by [`VectorIndex::save`]. Only ever
     /// touched while `entries` is locked, so `Relaxed` ordering is
-    /// sufficient — the mutex provides the happens-before edges.
+    /// sufficient — the read/write lock provides the happens-before edges.
     dirty: AtomicBool,
 }
 
@@ -53,7 +53,7 @@ impl FlatVectorIndex {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            entries: Mutex::new(Vec::new()),
+            entries: RwLock::new(Vec::new()),
             dirty: AtomicBool::new(false),
         }
     }
@@ -103,7 +103,7 @@ impl FlatVectorIndex {
         }
 
         Ok(Self {
-            entries: Mutex::new(entries),
+            entries: RwLock::new(entries),
             dirty: AtomicBool::new(false),
         })
     }
@@ -117,9 +117,15 @@ impl FlatVectorIndex {
         }
     }
 
-    fn lock(&self) -> IndexResult<std::sync::MutexGuard<'_, Vec<StoredEntry>>> {
+    fn read(&self) -> IndexResult<std::sync::RwLockReadGuard<'_, Vec<StoredEntry>>> {
         self.entries
-            .lock()
+            .read()
+            .map_err(|e| IndexError::Lock(e.to_string()))
+    }
+
+    fn write(&self) -> IndexResult<std::sync::RwLockWriteGuard<'_, Vec<StoredEntry>>> {
+        self.entries
+            .write()
             .map_err(|e| IndexError::Lock(e.to_string()))
     }
 }
@@ -132,7 +138,7 @@ impl Default for FlatVectorIndex {
 
 impl VectorStore for FlatVectorIndex {
     fn insert(&self, entries: &[IndexEntry]) -> IndexResult<()> {
-        let mut guard = self.lock()?;
+        let mut guard = self.write()?;
         let entries: Vec<&IndexEntry> = entries
             .iter()
             .filter(|entry| !entry.vector.is_empty())
@@ -174,7 +180,7 @@ impl VectorStore for FlatVectorIndex {
     }
 
     fn search(&self, query_vector: &[f32], top_k: usize) -> IndexResult<Vec<SearchResult>> {
-        let guard = self.lock()?;
+        let guard = self.read()?;
 
         let mut scored: Vec<(f32, &StoredEntry)> = guard
             .iter()
@@ -201,7 +207,7 @@ impl VectorStore for FlatVectorIndex {
     }
 
     fn delete_by_uri(&self, uri: &str) -> IndexResult<u64> {
-        let mut guard = self.lock()?;
+        let mut guard = self.write()?;
         let before = guard.len();
         guard.retain(|e| e.uri != uri);
         let removed = (before - guard.len()) as u64;
@@ -212,13 +218,13 @@ impl VectorStore for FlatVectorIndex {
     }
 
     fn count(&self) -> IndexResult<u64> {
-        Ok(self.lock()?.len() as u64)
+        Ok(self.read()?.len() as u64)
     }
 }
 
 impl VectorIndex for FlatVectorIndex {
     fn save(&self, path: &Path) -> IndexResult<()> {
-        let guard = self.lock()?;
+        let guard = self.write()?;
         let dim = guard.first().map_or(0, |e| e.vector.len()) as u32;
 
         let mut buf: Vec<u8> = Vec::new();
@@ -259,7 +265,7 @@ impl VectorIndex for FlatVectorIndex {
     }
 
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
-        let guard = self.lock()?;
+        let guard = self.read()?;
         Ok(guard
             .iter()
             .map(|e| ExportEntry {
@@ -406,6 +412,38 @@ mod tests {
         store.insert(&[entry("u", "t", 0, vec![1.0, 0.0])]).unwrap();
         let r = store.search(&[1.0, 0.0], 0).unwrap();
         assert_eq!(r.len(), 1);
+    }
+
+    #[test]
+    fn concurrent_searches_are_safe_and_stable() {
+        let store = std::sync::Arc::new(FlatVectorIndex::new());
+        let entries: Vec<_> = (0..256)
+            .map(|i| {
+                let mut vector = vec![0.0; 16];
+                let slot = i % vector.len();
+                vector[slot] = 1.0;
+                entry(&format!("u://{i}"), "payload", i as u32, vector)
+            })
+            .collect();
+        store.insert(&entries).unwrap();
+
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let store = std::sync::Arc::clone(&store);
+                std::thread::spawn(move || {
+                    for _ in 0..100 {
+                        let mut query = vec![0.0; 16];
+                        query[0] = 1.0;
+                        let results = store.search(&query, 10).unwrap();
+                        assert_eq!(results.len(), 10);
+                        assert!(results[0].score >= results[9].score);
+                    }
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
     }
 
     #[test]

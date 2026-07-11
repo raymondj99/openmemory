@@ -39,6 +39,7 @@ use openmemory_graph::recall::RecallFilters;
 use openmemory_graph::ConsolidateConfig;
 use openmemory_graph::{Entity, EntityListRow, EntityType, Observation, Relation};
 use openmemory_index::traits::SearchMode;
+use openmemory_mcp::{BearerToken, OpenMemoryMcpServer};
 use rand::RngCore;
 use serde::Deserialize;
 use thiserror::Error;
@@ -58,7 +59,7 @@ use integrations::{
     integration_install, integration_preview, integrations_response, parse_integration_client,
     spawn_integration_verify_job,
 };
-use state::{AdminState, JobMessages, JobRegistry, RedactedLogRing};
+use state::{AdminState, JobMessages, JobRegistry, RedactedLogRing, StoreRuntime};
 
 pub const RUN_DIR: &str = "run";
 pub const ADMIN_TOKEN_FILE: &str = "admin-token";
@@ -286,6 +287,7 @@ fn build_router_with_shutdown(
 ) -> Router {
     let logs = Arc::new(RedactedLogRing::new(DEFAULT_LOG_RING_CAPACITY));
     let jobs = Arc::new(JobRegistry::open(config.home()));
+    let store = Arc::new(RwLock::new(open_profile_runtime(&config)));
     let (token_generation, _) = tokio::sync::watch::channel(0);
     logs.push(
         AdminLogLevel::Info,
@@ -298,16 +300,66 @@ fn build_router_with_shutdown(
         }),
     );
 
+    // The daemon is the sole context-engine owner. Its MCP router shares the
+    // exact same long-lived store as the admin API; stdio integrations proxy
+    // here instead of opening independent vector indexes and journals.
+    let initial_store = store.read().unwrap_or_else(|error| error.into_inner());
+    let (mcp_router, engine, mcp_auth) = match &*initial_store {
+        StoreRuntime::Ready(memory) => match load_config(config.home()) {
+            Ok(mut engine_config) => {
+                engine_config.engine.enabled = true;
+                engine_config.engine.journal = true;
+                match OpenMemoryMcpServer::from_domain_store(engine_config, Arc::clone(memory)) {
+                    Ok(server) => {
+                        let engine = server.engine().cloned();
+                        let auth = BearerToken::new(config.admin_token.expected.to_string());
+                        (
+                            Some(openmemory_mcp::http::build_router(
+                                server,
+                                Some(auth.clone()),
+                            )),
+                            engine,
+                            Some(auth),
+                        )
+                    }
+                    Err(error) => {
+                        logs.push(
+                            AdminLogLevel::Error,
+                            "context_engine_start_failed",
+                            "context engine could not acquire the active profile",
+                            serde_json::json!({ "error": error.to_string() }),
+                        );
+                        (None, None, None)
+                    }
+                }
+            }
+            Err(error) => {
+                logs.push(
+                    AdminLogLevel::Error,
+                    "context_engine_config_failed",
+                    "context engine configuration could not be loaded",
+                    serde_json::json!({ "error": error }),
+                );
+                (None, None, None)
+            }
+        },
+        StoreRuntime::Unavailable(_) => (None, None, None),
+    };
+    drop(initial_store);
+
     let state = AdminState {
         token: Arc::new(RwLock::new(config.admin_token.clone())),
         token_generation,
         config,
         logs,
         jobs,
+        store,
+        engine,
+        mcp_auth,
         shutdown,
     };
 
-    Router::new()
+    let admin = Router::new()
         .route("/admin/health", get(handle_health))
         .route("/admin/doctor", get(handle_doctor))
         .route("/admin/shutdown", post(handle_shutdown))
@@ -339,7 +391,12 @@ fn build_router_with_shutdown(
         .route("/admin/backups/create", post(handle_backup_create))
         .route("/admin/restore/preflight", post(handle_restore_preflight))
         .route("/admin/restore", post(handle_restore))
-        .with_state(state)
+        .with_state(state);
+    if let Some(mcp) = mcp_router {
+        admin.merge(mcp)
+    } else {
+        admin
+    }
 }
 
 /// Bind the daemon listener after validating loopback policy.
@@ -396,10 +453,15 @@ pub async fn serve(config: DaemonConfig) -> Result<(), DaemonError> {
 
 #[cfg(test)]
 fn health_response(config: &DaemonConfig) -> HealthResponse {
-    health_response_with_jobs(config, None)
+    let store = open_profile_runtime(config);
+    health_response_with_jobs(config, None, &store)
 }
 
-fn health_response_with_jobs(config: &DaemonConfig, jobs: Option<&JobRegistry>) -> HealthResponse {
+fn health_response_with_jobs(
+    config: &DaemonConfig,
+    jobs: Option<&JobRegistry>,
+    store: &StoreRuntime,
+) -> HealthResponse {
     let loaded_config = load_config(config.home());
     HealthResponse {
         api_version: ADMIN_API_VERSION.to_string(),
@@ -407,7 +469,7 @@ fn health_response_with_jobs(config: &DaemonConfig, jobs: Option<&JobRegistry>) 
         home: config.home.display().to_string(),
         active_profile: config.active_profile.clone(),
         daemon: ComponentHealth::ok("daemon is running"),
-        store: store_health(config, loaded_config.as_ref()),
+        store: store_runtime_health(config, store),
         model: model_health(config.home(), loaded_config.as_ref()),
         mcp: mcp_health(),
         watcher: watcher_health(),
@@ -419,8 +481,12 @@ fn health_response_with_jobs(config: &DaemonConfig, jobs: Option<&JobRegistry>) 
     }
 }
 
-fn doctor_response(config: &DaemonConfig, jobs: Option<&JobRegistry>) -> AdminDoctorResponse {
-    let health = health_response_with_jobs(config, jobs);
+fn doctor_response(
+    config: &DaemonConfig,
+    jobs: Option<&JobRegistry>,
+    store: &StoreRuntime,
+) -> AdminDoctorResponse {
+    let health = health_response_with_jobs(config, jobs, store);
     let integrations = integrations_response(config);
     let mut diagnostics = Vec::new();
     collect_health_diagnostic("store", &health.store, &mut diagnostics);
@@ -572,6 +638,107 @@ fn store_health(config: &DaemonConfig, loaded_config: Result<&Config, &String>) 
     }
 }
 
+fn open_profile_runtime(config: &DaemonConfig) -> StoreRuntime {
+    let loaded_config = match load_config(config.home()) {
+        Ok(config) => config,
+        Err(error) => {
+            return StoreRuntime::Unavailable(
+                AdminError::new(
+                    AdminErrorCode::ConfigInvalid,
+                    "OpenMemory config could not be loaded",
+                    Some("Fix config.toml and restart the daemon."),
+                    false,
+                )
+                .with_details(serde_json::json!({ "error": error })),
+            );
+        }
+    };
+    let data_dir = profile_data_dir(config.home(), config.active_profile());
+    if !data_dir.exists() {
+        return StoreRuntime::Unavailable(
+            AdminError::new(
+                AdminErrorCode::ProfileNotInitialized,
+                "active profile is not initialized on disk",
+                Some("Run `openmemory init` for this profile."),
+                false,
+            )
+            .with_details(serde_json::json!({
+                "profile": config.active_profile(),
+                "data_dir": data_dir.display().to_string(),
+            })),
+        );
+    }
+    #[cfg(feature = "embeddings")]
+    let opened = {
+        let models_dir = config.home().join("models");
+        if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
+            DomainStore::open_existing_with_embedder(&loaded_config, &data_dir, Arc::new(embedder))
+        } else {
+            DomainStore::open_existing(&loaded_config, &data_dir)
+        }
+    };
+    #[cfg(not(feature = "embeddings"))]
+    let opened = DomainStore::open_existing(&loaded_config, &data_dir);
+
+    match opened {
+        Ok(store) => StoreRuntime::Ready(Arc::new(store)),
+        Err(error) => {
+            StoreRuntime::Unavailable(store_admin_error("memory store is unreadable", error))
+        }
+    }
+}
+
+fn store_runtime_health(config: &DaemonConfig, runtime: &StoreRuntime) -> ComponentHealth {
+    let data_dir = profile_data_dir(config.home(), config.active_profile());
+    let details = serde_json::json!({
+        "profile": config.active_profile(),
+        "data_dir": data_dir.display().to_string(),
+        "persistent_runtime": true,
+    });
+    let StoreRuntime::Ready(store) = runtime else {
+        let StoreRuntime::Unavailable(error) = runtime else {
+            unreachable!()
+        };
+        let health = match error.code {
+            AdminErrorCode::ProfileNotInitialized => {
+                ComponentHealth::warning(error.code, error.message.clone())
+            }
+            _ => ComponentHealth::error(error.code, error.message.clone()),
+        };
+        return health.with_details(merge_details(details, error.details.clone()));
+    };
+    let domains = store.domains();
+    match store.status() {
+        Ok(status) => ComponentHealth::ok(format!(
+            "profile {} is ready: {} entities, {} observations",
+            config.active_profile(),
+            status.total_entities,
+            status.total_observations
+        ))
+        .with_details(merge_details(
+            details,
+            serde_json::json!({
+                "domains": domains,
+                "schema_version": status.schema_version,
+                "entities": status.total_entities,
+                "observations": status.total_observations,
+                "relations": status.total_relations,
+                "tombstoned_observations": status.tombstoned_observations,
+                "vector_count": status.vector_count,
+                "reader_pool_size": status.reader_pool_size,
+            }),
+        )),
+        Err(error) => ComponentHealth::error(
+            store_error_code(&error.to_string()),
+            "memory store status failed",
+        )
+        .with_details(merge_details(
+            details,
+            serde_json::json!({ "domains": domains, "error": error.to_string() }),
+        )),
+    }
+}
+
 fn store_error_code(message: &str) -> AdminErrorCode {
     if message.contains("newer than supported") {
         AdminErrorCode::SchemaTooNew
@@ -704,6 +871,7 @@ fn profiles_response(config: &DaemonConfig) -> AdminProfilesResponse {
 
 fn spawn_consolidate_job(
     config: DaemonConfig,
+    store: Arc<DomainStore>,
     request: AdminConsolidateRequest,
     job_id: String,
     jobs: Arc<JobRegistry>,
@@ -716,12 +884,13 @@ fn spawn_consolidate_job(
             failed: "consolidation failed",
             worker_failed: "consolidation worker failed",
         },
-        move || run_consolidate_blocking(&config, request),
+        move || run_consolidate_blocking(&config, &store, request),
     );
 }
 
 fn run_consolidate_blocking(
     daemon_config: &DaemonConfig,
+    store: &DomainStore,
     request: AdminConsolidateRequest,
 ) -> Result<AdminConsolidateReport, AdminError> {
     let config = load_config(daemon_config.home()).map_err(|error| {
@@ -733,21 +902,6 @@ fn run_consolidate_blocking(
         )
         .with_details(serde_json::json!({ "error": error }))
     })?;
-    let data_dir = profile_data_dir(daemon_config.home(), daemon_config.active_profile());
-    if !data_dir.exists() {
-        return Err(AdminError::new(
-            AdminErrorCode::ProfileNotInitialized,
-            "active profile is not initialized on disk",
-            Some("Run `openmemory init` for this profile."),
-            false,
-        )
-        .with_details(serde_json::json!({
-            "profile": daemon_config.active_profile(),
-            "data_dir": data_dir.display().to_string(),
-        })));
-    }
-    let store = DomainStore::open_existing(&config, &data_dir)
-        .map_err(|error| store_admin_error("memory store is unreadable", error))?;
     let mut consolidate_config = ConsolidateConfig::from_config(&config);
     if let Some(threshold) = request.dedup_threshold {
         consolidate_config.dedup_text_threshold = threshold.clamp(0.0, 1.0);
@@ -768,41 +922,47 @@ fn run_consolidate_blocking(
     })
 }
 
-fn open_active_store(config: &DaemonConfig) -> Result<DomainStore, (StatusCode, AdminError)> {
-    let data_dir = profile_data_dir(config.home(), config.active_profile());
-    if !data_dir.exists() {
-        return Err((
-            StatusCode::NOT_FOUND,
-            AdminError::new(
-                AdminErrorCode::ProfileNotInitialized,
-                "active profile is not initialized on disk",
-                Some("Run `openmemory init` for this profile."),
-                false,
-            )
-            .with_details(serde_json::json!({
-                "profile": config.active_profile(),
-                "data_dir": data_dir.display().to_string(),
-            })),
-        ));
+fn open_active_store(state: &AdminState) -> Result<Arc<DomainStore>, (StatusCode, AdminError)> {
+    refresh_store_runtime(state);
+    let store = state
+        .store
+        .read()
+        .unwrap_or_else(|error| error.into_inner());
+    match &*store {
+        StoreRuntime::Ready(store) => Ok(Arc::clone(store)),
+        StoreRuntime::Unavailable(error) => {
+            let status = if error.code == AdminErrorCode::ProfileNotInitialized {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            };
+            Err((status, error.clone()))
+        }
     }
-    let loaded_config = load_config(config.home()).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            AdminError::new(
-                AdminErrorCode::ConfigInvalid,
-                "OpenMemory config could not be loaded",
-                Some("Fix config.toml and retry."),
-                false,
-            )
-            .with_details(serde_json::json!({ "error": error })),
-        )
-    })?;
-    DomainStore::open_existing(&loaded_config, &data_dir).map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            store_admin_error("memory store is unreadable", error),
-        )
-    })
+}
+
+/// Retry opening an unavailable profile so a daemon started before `init` can
+/// recover without rebuilding healthy stores or reopening indexes per request.
+fn refresh_store_runtime(state: &AdminState) {
+    let should_refresh = matches!(
+        &*state
+            .store
+            .read()
+            .unwrap_or_else(|error| error.into_inner()),
+        StoreRuntime::Unavailable(_)
+    );
+    if !should_refresh {
+        return;
+    }
+
+    let refreshed = open_profile_runtime(&state.config);
+    let mut runtime = state
+        .store
+        .write()
+        .unwrap_or_else(|error| error.into_inner());
+    if matches!(&*runtime, StoreRuntime::Unavailable(_)) {
+        *runtime = refreshed;
+    }
 }
 
 fn parse_entity_type(value: Option<&str>) -> Result<Option<EntityType>, AdminError> {
@@ -955,14 +1115,33 @@ fn looks_like_secret_word(word: &str) -> bool {
 
 async fn handle_health(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
-        Ok(()) => Json(health_response_with_jobs(&state.config, Some(&state.jobs))).into_response(),
+        Ok(()) => {
+            refresh_store_runtime(&state);
+            let store = state
+                .store
+                .read()
+                .unwrap_or_else(|error| error.into_inner());
+            Json(health_response_with_jobs(
+                &state.config,
+                Some(&state.jobs),
+                &store,
+            ))
+            .into_response()
+        }
         Err((status, error)) => json_auth_error(status, error),
     }
 }
 
 async fn handle_doctor(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
-        Ok(()) => Json(doctor_response(&state.config, Some(&state.jobs))).into_response(),
+        Ok(()) => {
+            refresh_store_runtime(&state);
+            let store = state
+                .store
+                .read()
+                .unwrap_or_else(|error| error.into_inner());
+            Json(doctor_response(&state.config, Some(&state.jobs), &store)).into_response()
+        }
         Err((status, error)) => json_auth_error(status, error),
     }
 }
@@ -980,6 +1159,23 @@ async fn handle_shutdown(State(state): State<AdminState>, headers: HeaderMap) ->
         "authenticated daemon shutdown requested",
         serde_json::json!({ "shutting_down_at_unix_secs": shutting_down_at_unix_secs }),
     );
+
+    if let Some(engine) = state.engine.clone() {
+        if let Err(error) = tokio::task::spawn_blocking(move || engine.quiesce()).await {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                AdminErrorResponse::new(
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        "context engine could not quiesce for shutdown",
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
+            );
+        }
+    }
 
     if let Some(shutdown) = &state.shutdown {
         let _ = shutdown.send(true);
@@ -1020,7 +1216,7 @@ async fn handle_rotate_token(State(state): State<AdminState>, headers: HeaderMap
     match rotate_admin_token(state.config.home()) {
         Ok(token) => {
             let rotated_at_unix_secs = unix_now_secs().unwrap_or(0);
-            let Ok(new_token) = AdminToken::new(token) else {
+            let Ok(new_token) = AdminToken::new(token.clone()) else {
                 state.logs.push(
                     AdminLogLevel::Error,
                     "admin_token_rotation_failed",
@@ -1038,6 +1234,9 @@ async fn handle_rotate_token(State(state): State<AdminState>, headers: HeaderMap
                 );
             };
             *state.token.write().unwrap_or_else(|e| e.into_inner()) = new_token;
+            if let Some(auth) = &state.mcp_auth {
+                auth.replace(token);
+            }
             let next_generation = (*state.token_generation.borrow()).saturating_add(1);
             let _ = state.token_generation.send(next_generation);
             state.logs.push(
@@ -1103,18 +1302,36 @@ async fn handle_entities(
         Ok(entity_type) => entity_type,
         Err(error) => return json_error(StatusCode::BAD_REQUEST, AdminErrorResponse::new(error)),
     };
-    let store = match open_active_store(&state.config) {
+    let store = match open_active_store(&state) {
         Ok(store) => store,
         Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
     };
     let offset = request.offset.unwrap_or(0);
     let fetch = request.limit.saturating_add(1);
-    let rows = match store.list_entities(entity_type, fetch as usize, offset as usize) {
-        Ok(rows) => rows,
-        Err(error) => {
+    let rows = match tokio::task::spawn_blocking(move || {
+        store.list_entities(entity_type, fetch as usize, offset as usize)
+    })
+    .await
+    {
+        Ok(Ok(rows)) => rows,
+        Ok(Err(error)) => {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 AdminErrorResponse::new(store_admin_error("listing entities failed", error)),
+            );
+        }
+        Err(error) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                AdminErrorResponse::new(
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        "entity listing worker failed",
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
             );
         }
     };
@@ -1140,13 +1357,22 @@ async fn handle_entity_detail(
         Err((status, error)) => return json_auth_error(status, error),
     }
 
-    let store = match open_active_store(&state.config) {
+    let store = match open_active_store(&state) {
         Ok(store) => store,
         Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
     };
-    let entity = match store.get_entity_by_id(&id) {
-        Ok(Some(entity)) => entity,
-        Ok(None) => {
+    let detail = tokio::task::spawn_blocking(move || {
+        let Some(entity) = store.get_entity_by_id(&id)? else {
+            return Ok(None);
+        };
+        let observations = store.get_entity_observations(&entity.id)?;
+        let relations = store.get_entity_relations(&entity.id)?;
+        Ok::<_, openmemory_graph::MemoryError>(Some((entity, observations, relations)))
+    })
+    .await;
+    let (entity, observations, relations) = match detail {
+        Ok(Ok(Some(detail))) => detail,
+        Ok(Ok(None)) => {
             return json_error(
                 StatusCode::NOT_FOUND,
                 AdminErrorResponse::new(AdminError::new(
@@ -1157,37 +1383,30 @@ async fn handle_entity_detail(
                 )),
             );
         }
-        Err(error) => {
+        Ok(Err(error)) => {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 AdminErrorResponse::new(store_admin_error("entity lookup failed", error)),
             );
         }
-    };
-    let observations: Vec<AdminObservation> = match store.get_entity_observations(&entity.id) {
-        Ok(observations) => observations.into_iter().map(admin_observation).collect(),
         Err(error) => {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                AdminErrorResponse::new(store_admin_error(
-                    "reading entity observations failed",
-                    error,
-                )),
+                AdminErrorResponse::new(
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        "entity detail worker failed",
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
             );
         }
     };
-    let relations: Vec<AdminRelation> = match store.get_entity_relations(&entity.id) {
-        Ok(relations) => relations.into_iter().map(admin_relation).collect(),
-        Err(error) => {
-            return json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                AdminErrorResponse::new(store_admin_error(
-                    "reading entity relations failed",
-                    error,
-                )),
-            );
-        }
-    };
+    let observations: Vec<AdminObservation> =
+        observations.into_iter().map(admin_observation).collect();
+    let relations: Vec<AdminRelation> = relations.into_iter().map(admin_relation).collect();
     let observation_count = observations.len() as u64;
     Json(AdminEntityDetail {
         entity: admin_entity(&entity, observation_count),
@@ -1230,7 +1449,7 @@ async fn handle_search(
         Ok(mode) => mode,
         Err(error) => return json_error(StatusCode::BAD_REQUEST, AdminErrorResponse::new(error)),
     };
-    let store = match open_active_store(&state.config) {
+    let store = match open_active_store(&state) {
         Ok(store) => store,
         Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
     };
@@ -1238,8 +1457,14 @@ async fn handle_search(
     filters.entity_type = entity_type;
     filters.source = query.source;
     filters.mode = mode;
-    let results = match store.recall(&query.q, limit as usize, &filters) {
-        Ok(results) => results
+    filters.record_access = false;
+    let query_text = query.q;
+    let results = match tokio::task::spawn_blocking(move || {
+        store.recall(&query_text, limit as usize, &filters)
+    })
+    .await
+    {
+        Ok(Ok(results)) => results
             .into_iter()
             .map(|result| AdminSearchResult {
                 entity_name: result.entity_name,
@@ -1249,10 +1474,24 @@ async fn handle_search(
                 observation: admin_observation(result.observation),
             })
             .collect(),
-        Err(error) => {
+        Ok(Err(error)) => {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 AdminErrorResponse::new(store_admin_error("search failed", error)),
+            );
+        }
+        Err(error) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                AdminErrorResponse::new(
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        "search worker failed",
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
             );
         }
     };
@@ -1270,9 +1509,10 @@ async fn handle_consolidate(
         Err((status, error)) => return json_auth_error(status, error),
     }
 
-    if let Err((status, error)) = open_active_store(&state.config).map(|_| ()) {
-        return json_error(status, AdminErrorResponse::new(error));
-    }
+    let store = match open_active_store(&state) {
+        Ok(store) => store,
+        Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
+    };
 
     let request = body.map_or_else(AdminConsolidateRequest::default, |Json(body)| body);
     let job = state.jobs.enqueue(
@@ -1282,6 +1522,7 @@ async fn handle_consolidate(
     );
     spawn_consolidate_job(
         state.config.clone(),
+        store,
         request,
         job.id.clone(),
         state.jobs.clone(),
@@ -1481,6 +1722,46 @@ async fn handle_backup_create(
         Err((status, error)) => return json_auth_error(status, error),
     }
     let request = body.map_or_else(AdminBackupRequest::default, |Json(body)| body);
+    let store = match open_active_store(&state) {
+        Ok(store) => store,
+        Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
+    };
+    let engine = state.engine.clone();
+    let prepared = tokio::task::spawn_blocking(move || {
+        let pause = engine.map(|engine| engine.pause_admissions());
+        for domain in store.stores() {
+            domain.persist_search_index()?;
+            domain.wal_checkpoint()?;
+        }
+        Ok::<_, openmemory_graph::MemoryError>(pause)
+    })
+    .await;
+    let pause = match prepared {
+        Ok(Ok(pause)) => pause,
+        Ok(Err(error)) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                AdminErrorResponse::new(store_admin_error(
+                    "profile could not be prepared for backup",
+                    error,
+                )),
+            );
+        }
+        Err(error) => {
+            return json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                AdminErrorResponse::new(
+                    AdminError::new(
+                        AdminErrorCode::Internal,
+                        "backup preparation worker failed",
+                        Option::<String>::None,
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error.to_string() })),
+                ),
+            );
+        }
+    };
     let preflight = backup_preflight(&state.config, &request);
     if !preflight.ready {
         return json_error(
@@ -1505,6 +1786,7 @@ async fn handle_backup_create(
     spawn_backup_create_job(
         state.config.clone(),
         request,
+        pause,
         job.id.clone(),
         state.jobs.clone(),
     );
@@ -1568,6 +1850,17 @@ async fn handle_restore(
         .unwrap_or_else(|| manifest.profile.clone());
     if let Err(error) = validate_restore_target_profile(&target_profile) {
         return json_error(StatusCode::BAD_REQUEST, AdminErrorResponse::new(error));
+    }
+    if target_profile == state.config.active_profile() {
+        return json_error(
+            StatusCode::CONFLICT,
+            AdminErrorResponse::new(AdminError::new(
+                AdminErrorCode::Conflict,
+                "cannot replace the active profile while its context engine is running",
+                Some("Restore into a new profile, then switch profiles and restart the daemon."),
+                false,
+            )),
+        );
     }
     let target_dir = profile_data_dir(state.config.home(), &target_profile);
     if target_dir.exists() && !request.replace_existing {

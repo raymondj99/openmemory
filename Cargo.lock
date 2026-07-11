@@ -1711,6 +1711,7 @@ dependencies = [
  "openmemory-engine",
  "openmemory-graph",
  "openmemory-index",
+ "openmemory-mcp",
  "rand 0.8.6",
  "rusqlite",
  "serde",
@@ -1731,6 +1732,7 @@ dependencies = [
  "blake3",
  "flate2",
  "fs4",
+ "lru",
  "ndarray",
  "openmemory-core",
  "ort",
@@ -1752,6 +1754,7 @@ version = "0.4.4"
 dependencies = [
  "blake3",
  "clap",
+ "fs4",
  "lru",
  "openmemory-core",
  "openmemory-graph",

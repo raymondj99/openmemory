@@ -275,14 +275,16 @@ impl Tool for OpenMemoryRememberTool {
         // the epoch flush commits the batch.
         if let Some(engine) = server.engine() {
             let wait = req.durable.unwrap_or(server.config().engine.durable_ack);
-            let ticket = engine.submit(
-                openmemory_graph::RememberRequest::new(req.entity.clone(), entity_type)
-                    .with_observations(observations)
-                    .with_relations(relations)
-                    .with_source(source),
-            );
+            let ticket = engine
+                .try_submit(
+                    openmemory_graph::RememberRequest::new(req.entity.clone(), entity_type)
+                        .with_observations(observations)
+                        .with_relations(relations)
+                        .with_source(source),
+                )
+                .map_err(map_memory_err)?;
             if wait {
-                engine.wait_durable(ticket);
+                engine.wait_durable_result(ticket).map_err(map_memory_err)?;
             }
             return json_text_result(&json!({
                 "accepted": true,

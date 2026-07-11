@@ -204,7 +204,7 @@ panic = "abort"
 Default features (what `cargo install openmemory` gives you):
 
 ```toml
-default = ["fts5", "embeddings", "completions", "watch", "mcp-http"]
+default = ["fts5", "hnsw", "embeddings", "completions", "watch", "mcp-http"]
 ```
 
 Toggleable features (per crate detail in
@@ -216,7 +216,7 @@ Toggleable features (per crate detail in
 | `embeddings` | on (CLI), opt-in (graph) | ONNX Runtime + Nomic Embed v1.5. |
 | `completions` | on | clap shell completion generation. |
 | `watch` | on (CLI) | The `openmemory watch` subcommand and the watcher crate. |
-| `hnsw` | off | usearch-backed approximate vector index. Adds a C++ build dep. |
+| `hnsw` | on | Adaptive exact-flat to usearch-HNSW vector index; migrates at 4,096 vectors. Adds a C++ build dep. |
 | `mcp-http` | on | Streamable HTTP transport for the MCP server. |
 | `eval` | off | Compiles `openmemory-eval` into the CLI and enables the `openmemory eval` subcommand. New in v0.3. |
 | `simd` | off | Reserved. |

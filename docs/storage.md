@@ -245,10 +245,10 @@ foreach record:
 
 `open_engine` loads this on startup; `flush(engine)` rewrites it.
 There is no incremental on-disk format; the file is rewritten in
-full on each flush. This is fine at graph-sized cardinality (well
-under 10⁶ vectors). `cargo install --features hnsw` swaps in the
-`HnswIndex` backend, which uses usearch's native serialisation
-format instead.
+full on each flush. With the default CLI features, corpora stay on this
+exact backend below 4,096 vectors and then migrate once to `HnswIndex`,
+which uses usearch's native serialization format. Builds without `hnsw`
+remain flat at every size.
 
 ## `models/` directory
 

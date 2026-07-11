@@ -17,6 +17,7 @@ use tracing::{debug, error, warn};
 
 const DEFAULT_MAX_TOKENS: usize = 8192;
 const DEFAULT_OUTPUT_TENSOR: &str = "last_hidden_state";
+const MAX_INFERENCE_BATCH_ITEMS: usize = 32;
 
 /// How to reduce per-token hidden states into a single sentence
 /// embedding.
@@ -146,7 +147,13 @@ impl OnnxEmbedder {
             ));
         }
 
-        let num_cores = std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
+        let available_cores =
+            std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
+        let num_threads = std::env::var("OPENMEMORY_ONNX_THREADS")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or_else(|| available_cores.min(8))
+            .clamp(1, available_cores);
 
         let session = Session::builder()
             .map_err(|e| {
@@ -155,9 +162,9 @@ impl OnnxEmbedder {
                      Details: {e}"
                 ))
             })?
-            .with_intra_threads(num_cores)
+            .with_intra_threads(num_threads)
             .map_err(|e| EmbedError::Onnx(format!("intra-thread config: {e}")))?
-            .with_inter_threads(2)
+            .with_inter_threads(1)
             .map_err(|e| EmbedError::Onnx(format!("inter-thread config: {e}")))?
             .with_execution_providers([CPUExecutionProvider::default().build()])
             .map_err(|e| EmbedError::Onnx(format!("execution provider config: {e}")))?
@@ -199,12 +206,35 @@ impl OnnxEmbedder {
         &self.model_name
     }
 
+    /// Stable namespace for embedding-cache keys. Task prefixes and pooling
+    /// are included because changing any of them changes the vector for the
+    /// same source text.
+    pub fn cache_fingerprint(&self) -> String {
+        format!(
+            "{}:{}:{}:{:?}:{}:{}:{}",
+            self.model_name,
+            self.dimensions,
+            self.max_tokens,
+            self.pooling,
+            self.output_tensor,
+            self.search_prefix,
+            self.document_prefix
+        )
+    }
+
     /// Fallible counterpart to [`Embedder::embed`]. Use this when you
     /// need to handle inference failures explicitly; the `Embedder`
     /// impl logs and returns an empty `Vec` on error.
     pub fn try_embed_batch(&self, texts: &[&str]) -> EmbedResult<Vec<Vec<f32>>> {
         if texts.is_empty() {
             return Ok(Vec::new());
+        }
+        if texts.len() > MAX_INFERENCE_BATCH_ITEMS {
+            let mut output = Vec::with_capacity(texts.len());
+            for chunk in texts.chunks(MAX_INFERENCE_BATCH_ITEMS) {
+                output.extend(self.try_embed_batch(chunk)?);
+            }
+            return Ok(output);
         }
 
         debug!(batch_size = texts.len(), model = %self.model_name, "embedding batch");

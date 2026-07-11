@@ -9,6 +9,7 @@
 #![deny(unsafe_code)]
 
 pub mod bootstrap;
+pub mod cached;
 pub mod download;
 pub mod error;
 pub mod integrity;
@@ -25,6 +26,7 @@ pub mod json_cache;
 pub mod testing;
 
 pub use bootstrap::{ensure_model, load_default_embedder, load_embedder};
+pub use cached::CachedEmbedder;
 pub use download::ModelManager;
 pub use error::{EmbedError, EmbedResult};
 pub use integrity::{verify_sha256, VerificationOutcome};

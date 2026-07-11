@@ -226,10 +226,10 @@ the standing definition-of-done:
   still warn.
 - **Dependency footprint reviewed.** Every workspace dependency
   has a one-line comment in the workspace `Cargo.toml`.
-- **No transitive deps with C/C++ build toolchains required by
-  default.** `usearch` (C++) is gated behind `--features hnsw`;
-  `ort` (loads ONNX Runtime as a dynamic library, not built from
-  source) is gated behind `--features embeddings`.
+- **Native dependencies are explicit and reviewed.** The default CLI
+  enables `usearch` for adaptive large-corpus HNSW search; reduced builds
+  can disable it with `--no-default-features`. `ort` loads ONNX Runtime as
+  a dynamic library rather than building it from source.
 - **Secrets handling.** The only secret-bearing env var read by the
   runtime is `OPENMEMORY_HTTP_TOKEN` for MCP HTTP auth; daemon admin
   tokens live in owner-only runtime files. Bearer-token comparisons

@@ -110,7 +110,9 @@ yourself) lives in [docs/integrations.md](docs/integrations.md).
   indexes changed files, BLAKE3-deduped.
 - **Local admin daemon.** Loopback-only, bearer-token-protected admin
   API for health, memory browse/search, integrations, durable jobs,
-  backup, and restore. CLI/MCP usage does not require it.
+  backup, and restore. While it runs it is the sole context-engine owner;
+  stdio MCP clients proxy to its authenticated `/mcp` route. Standalone
+  CLI/MCP usage still works when the daemon is absent.
 - **Multi-agent concurrency.** Read-only WAL connection pool so
   parallel recall calls scale on multi-agent deployments.
 - **Single binary.** ~8 MB default, ~18 MB with all features. SQLite
@@ -186,7 +188,7 @@ MSRV is **1.85.0** (pinned via `rust-toolchain.toml`).
 | `embeddings` | on | ONNX Runtime local embeddings |
 | `completions` | on | Shell completion generation |
 | `watch` | on | Filesystem watcher |
-| `hnsw` | off | usearch HNSW vector index |
+| `hnsw` | on | Adaptive exact-flat to usearch-HNSW vector index |
 | `mcp-http` | on | Streamable HTTP transport |
 
 ## Documentation

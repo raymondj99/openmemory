@@ -11,7 +11,7 @@ workspace = true
 
 [features]
 default = []
-embeddings = ["dep:openmemory-embed"]
+embeddings = ["dep:openmemory-embed", "openmemory-engine/embeddings", "openmemory-embed/sqlite"]
 
 [dependencies]
 openmemory-admin = { workspace = true }
@@ -20,6 +20,7 @@ openmemory-embed = { workspace = true, optional = true }
 openmemory-engine = { workspace = true }
 openmemory-graph = { workspace = true }
 openmemory-index = { workspace = true }
+openmemory-mcp = { workspace = true, default-features = false, features = ["fts5", "mcp-http"] }
 
 axum = { workspace = true }
 rand = { workspace = true }

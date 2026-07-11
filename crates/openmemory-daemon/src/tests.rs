@@ -1039,6 +1039,116 @@ async fn search_endpoint_recalls_memory_and_validates_request() {
 }
 
 #[tokio::test]
+async fn daemon_mcp_and_admin_share_one_durable_store() {
+    let dir = tempfile::tempdir().unwrap();
+    seed_default_profile(dir.path());
+    let app = build_router(test_config_with_home(dir.path().to_path_buf()));
+
+    let unauthorized = request_app_json(
+        app.clone(),
+        Method::POST,
+        "/mcp",
+        None,
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {},
+        }),
+    )
+    .await;
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+    let remembered = request_app_json(
+        app.clone(),
+        Method::POST,
+        "/mcp",
+        Some(HeaderValue::from_static("Bearer secret")),
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "openmemory_remember",
+                "arguments": {
+                    "entity": "Daemon-owned memory",
+                    "entity_type": "fact",
+                    "observations": ["daemon_owned_fact_7842"],
+                    "durable": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(remembered.status(), StatusCode::OK);
+    let remembered: serde_json::Value = read_json(remembered).await;
+    assert!(remembered.get("error").is_none(), "{remembered}");
+    assert!(
+        remembered["result"]["content"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty()),
+        "{remembered}"
+    );
+
+    let response = request_app(
+        app.clone(),
+        Method::GET,
+        "/admin/search?q=daemon_owned_fact_7842",
+        Some(HeaderValue::from_static("Bearer secret")),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload: Page<AdminSearchResult> = read_json(response).await;
+    assert_eq!(payload.items.len(), 1);
+    assert_eq!(payload.items[0].entity_name, "Daemon-owned memory");
+    assert_eq!(
+        payload.items[0].observation.content,
+        "daemon_owned_fact_7842"
+    );
+
+    let rotated = request_app(
+        app.clone(),
+        Method::POST,
+        "/admin/auth/rotate",
+        Some(HeaderValue::from_static("Bearer secret")),
+    )
+    .await;
+    assert_eq!(rotated.status(), StatusCode::OK);
+    let new_token = std::fs::read_to_string(admin_token_path(dir.path())).unwrap();
+
+    let old_token = request_app_json(
+        app.clone(),
+        Method::POST,
+        "/mcp",
+        Some(HeaderValue::from_static("Bearer secret")),
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/list",
+            "params": {},
+        }),
+    )
+    .await;
+    assert_eq!(old_token.status(), StatusCode::UNAUTHORIZED);
+
+    let new_authorization = HeaderValue::from_str(&format!("Bearer {}", new_token.trim())).unwrap();
+    let new_token = request_app_json(
+        app,
+        Method::POST,
+        "/mcp",
+        Some(new_authorization),
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/list",
+            "params": {},
+        }),
+    )
+    .await;
+    assert_eq!(new_token.status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn consolidate_endpoint_starts_job_and_stores_report() {
     let dir = tempfile::tempdir().unwrap();
     seed_duplicate_profile(dir.path());

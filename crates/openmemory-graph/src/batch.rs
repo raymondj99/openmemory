@@ -41,6 +41,13 @@ pub struct RememberRequest {
 }
 
 impl RememberRequest {
+    /// Validate this request without opening a transaction. Ingestion
+    /// front-ends should call this before acknowledging queue admission so
+    /// malformed writes fail synchronously instead of poisoning an epoch.
+    pub fn validate(&self) -> MemoryResult<()> {
+        validate_group(&self.name, &self.observations, &self.relations)
+    }
+
     #[must_use]
     pub fn new(name: impl Into<String>, entity_type: EntityType) -> Self {
         Self {

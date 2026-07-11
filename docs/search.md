@@ -22,8 +22,9 @@ backend pair is chosen at compile time by feature flags:
 
 | Vector backend | When |
 |----------------|------|
-| `FlatVectorIndex` (brute-force cosine) | Default. Exact, O(n) per query. Sufficient for graph-sized data (<10⁶ vectors). |
-| `HnswIndex` (usearch HNSW) | `--features hnsw`. Approximate, sub-linear per query. Adds a C++ build dep. |
+| `AdaptiveVectorIndex` | Default CLI backend. Exact flat search below 4,096 vectors, then one-time migration to approximate usearch HNSW. |
+| `FlatVectorIndex` (brute-force cosine) | Builds without `hnsw`. Exact, O(n) per query. |
+| `HnswIndex` (usearch HNSW) | Large-corpus backend used by the adaptive index. Approximate, sub-linear per query. |
 
 | Keyword backend | When |
 |-----------------|------|

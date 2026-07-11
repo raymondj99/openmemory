@@ -23,10 +23,10 @@ A useful memory layer needs three properties at once:
    not fit a graph, but they still need to be searchable on the
    same surface as the graph.
 3. **A boring deployment story.** A single static binary with
-   SQLite under the hood. No external services, no required daemon
-   for CLI/MCP usage, no network calls in the default install. The
-   local daemon is optional desktop/admin infrastructure and binds
-   loopback only.
+   SQLite under the hood. No external services and no outbound network
+   calls during normal operation. The loopback-only daemon owns the
+   context engine for desktop deployments; stdio MCP falls back to a
+   local owner when the daemon is absent.
 
 `openmemory` covers all three. The graph-side API (`remember`,
 `recall`, `forget`, etc.) handles entities and observations; the
