@@ -23,6 +23,7 @@ ort = { workspace = true }
 tokenizers = { workspace = true }
 ndarray = { workspace = true }
 tracing = { workspace = true }
+lru = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ureq = { workspace = true }

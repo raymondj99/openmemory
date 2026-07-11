@@ -7,7 +7,7 @@
 //! flusher threads drain whole shards per epoch into single
 //! `remember_batch` transactions routed by the partition layer;
 //! cacheline-aligned per-shard watermarks publish durability to
-//! [`ContextEngine::wait_durable`] with one acquire load.
+//! [`ContextEngine::wait_durable_result`] with targeted waiter wakeups.
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -18,6 +18,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use fs4::FileExt;
 use openmemory_graph::batch::BatchOptions;
 use openmemory_graph::{EntityType, MemoryError, MemoryResult, MemoryStore, RememberRequest};
 
@@ -26,7 +27,7 @@ use crate::partition::DomainStore;
 /// Cacheline-padded atomic counter, per flux-rs `CachelineAlignedAtomic`.
 /// 128-byte alignment keeps neighbouring shards' watermarks off the same
 /// cacheline so a flush on shard A never false-shares with a
-/// `wait_durable` spin on shard B.
+/// a durability publish on shard B.
 #[repr(align(128))]
 #[derive(Default)]
 struct PaddedAtomicU64(AtomicU64);
@@ -120,8 +121,7 @@ pub struct EngineStats {
     pub max_drain: AtomicU64,
     /// `submit` calls that blocked on a full shard.
     pub backpressure_waits: AtomicU64,
-    /// Entity groups dropped after the batch commit AND the per-group
-    /// retry both failed.
+    /// Requests terminally rejected after the batch and sequential retry.
     pub write_errors: AtomicU64,
     /// Maintenance WAL checkpoint passes.
     pub wal_checkpoints: AtomicU64,
@@ -152,6 +152,11 @@ struct Shard {
     space: Condvar,
     /// Durability watermark: highest seq committed to SQLite.
     durable: PaddedAtomicU64,
+    /// Per-ticket terminal failures. Success is represented by the
+    /// durability watermark alone; failures are rare and retained so a
+    /// copied ticket can be checked more than once.
+    failures: Mutex<HashMap<u64, String>>,
+    completed: Condvar,
 }
 
 struct Inner {
@@ -164,6 +169,11 @@ struct Inner {
     /// threshold or at shutdown.
     wake: Mutex<()>,
     wake_cv: Condvar,
+    /// Backup/snapshot admission gate. The mutex is held only across the
+    /// final queue append, so normal submissions remain sharded; a snapshot
+    /// flips the flag and drains all writes that crossed the gate first.
+    admissions_paused: Mutex<usize>,
+    admissions_resumed: Condvar,
 }
 
 impl Inner {
@@ -175,9 +185,14 @@ impl Inner {
         idx % self.domains.domains()
     }
 
-    /// The store holding shard `idx`'s entities and checkpoint.
-    fn store_of_shard(&self, idx: usize) -> &Arc<MemoryStore> {
-        &self.domains.stores()[self.domain_of_shard(idx)]
+    /// Publish shutdown while holding the condition-variable mutex. This
+    /// closes the lost-wakeup window where a new flusher can observe the old
+    /// value, miss the notification, and then sleep for an entire epoch while
+    /// its owner is blocked joining it.
+    fn request_shutdown(&self) {
+        let _wake = self.wake.lock().expect("wake mutex poisoned");
+        self.shutdown.store(true, Ordering::Release);
+        self.wake_cv.notify_all();
     }
 }
 
@@ -187,6 +202,11 @@ impl Inner {
 pub struct ContextEngine {
     inner: Arc<Inner>,
     flushers: Vec<JoinHandle<()>>,
+    /// Exclusive cross-process ownership of the profile journal. Without
+    /// this lease, two stdio MCP processes can issue overlapping sequence
+    /// numbers and race journal truncation.
+    _owner_lease: Option<File>,
+    closed: bool,
 }
 
 impl std::fmt::Debug for ContextEngine {
@@ -228,6 +248,7 @@ impl ContextEngine {
             )));
         }
 
+        let owner_lease = acquire_owner_lease(opts.journal_dir.as_deref())?;
         let mut replayed_total = 0u64;
         let mut queues = Vec::with_capacity(shard_count);
         for idx in 0..shard_count {
@@ -269,6 +290,8 @@ impl ContextEngine {
                     drain_lock: Mutex::new(()),
                     space: Condvar::new(),
                     durable,
+                    failures: Mutex::new(HashMap::new()),
+                    completed: Condvar::new(),
                 }
             })
             .collect();
@@ -281,6 +304,8 @@ impl ContextEngine {
             shutdown: AtomicBool::new(false),
             wake: Mutex::new(()),
             wake_cv: Condvar::new(),
+            admissions_paused: Mutex::new(0),
+            admissions_resumed: Condvar::new(),
         });
         inner
             .stats
@@ -312,7 +337,12 @@ impl ContextEngine {
             })
             .collect();
 
-        Ok(Self { inner, flushers })
+        Ok(Self {
+            inner,
+            flushers,
+            _owner_lease: owner_lease,
+            closed: false,
+        })
     }
 
     /// Hash an entity name onto its shard. Same partition idea as
@@ -327,19 +357,40 @@ impl ContextEngine {
     ///
     /// With journaling on, the request is appended to the shard journal
     /// before this returns; it is fsynced at the next epoch flush.
-    pub fn submit(&self, req: RememberRequest) -> Ticket {
+    pub fn try_submit(&self, req: RememberRequest) -> MemoryResult<Ticket> {
+        req.validate()?;
         let shard_idx = self.shard_for(&req.name);
         let shard = &self.inner.shards[shard_idx];
 
-        let mut q = shard.queue.lock().expect("shard queue poisoned");
-        while q.buf.len() >= self.inner.opts.shard_capacity {
-            self.inner
-                .stats
-                .backpressure_waits
-                .fetch_add(1, Ordering::Relaxed);
-            self.inner.wake_cv.notify_all();
-            q = shard.space.wait(q).expect("shard queue poisoned");
-        }
+        let (mut q, _admission) = loop {
+            let mut q = shard.queue.lock().expect("shard queue poisoned");
+            while q.buf.len() >= self.inner.opts.shard_capacity {
+                self.inner
+                    .stats
+                    .backpressure_waits
+                    .fetch_add(1, Ordering::Relaxed);
+                self.inner.wake_cv.notify_all();
+                q = shard.space.wait(q).expect("shard queue poisoned");
+            }
+            let mut paused = self
+                .inner
+                .admissions_paused
+                .lock()
+                .expect("admission gate poisoned");
+            if *paused == 0 {
+                break (q, paused);
+            }
+            drop(q);
+            while *paused > 0 {
+                paused = self
+                    .inner
+                    .admissions_resumed
+                    .wait(paused)
+                    .expect("admission gate poisoned");
+            }
+            // Recheck capacity after the pause: other waiters may have filled
+            // this shard before the condition-variable wake reached us.
+        };
         q.next_seq += 1;
         let seq = q.next_seq;
         if let Some(journal) = q.journal.as_mut() {
@@ -355,31 +406,50 @@ impl ContextEngine {
         if early_flush {
             self.inner.wake_cv.notify_all();
         }
-        Ticket {
+        Ok(Ticket {
             shard: shard_idx,
             seq,
-        }
+        })
     }
 
-    /// Block until the ticket's write is committed to SQLite. Spin with
-    /// backoff on the shard watermark (flux-style: `Acquire` load on the
-    /// counter is the only synchronisation; the data needs nothing).
+    /// Compatibility wrapper for trusted in-process producers. External
+    /// request paths should use [`Self::try_submit`] and surface validation
+    /// failures to the caller.
+    pub fn submit(&self, req: RememberRequest) -> Ticket {
+        self.try_submit(req)
+            .expect("ContextEngine::submit received an invalid request")
+    }
+
+    /// Block until the ticket reaches a terminal outcome. This compatibility
+    /// wrapper ignores the outcome; external callers should use
+    /// [`Self::wait_durable_result`].
     pub fn wait_durable(&self, ticket: Ticket) {
-        let durable = &self.inner.shards[ticket.shard].durable.0;
-        let mut spins = 0u32;
-        while durable.load(Ordering::Acquire) < ticket.seq {
-            spins += 1;
-            if spins < 64 {
-                std::hint::spin_loop();
-            } else if spins < 256 {
-                std::thread::yield_now();
-            } else {
-                // park_timeout instead of sleep: same bounded wait, and
-                // spurious wakeups are harmless because the loop re-checks
-                // the watermark.
-                std::thread::park_timeout(Duration::from_micros(100));
-            }
+        let _ = self.wait_durable_result(ticket);
+    }
+
+    /// Wait for a ticket and report its actual terminal outcome. Unlike the
+    /// legacy watermark-only API, this does not turn a rejected entity group
+    /// into a successful durable acknowledgement.
+    pub fn wait_durable_result(&self, ticket: Ticket) -> MemoryResult<()> {
+        let shard = self
+            .inner
+            .shards
+            .get(ticket.shard)
+            .ok_or_else(|| MemoryError::InvalidInput("ticket shard is out of range".into()))?;
+        let mut failures = shard.failures.lock().expect("failure map poisoned");
+        while shard.durable.0.load(Ordering::Acquire) < ticket.seq {
+            failures = shard
+                .completed
+                .wait(failures)
+                .expect("failure map poisoned");
         }
+        if let Some(error) = failures.get(&ticket.seq) {
+            return Err(MemoryError::InvalidInput(format!(
+                "write ticket {}:{} failed: {error}",
+                ticket.shard, ticket.seq
+            )));
+        }
+        Ok(())
     }
 
     /// Drain every shard from the calling thread and wait until all
@@ -402,6 +472,24 @@ impl ContextEngine {
         }
     }
 
+    /// Pause new queue admissions and drain every write that crossed the gate.
+    /// The returned RAII guard resumes blocked producers when dropped. This is
+    /// the consistency primitive for profile snapshots and backups.
+    pub fn pause_admissions(self: &Arc<Self>) -> EnginePause {
+        {
+            let mut paused = self
+                .inner
+                .admissions_paused
+                .lock()
+                .expect("admission gate poisoned");
+            *paused = paused.saturating_add(1);
+        }
+        self.quiesce();
+        EnginePause {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+
     pub fn stats(&self) -> &EngineStats {
         &self.inner.stats
     }
@@ -419,8 +507,7 @@ impl ContextEngine {
     /// restored (the store usually outlives the engine).
     pub fn shutdown(mut self) {
         self.quiesce();
-        self.inner.shutdown.store(true, Ordering::Release);
-        self.inner.wake_cv.notify_all();
+        self.inner.request_shutdown();
         for handle in self.flushers.drain(..) {
             let _ = handle.join();
         }
@@ -430,7 +517,75 @@ impl ContextEngine {
                 tracing::warn!(error = %e, "could not restore WAL auto-checkpoint");
             }
         }
+        self.closed = true;
     }
+}
+
+/// RAII guard returned by [`ContextEngine::pause_admissions`].
+pub struct EnginePause {
+    inner: Arc<Inner>,
+}
+
+impl std::fmt::Debug for EnginePause {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EnginePause")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for EnginePause {
+    fn drop(&mut self) {
+        let mut paused = self
+            .inner
+            .admissions_paused
+            .lock()
+            .expect("admission gate poisoned");
+        *paused = paused.saturating_sub(1);
+        if *paused == 0 {
+            self.inner.admissions_resumed.notify_all();
+        }
+    }
+}
+
+impl Drop for ContextEngine {
+    fn drop(&mut self) {
+        if self.closed {
+            return;
+        }
+        // A plain drop models abrupt owner termination: stop workers and
+        // release the cross-process lease, but do not drain or truncate the
+        // journal. The next owner will replay accepted entries.
+        self.inner.request_shutdown();
+        for handle in self.flushers.drain(..) {
+            let _ = handle.join();
+        }
+        for store in self.inner.domains.stores() {
+            let _ = store.set_wal_autocheckpoint(1000);
+        }
+        self.closed = true;
+    }
+}
+
+fn acquire_owner_lease(journal_dir: Option<&std::path::Path>) -> MemoryResult<Option<File>> {
+    let Some(dir) = journal_dir else {
+        return Ok(None);
+    };
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join(".owner.lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&path)?;
+    FileExt::try_lock(&file).map_err(|error| {
+        MemoryError::InvalidInput(format!(
+            "context engine profile is already owned by another process ({}): {error}",
+            path.display()
+        ))
+    })?;
+    Ok(Some(file))
 }
 
 fn normalize_options(mut opts: EngineOptions) -> EngineOptions {
@@ -455,12 +610,18 @@ fn flusher_loop(inner: &Arc<Inner>, worker: usize, total_workers: usize) {
     loop {
         {
             let guard = inner.wake.lock().expect("wake mutex poisoned");
+            if inner.shutdown.load(Ordering::Acquire) {
+                return;
+            }
             let _unused = inner
                 .wake_cv
                 .wait_timeout(guard, inner.opts.flush_interval)
                 .expect("wake mutex poisoned");
         }
         let shutting_down = inner.shutdown.load(Ordering::Acquire);
+        if shutting_down {
+            return;
+        }
         // Static round-robin shard ownership, like flux's contiguous
         // domain assignment: no two workers fight over a drain in the
         // steady state (quiesce may overlap; the per-shard drain lock
@@ -473,9 +634,6 @@ fn flusher_loop(inner: &Arc<Inner>, worker: usize, total_workers: usize) {
         if worker == 0 && last_maintenance.elapsed() >= inner.opts.checkpoint_interval {
             maintenance(inner);
             last_maintenance = std::time::Instant::now();
-        }
-        if shutting_down {
-            return;
         }
     }
 }
@@ -577,6 +735,7 @@ fn drain_shard(inner: &Inner, idx: usize) {
     // Group by entity so N requests about one entity become one group;
     // the whole drain then commits as one transaction.
     let mut batch: Vec<RememberRequest> = Vec::with_capacity(drained.len());
+    let fallback = drained.clone();
     let mut groups: HashMap<DrainGroupKey, usize> = HashMap::with_capacity(drained.len());
     for (_, req) in drained {
         let key = DrainGroupKey::from_request(&req);
@@ -607,45 +766,77 @@ fn drain_shard(inner: &Inner, idx: usize) {
                 .fetch_add(drained_len, Ordering::Relaxed);
         }
         Err(err) => {
-            // The batch rolled back as a whole. Retry per group so one
-            // poisoned request doesn't sink its neighbours; then advance
-            // the checkpoint regardless so journal replay never loops on
-            // the poisoned group.
-            tracing::warn!(shard = idx, error = %err, "batch commit failed; retrying per group");
-            for group in &batch {
+            // The batch rolled back as a whole. Retry original requests in
+            // sequence order, advancing the checkpoint in the *same*
+            // transaction as each successful write. This intentionally
+            // gives up grouping on the rare error path: committing grouped,
+            // non-contiguous sequences could move the checkpoint past an
+            // uncommitted request and lose it after a crash.
+            tracing::warn!(shard = idx, error = %err, "batch commit failed; retrying sequentially");
+            let mut published_seq = 0;
+            for (position, (seq, request)) in fallback.iter().enumerate() {
                 let retry = inner.domains.remember_batch_in_domain_with_options(
                     domain,
-                    std::slice::from_ref(group),
+                    std::slice::from_ref(request),
                     &BatchOptions {
                         normalize: inner.opts.normalize,
-                        checkpoint: None,
+                        checkpoint: Some((key.clone(), *seq)),
                     },
                 );
                 match retry {
                     Ok(_) => {
-                        inner
-                            .stats
-                            .committed
-                            .fetch_add((group.observations.len().max(1)) as u64, Ordering::Relaxed);
+                        inner.stats.committed.fetch_add(1, Ordering::Relaxed);
+                        published_seq = *seq;
                     }
-                    Err(err) => {
+                    Err(request_error) => {
+                        // A data-specific request can be terminally rejected,
+                        // but only publish that rejection after its checkpoint
+                        // is durable. If even the empty checkpoint fails, the
+                        // store is unhealthy: put the unresolved suffix back
+                        // ahead of newer submissions and retry on a later tick.
+                        let checkpoint = inner.domains.remember_batch_in_domain_with_options(
+                            domain,
+                            &[],
+                            &BatchOptions {
+                                normalize: false,
+                                checkpoint: Some((key.clone(), *seq)),
+                            },
+                        );
+                        if let Err(checkpoint_error) = checkpoint {
+                            tracing::warn!(
+                                shard = idx,
+                                sequence = seq,
+                                error = %checkpoint_error,
+                                "checkpoint failed; retaining unresolved journal suffix"
+                            );
+                            let mut queue = shard.queue.lock().expect("shard queue poisoned");
+                            let mut unresolved = fallback[position..].to_vec();
+                            unresolved.append(&mut queue.buf);
+                            queue.buf = unresolved;
+                            break;
+                        }
                         inner.stats.write_errors.fetch_add(1, Ordering::Relaxed);
                         tracing::warn!(
                             shard = idx,
-                            entity = %group.name,
-                            error = %err,
-                            "dropping entity group after failed retry"
+                            sequence = seq,
+                            entity = %request.name,
+                            error = %request_error,
+                            "request rejected after failed batch retry"
                         );
+                        shard
+                            .failures
+                            .lock()
+                            .expect("failure map poisoned")
+                            .insert(*seq, request_error.to_string());
+                        published_seq = *seq;
                     }
                 }
             }
-            let _ = inner.store_of_shard(idx).remember_batch(
-                &[],
-                &BatchOptions {
-                    normalize: false,
-                    checkpoint: Some((key, max_seq)),
-                },
-            );
+            if published_seq > 0 {
+                shard.durable.0.fetch_max(published_seq, Ordering::Release);
+                shard.completed.notify_all();
+            }
+            return;
         }
     }
 
@@ -654,6 +845,7 @@ fn drain_shard(inner: &Inner, idx: usize) {
     // durable against process crash, but not against power loss until a
     // WAL checkpoint covers it; `maintenance` reclaims the journal then.
     shard.durable.0.fetch_max(max_seq, Ordering::Release);
+    shard.completed.notify_all();
 }
 
 #[cfg(test)]
@@ -710,6 +902,64 @@ mod tests {
         engine.wait_durable(ticket);
         assert_eq!(store.status().unwrap().total_observations, 1);
         engine.shutdown();
+    }
+
+    #[test]
+    fn try_submit_rejects_invalid_requests_before_admission() {
+        let store = test_store();
+        let engine = ContextEngine::start(Arc::clone(&store), EngineOptions::default()).unwrap();
+        let invalid = RememberRequest::new("", EntityType::Fact)
+            .with_observations(vec![ObservationInput::new("fact")]);
+        let error = engine.try_submit(invalid).unwrap_err();
+        assert!(error.to_string().contains("entity name must not be empty"));
+        assert_eq!(engine.stats().submitted.load(Ordering::Relaxed), 0);
+        engine.shutdown();
+    }
+
+    #[test]
+    fn journal_directory_has_one_cross_process_owner() {
+        let store = test_store();
+        let journal_dir = tempfile::tempdir().unwrap().keep();
+        let opts = EngineOptions {
+            journal_dir: Some(journal_dir),
+            ..EngineOptions::default()
+        };
+        let first = ContextEngine::start(Arc::clone(&store), opts.clone()).unwrap();
+        let error = ContextEngine::start(Arc::clone(&store), opts.clone()).unwrap_err();
+        assert!(error.to_string().contains("already owned"));
+        drop(first);
+        let replacement = ContextEngine::start(store, opts).unwrap();
+        replacement.shutdown();
+    }
+
+    #[test]
+    fn admission_pause_drains_prior_writes_and_blocks_new_ones() {
+        let store = test_store();
+        let engine =
+            Arc::new(ContextEngine::start(Arc::clone(&store), EngineOptions::default()).unwrap());
+        let first = engine.submit(req("before-pause", "must be durable"));
+        let pause = engine.pause_admissions();
+        engine.wait_durable_result(first).unwrap();
+
+        let (started_sender, started_receiver) = std::sync::mpsc::channel();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let submitting = Arc::clone(&engine);
+        let thread = std::thread::spawn(move || {
+            started_sender.send(()).unwrap();
+            let ticket = submitting.submit(req("during-pause", "must wait"));
+            sender.send(ticket).unwrap();
+        });
+        started_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap();
+        assert!(receiver.recv_timeout(Duration::from_millis(50)).is_err());
+
+        drop(pause);
+        let second = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
+        engine.wait_durable_result(second).unwrap();
+        thread.join().unwrap();
+        assert_eq!(store.status().unwrap().total_observations, 2);
+        Arc::try_unwrap(engine).unwrap().shutdown();
     }
 
     #[test]
@@ -867,6 +1117,26 @@ mod tests {
         assert_eq!(revived.stats().replayed.load(Ordering::Relaxed), 10);
         assert_eq!(store.status().unwrap().total_observations, 10);
         revived.shutdown();
+    }
+
+    #[test]
+    fn drop_never_misses_shutdown_during_flusher_startup() {
+        // A long epoch makes any missed notification obvious: Drop would
+        // block joining the worker instead of completing this loop.
+        for _ in 0..32 {
+            let engine = ContextEngine::start(
+                test_store(),
+                EngineOptions {
+                    shards: 1,
+                    flush_threads: 1,
+                    flush_interval: Duration::from_secs(3600),
+                    checkpoint_interval: Duration::from_secs(3600),
+                    ..EngineOptions::default()
+                },
+            )
+            .unwrap();
+            drop(engine);
+        }
     }
 
     /// Exactly-once: committed writes are checkpointed, so a restart

@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Condvar, Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
@@ -52,26 +52,94 @@ struct Inner {
 
 /// Approximate-nearest-neighbour vector index backed by usearch.
 pub struct HnswIndex {
-    inner: Mutex<Inner>,
+    inner: RwLock<Inner>,
+    /// USearch allocates one scratch context per configured active thread.
+    /// Calling into it with more concurrent searches than contexts can block
+    /// indefinitely on some platforms, so admission is capped at the same
+    /// value passed to `reserve_capacity_and_threads`.
+    search_slots: SearchSlots,
     /// Set by mutations, cleared by [`VectorIndex::save`]. Only ever
     /// touched while `inner` is locked, so `Relaxed` ordering is
-    /// sufficient — the mutex provides the happens-before edges.
+    /// sufficient — the read/write lock provides the happens-before edges.
     dirty: std::sync::atomic::AtomicBool,
 }
 
+struct SearchSlots {
+    limit: usize,
+    available: Mutex<usize>,
+    ready: Condvar,
+}
+
+impl SearchSlots {
+    fn new(limit: usize) -> Self {
+        let limit = limit.max(1);
+        Self {
+            limit,
+            available: Mutex::new(limit),
+            ready: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) -> IndexResult<SearchPermit<'_>> {
+        let mut available = self
+            .available
+            .lock()
+            .map_err(|error| IndexError::Lock(error.to_string()))?;
+        while *available == 0 {
+            available = self
+                .ready
+                .wait(available)
+                .map_err(|error| IndexError::Lock(error.to_string()))?;
+        }
+        *available -= 1;
+        Ok(SearchPermit { slots: self })
+    }
+}
+
+struct SearchPermit<'a> {
+    slots: &'a SearchSlots,
+}
+
+impl Drop for SearchPermit<'_> {
+    fn drop(&mut self) {
+        // A panic in another search must not permanently consume a permit.
+        let mut available = self
+            .slots
+            .available
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *available += 1;
+        self.slots.ready.notify_one();
+    }
+}
+
+fn search_thread_limit() -> usize {
+    std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get)
+}
+
 impl HnswIndex {
+    /// Whether either file in the persisted HNSW pair exists.
+    pub(crate) fn has_persisted_files(dir: &Path) -> bool {
+        dir.join(HNSW_FILE).exists() || dir.join(META_FILE).exists()
+    }
+
     /// Create an empty index. Dimensionality is set on the first insert.
     pub fn new() -> Self {
         let opts = options(0);
         let index = Index::new(&opts).expect("usearch: empty index always constructible");
+        let search_threads = search_thread_limit();
+        index
+            .reserve_capacity_and_threads(0, search_threads)
+            .expect("usearch: reserving search contexts on an empty index always succeeds");
         Self {
-            inner: Mutex::new(Inner {
+            inner: RwLock::new(Inner {
                 index,
                 next_label: 0,
                 meta: HashMap::new(),
                 by_uri: HashMap::new(),
                 dimensions: 0,
             }),
+            search_slots: SearchSlots::new(search_threads),
             dirty: std::sync::atomic::AtomicBool::new(false),
         }
     }
@@ -80,14 +148,19 @@ impl HnswIndex {
         let opts = options(dim);
         let index =
             Index::new(&opts).map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
+        let search_threads = search_thread_limit();
+        index
+            .reserve_capacity_and_threads(0, search_threads)
+            .map_err(|e| IndexError::InvalidInput(format!("usearch reserve: {e}")))?;
         Ok(Self {
-            inner: Mutex::new(Inner {
+            inner: RwLock::new(Inner {
                 index,
                 next_label: 0,
                 meta: HashMap::new(),
                 by_uri: HashMap::new(),
                 dimensions: dim,
             }),
+            search_slots: SearchSlots::new(search_threads),
             dirty: std::sync::atomic::AtomicBool::new(false),
         })
     }
@@ -100,6 +173,12 @@ impl HnswIndex {
         }
         let hnsw_path = dir.join(HNSW_FILE);
         let meta_path = dir.join(META_FILE);
+        if hnsw_path.exists() != meta_path.exists() {
+            return Err(IndexError::Corrupt {
+                path: dir.to_path_buf(),
+                detail: "incomplete HNSW persistence pair".into(),
+            });
+        }
         if hnsw_path.exists() && meta_path.exists() {
             return Self::load_from(dir);
         }
@@ -155,15 +234,20 @@ impl HnswIndex {
             detail: format!("usearch load: {e}"),
         })?;
         let dimensions = index.dimensions();
+        let search_threads = search_thread_limit();
+        index
+            .reserve_capacity_and_threads(index.capacity(), search_threads)
+            .map_err(|e| IndexError::InvalidInput(format!("usearch reserve: {e}")))?;
 
         Ok(Self {
-            inner: Mutex::new(Inner {
+            inner: RwLock::new(Inner {
                 index,
                 next_label,
                 meta,
                 by_uri,
                 dimensions,
             }),
+            search_slots: SearchSlots::new(search_threads),
             dirty: std::sync::atomic::AtomicBool::new(false),
         })
     }
@@ -172,7 +256,7 @@ impl HnswIndex {
         if !dir.as_os_str().is_empty() {
             std::fs::create_dir_all(dir)?;
         }
-        let inner = self.lock()?;
+        let inner = self.write()?;
         let hnsw_path = dir.join(HNSW_FILE);
         let path_str = hnsw_path
             .to_str()
@@ -191,20 +275,29 @@ impl HnswIndex {
         Ok(())
     }
 
-    fn lock(&self) -> IndexResult<std::sync::MutexGuard<'_, Inner>> {
+    fn read(&self) -> IndexResult<std::sync::RwLockReadGuard<'_, Inner>> {
         self.inner
-            .lock()
+            .read()
+            .map_err(|e| IndexError::Lock(e.to_string()))
+    }
+
+    fn write(&self) -> IndexResult<std::sync::RwLockWriteGuard<'_, Inner>> {
+        self.inner
+            .write()
             .map_err(|e| IndexError::Lock(e.to_string()))
     }
 
     /// Ensure the inner index is sized for `dim`. On first insert, recreate
     /// with the right dimensionality; on subsequent inserts, error on a
     /// mismatch.
-    fn ensure_dimensions(inner: &mut Inner, dim: usize) -> IndexResult<()> {
+    fn ensure_dimensions(inner: &mut Inner, dim: usize, search_threads: usize) -> IndexResult<()> {
         if inner.dimensions == 0 {
             let opts = options(dim);
             let index = Index::new(&opts)
                 .map_err(|e| IndexError::InvalidInput(format!("usearch new: {e}")))?;
+            index
+                .reserve_capacity_and_threads(0, search_threads)
+                .map_err(|e| IndexError::InvalidInput(format!("usearch reserve: {e}")))?;
             inner.index = index;
             inner.dimensions = dim;
             Ok(())
@@ -234,9 +327,9 @@ impl VectorStore for HnswIndex {
         if entries.is_empty() {
             return Ok(());
         }
-        let mut inner = self.lock()?;
+        let mut inner = self.write()?;
         let dim = entries[0].vector.len();
-        Self::ensure_dimensions(&mut inner, dim)?;
+        Self::ensure_dimensions(&mut inner, dim, self.search_slots.limit)?;
         // Verify uniform dim within batch
         for e in &entries[1..] {
             if e.vector.len() != dim {
@@ -250,7 +343,7 @@ impl VectorStore for HnswIndex {
         let new_total = inner.index.size() + entries.len();
         inner
             .index
-            .reserve(new_total)
+            .reserve_capacity_and_threads(new_total, self.search_slots.limit)
             .map_err(|e| IndexError::InvalidInput(format!("usearch reserve: {e}")))?;
 
         for entry in entries {
@@ -279,7 +372,8 @@ impl VectorStore for HnswIndex {
     }
 
     fn search(&self, query_vector: &[f32], top_k: usize) -> IndexResult<Vec<SearchResult>> {
-        let inner = self.lock()?;
+        let _permit = self.search_slots.acquire()?;
+        let inner = self.read()?;
         if query_vector.is_empty() || inner.meta.is_empty() || inner.dimensions == 0 {
             return Ok(Vec::new());
         }
@@ -304,7 +398,7 @@ impl VectorStore for HnswIndex {
     }
 
     fn delete_by_uri(&self, uri: &str) -> IndexResult<u64> {
-        let mut inner = self.lock()?;
+        let mut inner = self.write()?;
         let labels = match inner.by_uri.remove(uri) {
             Some(v) => v,
             None => return Ok(0),
@@ -321,7 +415,7 @@ impl VectorStore for HnswIndex {
     }
 
     fn count(&self) -> IndexResult<u64> {
-        Ok(self.lock()?.meta.len() as u64)
+        Ok(self.read()?.meta.len() as u64)
     }
 }
 
@@ -339,7 +433,7 @@ impl VectorIndex for HnswIndex {
     }
 
     fn export_all(&self) -> IndexResult<Vec<ExportEntry>> {
-        let inner = self.lock()?;
+        let inner = self.read()?;
         let dim = inner.dimensions;
         let mut out = Vec::with_capacity(inner.meta.len());
         for (&label, meta) in &inner.meta {
@@ -404,6 +498,38 @@ mod tests {
         let r = h.search(&[1.0, 0.0, 0.0], 2).unwrap();
         assert_eq!(r[0].uri, "u://a");
         assert!(r[0].score >= r[1].score);
+    }
+
+    #[test]
+    fn concurrent_searches_are_safe_and_stable() {
+        let h = std::sync::Arc::new(HnswIndex::new());
+        let entries: Vec<_> = (0..256)
+            .map(|i| {
+                let mut vector = vec![0.0; 16];
+                let slot = i % vector.len();
+                vector[slot] = 1.0;
+                entry(&format!("u://{i}"), "payload", i as u32, vector)
+            })
+            .collect();
+        h.insert(&entries).unwrap();
+
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let h = std::sync::Arc::clone(&h);
+                std::thread::spawn(move || {
+                    let mut query = vec![0.0; 16];
+                    query[0] = 1.0;
+                    for _ in 0..100 {
+                        let results = h.search(&query, 10).unwrap();
+                        assert_eq!(results.len(), 10);
+                        assert!(results[0].score >= results[9].score);
+                    }
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
     }
 
     #[test]

@@ -19,25 +19,11 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 cargo deny check
 ```
 
-CI mirrors all of the above, plus `--no-default-features` variants
-of `test` and `clippy`, plus a default-features `cargo doc` gate.
+CI covers default, all-features, and no-default-features builds across
+dedicated parallel jobs, plus default and all-features `cargo doc` gates.
 Get the full set green locally before pushing;
 `--no-default-features` in particular has caught feature-gated
 import bugs that the default-features matrix misses.
-
-Daemon/admin changes also run the feature-specific production gate:
-
-```bash
-./scripts/daemon_quality_monitor.sh
-```
-
-Set `OPENMEMORY_DAEMON_MONITOR_BENCH=1` to include the local
-`daemon_admin_api` Criterion run. The monitor saves that run under a
-per-run `daemon-monitor-*` baseline so stale local Criterion baselines
-do not turn the production gate into unrelated comparison noise. CI
-runs the same monitor without the local benchmark; the CodSpeed
-benchmark workflow runs the daemon admin API group with the rest of
-`openmemory-bench`.
 
 ## CI matrix
 
@@ -49,13 +35,13 @@ merging to `main`.
 |-----|-----|-----------|----------|---------|
 | `build-test` (ubuntu) | ubuntu-latest | 1.85.0 | default | `cargo build --locked` then `cargo test --locked` |
 | `build-test` (macos) | macos-latest | 1.85.0 | default | `cargo build --locked` then `cargo test --locked` |
+| `test-all-features` | ubuntu-latest | 1.85.0 | `--all-features` | `cargo test --locked --all-features` |
 | `test-no-default-features` | ubuntu-latest | 1.85.0 | `--no-default-features` | `cargo test --locked --no-default-features` |
 | `fmt` | ubuntu-latest | 1.85.0 | (n/a) | `cargo fmt --all -- --check` |
-| `clippy-default` | ubuntu-latest | 1.85.0 | default | `cargo clippy --locked --all-targets -- -D warnings` |
+| `clippy-all-features` | ubuntu-latest | 1.85.0 | `--all-features` | `cargo clippy --locked --all-features --all-targets -- -D warnings` |
 | `clippy-no-default` | ubuntu-latest | 1.85.0 | `--no-default-features` | `cargo clippy --locked --no-default-features --all-targets -- -D warnings` |
 | `doc-default` | ubuntu-latest | 1.85.0 | default | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` |
 | `doc-all-features` | ubuntu-latest | 1.85.0 | `--all-features` | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features` |
-| `daemon-production-gate` | ubuntu-latest | 1.85.0 | daemon gate | `./scripts/daemon_quality_monitor.sh` |
 
 The `audit` workflow (`.github/workflows/audit.yml`) runs
 `cargo-deny check` weekly (Monday 06:00 UTC) and on every push.
@@ -226,10 +212,10 @@ the standing definition-of-done:
   still warn.
 - **Dependency footprint reviewed.** Every workspace dependency
   has a one-line comment in the workspace `Cargo.toml`.
-- **No transitive deps with C/C++ build toolchains required by
-  default.** `usearch` (C++) is gated behind `--features hnsw`;
-  `ort` (loads ONNX Runtime as a dynamic library, not built from
-  source) is gated behind `--features embeddings`.
+- **Native dependencies are explicit and reviewed.** The default CLI
+  enables `usearch` for adaptive large-corpus HNSW search; reduced builds
+  can disable it with `--no-default-features`. `ort` loads ONNX Runtime as
+  a dynamic library rather than building it from source.
 - **Secrets handling.** The only secret-bearing env var read by the
   runtime is `OPENMEMORY_HTTP_TOKEN` for MCP HTTP auth; daemon admin
   tokens live in owner-only runtime files. Bearer-token comparisons

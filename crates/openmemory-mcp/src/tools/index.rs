@@ -169,7 +169,10 @@ impl Tool for OpenMemorySearchTool {
                 .memory()
                 .index_counts()
                 .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
-            usize::try_from(vector_count.max(keyword_count)).unwrap_or(usize::MAX)
+            usize::try_from(vector_count.max(keyword_count))
+                .unwrap_or(4_096)
+                .min(limit.saturating_mul(32))
+                .min(4_096)
         } else {
             limit
         }
