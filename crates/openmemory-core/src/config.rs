@@ -19,6 +19,12 @@ pub struct Config {
     pub normalization: NormalizationSection,
     #[serde(default)]
     pub engine: EngineSection,
+    #[serde(default)]
+    pub spaces: SpacesSection,
+    #[serde(default)]
+    pub audit: AuditSection,
+    #[serde(default)]
+    pub merge: MergeSection,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -174,6 +180,43 @@ pub struct NormalizationSection {
     pub max_candidates: usize,
 }
 
+/// Semantic-space runtime bounds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpacesSection {
+    #[serde(default = "SpacesSection::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "SpacesSection::default_max_read_set")]
+    pub max_read_set: usize,
+    #[serde(default = "SpacesSection::default_max_open_spaces")]
+    pub max_open_spaces: usize,
+    #[serde(default = "SpacesSection::default_idle_close_secs")]
+    pub idle_close_secs: u64,
+}
+
+/// Audited semantic-mutation limits and retention.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditSection {
+    #[serde(default = "AuditSection::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "AuditSection::default_rejected_payload_ttl_days")]
+    pub rejected_payload_ttl_days: u32,
+    #[serde(default = "AuditSection::default_max_payload_bytes")]
+    pub max_payload_bytes: usize,
+}
+
+/// Directional material-merge safety and retention bounds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MergeSection {
+    #[serde(default = "MergeSection::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "MergeSection::default_staging_disk_multiplier")]
+    pub staging_disk_multiplier: f32,
+    #[serde(default = "MergeSection::default_backup_retention_days")]
+    pub backup_retention_days: u32,
+    #[serde(default = "MergeSection::default_confirmation_ttl_secs")]
+    pub confirmation_ttl_secs: u64,
+}
+
 impl Config {
     pub fn home_dir() -> OmResult<PathBuf> {
         if let Ok(v) = std::env::var("OPENMEMORY_HOME") {
@@ -313,6 +356,48 @@ impl Config {
         if self.engine.checkpoint_interval_ms == 0 {
             return Err(OmError::Config(
                 "engine.checkpoint_interval_ms must be greater than 0".into(),
+            ));
+        }
+        if !(1..=4).contains(&self.spaces.max_read_set) {
+            return Err(OmError::Config(
+                "spaces.max_read_set must be between 1 and 4".into(),
+            ));
+        }
+        if !(1..=64).contains(&self.spaces.max_open_spaces) {
+            return Err(OmError::Config(
+                "spaces.max_open_spaces must be between 1 and 64".into(),
+            ));
+        }
+        if self.spaces.idle_close_secs == 0 {
+            return Err(OmError::Config(
+                "spaces.idle_close_secs must be greater than 0".into(),
+            ));
+        }
+        if self.audit.rejected_payload_ttl_days > 3_650 {
+            return Err(OmError::Config(
+                "audit.rejected_payload_ttl_days cannot exceed 3650".into(),
+            ));
+        }
+        if !(1..=4 * 1_024 * 1_024).contains(&self.audit.max_payload_bytes) {
+            return Err(OmError::Config(
+                "audit.max_payload_bytes must be between 1 and 4194304".into(),
+            ));
+        }
+        if !self.merge.staging_disk_multiplier.is_finite()
+            || !(1.0..=2.2).contains(&self.merge.staging_disk_multiplier)
+        {
+            return Err(OmError::Config(
+                "merge.staging_disk_multiplier must be finite and between 1.0 and 2.2".into(),
+            ));
+        }
+        if self.merge.backup_retention_days > 365 {
+            return Err(OmError::Config(
+                "merge.backup_retention_days cannot exceed 365".into(),
+            ));
+        }
+        if !(1..=3_600).contains(&self.merge.confirmation_ttl_secs) {
+            return Err(OmError::Config(
+                "merge.confirmation_ttl_secs must be between 1 and 3600".into(),
             ));
         }
         Ok(())
@@ -563,6 +648,80 @@ impl Default for NormalizationSection {
     }
 }
 
+impl SpacesSection {
+    const fn default_enabled() -> bool {
+        true
+    }
+    const fn default_max_read_set() -> usize {
+        4
+    }
+    const fn default_max_open_spaces() -> usize {
+        8
+    }
+    const fn default_idle_close_secs() -> u64 {
+        300
+    }
+}
+
+impl Default for SpacesSection {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            max_read_set: Self::default_max_read_set(),
+            max_open_spaces: Self::default_max_open_spaces(),
+            idle_close_secs: Self::default_idle_close_secs(),
+        }
+    }
+}
+
+impl AuditSection {
+    const fn default_enabled() -> bool {
+        true
+    }
+    const fn default_rejected_payload_ttl_days() -> u32 {
+        30
+    }
+    const fn default_max_payload_bytes() -> usize {
+        1024 * 1024
+    }
+}
+
+impl Default for AuditSection {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            rejected_payload_ttl_days: Self::default_rejected_payload_ttl_days(),
+            max_payload_bytes: Self::default_max_payload_bytes(),
+        }
+    }
+}
+
+impl MergeSection {
+    const fn default_enabled() -> bool {
+        true
+    }
+    const fn default_staging_disk_multiplier() -> f32 {
+        2.2
+    }
+    const fn default_backup_retention_days() -> u32 {
+        7
+    }
+    const fn default_confirmation_ttl_secs() -> u64 {
+        900
+    }
+}
+
+impl Default for MergeSection {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            staging_disk_multiplier: Self::default_staging_disk_multiplier(),
+            backup_retention_days: Self::default_backup_retention_days(),
+            confirmation_ttl_secs: Self::default_confirmation_ttl_secs(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -667,6 +826,39 @@ decay_rate = 0.02
         assert!(config.engine.durable_ack);
         assert!(config.engine.normalize);
         assert!(config.engine.journal);
+    }
+
+    #[test]
+    fn production_space_sections_default_and_roundtrip() {
+        let config = Config::default();
+        assert!(config.spaces.enabled);
+        assert_eq!(config.spaces.max_read_set, 4);
+        assert_eq!(config.spaces.max_open_spaces, 8);
+        assert!(config.audit.enabled);
+        assert_eq!(config.audit.max_payload_bytes, 1024 * 1024);
+        assert!(config.merge.enabled);
+        assert!((config.merge.staging_disk_multiplier - 2.2).abs() < f32::EPSILON);
+
+        let encoded = toml::to_string(&config).unwrap();
+        let decoded: Config = toml::from_str(&encoded).unwrap();
+        decoded.validate().unwrap();
+        assert_eq!(decoded.merge.confirmation_ttl_secs, 900);
+    }
+
+    #[test]
+    fn production_space_sections_enforce_hard_caps() {
+        let mut config = Config::default();
+        config.spaces.max_read_set = 5;
+        assert!(config.validate().is_err());
+        config = Config::default();
+        config.spaces.max_open_spaces = 65;
+        assert!(config.validate().is_err());
+        config = Config::default();
+        config.audit.max_payload_bytes = 4 * 1024 * 1024 + 1;
+        assert!(config.validate().is_err());
+        config = Config::default();
+        config.merge.staging_disk_multiplier = f32::NAN;
+        assert!(config.validate().is_err());
     }
 
     #[test]

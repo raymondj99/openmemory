@@ -5,8 +5,9 @@ use openmemory_admin::{
     AdminBackupCreateReport, AdminBackupManifest, AdminBackupPreflightResponse,
     AdminIntegrationClient, AdminIntegrationInstallResponse, AdminIntegrationOutcome,
     AdminIntegrationPreview, AdminIntegrationsResponse, AdminJob, AdminJobKind, AdminJobState,
-    AdminProfilesResponse, AdminRestorePreflightResponse, AdminRestoreReport,
-    AdminShutdownResponse, ComponentState, Page, PageRequest,
+    AdminMemoryContext, AdminObjectHistory, AdminProfilesResponse, AdminRestorePreflightResponse,
+    AdminRestoreReport, AdminShutdownResponse, AdminSpaceSummary, ComponentState, Page,
+    PageRequest,
 };
 use openmemory_graph::{new_id, EntityType, ObservationInput, RelationInput};
 use tower::ServiceExt;
@@ -161,6 +162,55 @@ async fn wait_for_job(app: Router, id: &str) -> AdminJob {
 async fn read_json<T: serde::de::DeserializeOwned>(response: Response) -> T {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     serde_json::from_slice(&body).unwrap()
+}
+
+#[tokio::test]
+async fn space_context_and_history_routes_bind_the_legacy_profile_once() {
+    let home = unique_test_home();
+    let (entity_id, _) = seed_default_profile(&home);
+    let config = test_config_with_home(home);
+    let app = build_router(config);
+    let auth = Some(HeaderValue::from_static("Bearer secret"));
+
+    let spaces = request_app(app.clone(), Method::GET, "/admin/spaces", auth.clone()).await;
+    assert_eq!(spaces.status(), StatusCode::OK);
+    let spaces: Page<AdminSpaceSummary> = read_json(spaces).await;
+    assert_eq!(spaces.items.len(), 1);
+    assert_eq!(
+        spaces.items[0].context,
+        openmemory_admin::AdminSpaceContext::Global
+    );
+
+    let context = request_app(app.clone(), Method::GET, "/admin/context", auth.clone()).await;
+    assert_eq!(context.status(), StatusCode::OK);
+    let context: AdminMemoryContext = read_json(context).await;
+    assert_eq!(context.read_set.len(), 1);
+    assert_eq!(context.read_set[0].space_id, spaces.items[0].id);
+    assert_eq!(context.write_target, spaces.items[0].id);
+
+    let detail = request_app(
+        app.clone(),
+        Method::GET,
+        &format!("/admin/entities/{entity_id}"),
+        auth.clone(),
+    )
+    .await;
+    let detail: openmemory_admin::AdminEntityDetail = read_json(detail).await;
+    let observation = &detail.observations[0];
+    let history = request_app(
+        app,
+        Method::GET,
+        &format!(
+            "/admin/memories/{}/history?space_id={}",
+            observation.id, spaces.items[0].id
+        ),
+        auth,
+    )
+    .await;
+    assert_eq!(history.status(), StatusCode::OK);
+    let history: AdminObjectHistory = read_json(history).await;
+    assert_eq!(history.logical_id, observation.id);
+    assert_eq!(history.revisions.len(), 1);
 }
 
 #[test]
@@ -1274,7 +1324,7 @@ fn job_registry_rejects_future_product_schema_version() {
              value TEXT NOT NULL
          );
          INSERT INTO product_meta(key, value)
-         VALUES('schema_version', '2');",
+         VALUES('schema_version', '99');",
     )
     .unwrap();
     drop(conn);

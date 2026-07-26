@@ -192,7 +192,9 @@ impl MemoryStore {
                         e.name, e.entity_type
                  FROM observations o
                  JOIN entities e ON o.entity_id = e.id
-                 WHERE o.id IN ({placeholders})",
+                 WHERE o.id IN ({placeholders})
+                   AND o.lifecycle = 'active'
+                   AND e.lifecycle = 'active'",
             );
             // The SQL text is determined entirely by `candidates.len()`,
             // so back-to-back recalls with the same `top_k` hit the
@@ -323,10 +325,12 @@ impl MemoryStore {
             let mut rel_stmt = conn.prepare(
                 "SELECT to_entity, weight FROM relations
                  WHERE from_entity = ?1
+                    AND lifecycle = 'active'
                     AND (valid_until IS NULL OR valid_until > ?2)
                  UNION ALL
                  SELECT from_entity, weight FROM relations
                  WHERE to_entity = ?1
+                    AND lifecycle = 'active'
                     AND (valid_until IS NULL OR valid_until > ?2)",
             )?;
             // Same narrow projection as the direct-hit path: only the
@@ -347,6 +351,8 @@ impl MemoryStore {
                  JOIN entities e ON o.entity_id = e.id
                  WHERE o.entity_id = ?1
                     AND o.tombstoned = 0
+                    AND o.lifecycle = 'active'
+                    AND e.lifecycle = 'active'
                     AND (o.valid_until IS NULL OR o.valid_until > ?2)
                     {tier_clause}
                  ORDER BY o.observed_at DESC

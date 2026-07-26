@@ -35,6 +35,21 @@ pub enum MemoryError {
 
     #[error("serialization: {0}")]
     Serde(#[from] serde_json::Error),
+
+    #[error("idempotency key was reused with another request")]
+    IdempotencyConflict,
+
+    #[error("changeset is stale: {0}")]
+    ChangeSetStale(String),
+
+    #[error("changeset operations route to more than one domain")]
+    ChangeSetCrossDomain,
+
+    #[error("search index repair is required: {0}")]
+    IndexRepairRequired(String),
+
+    #[error("authorization failed: {0}")]
+    Authorization(String),
 }
 
 impl From<rusqlite::Error> for MemoryError {

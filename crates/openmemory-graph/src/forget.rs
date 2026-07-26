@@ -17,7 +17,7 @@
 //! deletes are best-effort — a transient FTS5 hiccup logs a warning and
 //! leaves SQLite as the source of truth.
 
-use rusqlite::params;
+use rusqlite::{params, Transaction, TransactionBehavior};
 
 use crate::error::{MemoryError, MemoryResult};
 use crate::store::MemoryStore;
@@ -39,34 +39,7 @@ impl MemoryStore {
     /// Soft-delete observation `id`. Idempotent: a no-op if the observation
     /// is already tombstoned. Returns `true` if a row was modified.
     pub fn forget(&self, observation_id: &str) -> MemoryResult<bool> {
-        let _guard = self.write_rebuild();
-
-        let conn = self.lock_db();
-        let now = self.clock().now_secs();
-        let updated = conn.execute(
-            "UPDATE observations
-             SET tombstoned = 1, valid_until = COALESCE(valid_until, ?1)
-             WHERE id = ?2 AND tombstoned = 0",
-            params![now, observation_id],
-        )?;
-        drop(conn);
-
-        if updated > 0 {
-            // Drop the search-index entry so recall stops returning it. If
-            // the index is briefly out of sync, the recall path's tombstone
-            // filter still excludes it.
-            let uri = format!("memory://observation/{observation_id}");
-            if let Err(e) = self.engine().engine.delete_by_uri(&uri) {
-                tracing::warn!(
-                    target: "openmemory_graph::forget",
-                    error = %e,
-                    observation_id,
-                    "search-index delete failed; SQLite tombstone remains authoritative"
-                );
-            }
-            self.flush_engine();
-        }
-        Ok(updated > 0)
+        self.compatibility_retire_observation(observation_id)
     }
 
     /// Hard-delete an entity by name. CASCADE removes observations and
@@ -84,8 +57,9 @@ impl MemoryStore {
         }
         let _guard = self.write_rebuild();
 
-        let conn = self.lock_db();
-        let entity_id: String = match conn.query_row(
+        let mut conn = self.lock_db();
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let entity_id: String = match tx.query_row(
             "SELECT id FROM entities WHERE name = ?1",
             params![name],
             |row| row.get(0),
@@ -98,7 +72,7 @@ impl MemoryStore {
         };
 
         let observation_ids: Vec<String> = {
-            let mut stmt = conn.prepare("SELECT id FROM observations WHERE entity_id = ?1")?;
+            let mut stmt = tx.prepare("SELECT id FROM observations WHERE entity_id = ?1")?;
             let mut rows = stmt.query(params![entity_id])?;
             let mut out = Vec::new();
             while let Some(r) = rows.next()? {
@@ -106,8 +80,20 @@ impl MemoryStore {
             }
             out
         };
-
-        conn.execute("DELETE FROM entities WHERE id = ?1", params![entity_id])?;
+        let relation_ids = object_ids(
+            &tx,
+            "SELECT id FROM relations WHERE from_entity=?1 OR to_entity=?1",
+            &entity_id,
+        )?;
+        for id in &observation_ids {
+            purge_object_history(&tx, "observation", id)?;
+        }
+        for id in &relation_ids {
+            purge_object_history(&tx, "relation", id)?;
+        }
+        purge_object_history(&tx, "entity", &entity_id)?;
+        tx.execute("DELETE FROM entities WHERE id = ?1", params![entity_id])?;
+        tx.commit()?;
         drop(conn);
 
         // Hybrid-engine cleanup (best-effort).
@@ -144,7 +130,11 @@ impl MemoryStore {
             let mut stmt = tx.prepare(
                 "SELECT id FROM observations
                  WHERE tombstoned = 1
-                    AND COALESCE(valid_until, observed_at) <= ?1",
+                    AND COALESCE(valid_until, observed_at) <= ?1
+                    AND NOT EXISTS (
+                       SELECT 1 FROM observation_revisions revision
+                       WHERE revision.observation_id=observations.id
+                    )",
             )?;
             let mut rows = stmt.query(params![cutoff])?;
             let mut out = Vec::new();
@@ -155,6 +145,7 @@ impl MemoryStore {
         };
 
         for id in &stale_ids {
+            purge_object_history(&tx, "observation", id)?;
             tx.execute("DELETE FROM observations WHERE id = ?1", params![id])?;
         }
 
@@ -167,6 +158,10 @@ impl MemoryStore {
                  WHERE NOT EXISTS (
                     SELECT 1 FROM observations o
                     WHERE o.entity_id = e.id
+                 )
+                 AND NOT EXISTS (
+                    SELECT 1 FROM entity_revisions revision
+                    WHERE revision.entity_id=e.id
                  )
                  AND NOT EXISTS (
                     SELECT 1 FROM relations r
@@ -183,6 +178,7 @@ impl MemoryStore {
         };
 
         for (id, _name) in &orphan_ids {
+            purge_object_history(&tx, "entity", id)?;
             tx.execute("DELETE FROM entities WHERE id = ?1", params![id])?;
         }
 
@@ -208,6 +204,99 @@ impl MemoryStore {
             entities_removed: orphan_ids.len(),
         })
     }
+}
+
+fn object_ids(tx: &Transaction<'_>, sql: &str, id: &str) -> MemoryResult<Vec<String>> {
+    let mut statement = tx.prepare(sql)?;
+    let ids = statement
+        .query_map([id], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ids)
+}
+
+fn purge_object_history(
+    tx: &Transaction<'_>,
+    object_kind: &str,
+    logical_id: &str,
+) -> MemoryResult<()> {
+    match object_kind {
+        "entity" => {
+            tx.execute(
+                "DELETE FROM entity_revision_aliases
+                 WHERE revision_id IN (
+                    SELECT id FROM entity_revisions WHERE entity_id=?1
+                 )",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM entity_revision_identifiers
+                 WHERE revision_id IN (
+                    SELECT id FROM entity_revisions WHERE entity_id=?1
+                 )",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM entity_revisions WHERE entity_id=?1",
+                [logical_id],
+            )?;
+        }
+        "observation" => {
+            tx.execute(
+                "DELETE FROM observation_revision_concepts
+                 WHERE revision_id IN (
+                    SELECT id FROM observation_revisions WHERE observation_id=?1
+                 )",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM observation_revision_source_files
+                 WHERE revision_id IN (
+                    SELECT id FROM observation_revisions WHERE observation_id=?1
+                 )",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM observation_revisions WHERE observation_id=?1",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM index_outbox
+                 WHERE object_kind='observation' AND logical_id=?1",
+                [logical_id],
+            )?;
+        }
+        "relation" => {
+            tx.execute(
+                "DELETE FROM relation_revisions WHERE relation_id=?1",
+                [logical_id],
+            )?;
+            tx.execute(
+                "DELETE FROM mirror_outbox WHERE canonical_relation_id=?1",
+                [logical_id],
+            )?;
+        }
+        _ => {
+            return Err(MemoryError::InvalidInput(
+                "unknown destruction object kind".to_string(),
+            ))
+        }
+    }
+    tx.execute(
+        "DELETE FROM origin_contributions
+         WHERE object_kind=?1 AND target_logical_id=?2",
+        params![object_kind, logical_id],
+    )?;
+    tx.execute(
+        "DELETE FROM change_events
+         WHERE object_kind=?1 AND logical_id=?2",
+        params![object_kind, logical_id],
+    )?;
+    tx.execute(
+        "DELETE FROM change_requests
+         WHERE object_kind=?1 AND logical_id=?2",
+        params![object_kind, logical_id],
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]

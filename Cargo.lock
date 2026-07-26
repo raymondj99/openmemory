@@ -1692,12 +1692,15 @@ dependencies = [
 name = "openmemory-core"
 version = "0.4.4"
 dependencies = [
+ "proptest",
  "rand 0.8.6",
  "rusqlite",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "toml",
+ "uuid",
 ]
 
 [[package]]
@@ -1705,6 +1708,7 @@ name = "openmemory-daemon"
 version = "0.4.4"
 dependencies = [
  "axum",
+ "blake3",
  "openmemory-admin",
  "openmemory-core",
  "openmemory-embed",
@@ -1712,6 +1716,7 @@ dependencies = [
  "openmemory-graph",
  "openmemory-index",
  "openmemory-mcp",
+ "openmemory-merge",
  "rand 0.8.6",
  "rusqlite",
  "serde",
@@ -1720,6 +1725,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
+ "toml",
  "toml_edit",
  "tower",
  "tracing",
@@ -1752,12 +1758,14 @@ dependencies = [
 name = "openmemory-engine"
 version = "0.4.4"
 dependencies = [
+ "blake3",
  "clap",
  "fs4",
  "lru",
  "openmemory-core",
  "openmemory-graph",
  "openmemory-index",
+ "openmemory-merge",
  "serde",
  "serde_json",
  "tempfile",
@@ -1788,6 +1796,7 @@ dependencies = [
  "openmemory-core",
  "openmemory-embed",
  "openmemory-index",
+ "openmemory-merge",
  "proptest",
  "rusqlite",
  "serde",
@@ -1837,6 +1846,18 @@ dependencies = [
  "tower-http",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "openmemory-merge"
+version = "0.4.4"
+dependencies = [
+ "blake3",
+ "openmemory-core",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

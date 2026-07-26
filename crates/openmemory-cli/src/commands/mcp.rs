@@ -62,8 +62,8 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
     }
     let server = OpenMemoryMcpServer::from_domain_store(config, Arc::new(memory))
         .context("starting context engine")?;
-    let engine = server.engine().cloned();
-    if engine.is_some() {
+    let runtime_controller = server.runtime_controller();
+    if server.engine().is_some() {
         eprintln!("openmemory mcp: write-behind context engine active");
     }
 
@@ -75,9 +75,9 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
 
     // Graceful exit: drain the engine so acknowledged writes commit.
     // After a crash the per-shard journal replays them instead.
-    if let Some(engine) = engine {
-        engine.quiesce();
-    }
+    let _closed = runtime_controller
+        .pause_and_close(Duration::from_secs(30))
+        .context("draining context engine")?;
     result
 }
 

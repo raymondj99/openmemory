@@ -25,6 +25,7 @@ use crate::protocol::{
 };
 use crate::OpenMemoryMcpServer;
 
+pub mod context;
 pub mod index;
 pub mod maintenance;
 pub mod memory;
@@ -203,6 +204,7 @@ pub fn server_instructions() -> String {
 fn registry() -> Vec<Entry> {
     let mut v = Vec::new();
     memory::register_all(&mut v);
+    context::register_all(&mut v);
     index::register_all(&mut v);
     maintenance::register_all(&mut v);
     v
@@ -285,8 +287,8 @@ mod tests {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         assert_eq!(
             names.len(),
-            13,
-            "expected 13 tools (9 memory + 3 index + 1 maintenance), got {}: {names:?}",
+            16,
+            "expected 16 tools (12 memory + 3 index + 1 maintenance), got {}: {names:?}",
             names.len()
         );
     }
@@ -305,6 +307,9 @@ mod tests {
         assert!(index_pos < maint_pos, "index must come before maintenance");
 
         for name in [
+            "openmemory_context",
+            "openmemory_history",
+            "openmemory_propose_change",
             "openmemory_remember",
             "openmemory_recall",
             "openmemory_list_entities",
@@ -327,6 +332,9 @@ mod tests {
     fn registry_includes_all_memory_tools() {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         for expected in [
+            "openmemory_context",
+            "openmemory_history",
+            "openmemory_propose_change",
             "openmemory_remember",
             "openmemory_recall",
             "openmemory_list_entities",

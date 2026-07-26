@@ -183,13 +183,13 @@ impl RelationInput {
 /// build a fielded `IndexEntry` without re-reading the row from disk.
 #[derive(Debug, Clone)]
 pub(crate) struct SearchPayload {
-    id: String,
-    content: String,
-    title: Option<String>,
-    summary: Option<String>,
-    concepts: Vec<String>,
-    source_files: Vec<String>,
-    source_kind: Option<String>,
+    pub(crate) id: String,
+    pub(crate) content: String,
+    pub(crate) title: Option<String>,
+    pub(crate) summary: Option<String>,
+    pub(crate) concepts: Vec<String>,
+    pub(crate) source_files: Vec<String>,
+    pub(crate) source_kind: Option<String>,
 }
 
 /// Whether a write persists the vector index to disk before returning.
@@ -469,6 +469,13 @@ impl MemoryStore {
             now,
             self.normalization_params(true),
         )?;
+        let audit_generation = crate::changeset::audit_legacy_remember(
+            &tx,
+            self.space_id(),
+            std::slice::from_ref(&group.outcome),
+            source,
+            now,
+        )?;
 
         tx.commit()?;
         drop(conn);
@@ -480,6 +487,9 @@ impl MemoryStore {
                 vectors,
                 PersistIndex::Now,
             )?;
+        }
+        if let Some(generation) = audit_generation {
+            self.acknowledge_index_outbox(generation)?;
         }
 
         Ok(group.outcome)
@@ -595,14 +605,7 @@ impl MemoryStore {
             return Ok(());
         }
 
-        if let Err(e) = self.engine().engine.insert(&entries) {
-            tracing::warn!(
-                target: "openmemory_graph::remember",
-                error = %e,
-                count = entries.len(),
-                "search-index insert failed; SQLite row remains authoritative"
-            );
-        }
+        self.engine().engine.insert(&entries)?;
         if persist == PersistIndex::Now {
             self.flush_engine();
         }

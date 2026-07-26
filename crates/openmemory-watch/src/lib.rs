@@ -84,6 +84,14 @@ pub const ALWAYS_IGNORE_GLOBS: &[&str] = &[
 /// syntax; entries here win over standard ignore files.
 pub const IGNORE_FILE_NAME: &str = ".openmemory-ignore";
 
+/// Filesystem event backend. Native is the production default; polling is a
+/// deterministic fallback for filesystems or sandboxes without native events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WatchBackend {
+    Native,
+    Polling { interval: Duration },
+}
+
 /// Caller-tunable knobs for [`Watcher::new`]. Defaults are derived from
 /// [`openmemory_core::config::WatchSection`]; the CLI surface lets a
 /// user override per-invocation.
@@ -99,6 +107,8 @@ pub struct WatchOptions {
     /// `true`; the test suite flips it off to isolate event-loop
     /// correctness.
     pub initial_scan: bool,
+    /// Event delivery backend.
+    pub backend: WatchBackend,
 }
 
 pub(crate) fn has_indexable_extension(path: &std::path::Path, extensions: &[String]) -> bool {
@@ -128,6 +138,7 @@ impl WatchOptions {
             extensions,
             max_size: config.watch.max_size,
             initial_scan: true,
+            backend: WatchBackend::Native,
         }
     }
 }

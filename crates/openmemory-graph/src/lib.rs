@@ -77,7 +77,10 @@
 #![forbid(unsafe_code)]
 
 pub mod batch;
+pub mod changeset;
 pub mod consolidate;
+pub mod diff;
+pub mod destroy;
 pub mod error;
 pub mod export;
 pub mod forget;
@@ -85,12 +88,23 @@ pub mod normalize;
 pub mod pool;
 pub mod recall;
 pub mod remember;
+pub mod revision;
 pub mod schema;
+pub mod snapshot;
 pub mod store;
 pub mod types;
 
 pub use batch::{BatchOptions, RememberRequest};
+pub use changeset::{
+    ChangeOperation, ChangeSetDraft, ChangeSetReceipt, ChangeSetState, EntityIdentifier,
+    EntityValue, ExpectedHead, HistoryBackfillReport, Lifecycle, NewObservation, NewRelation,
+    ObjectKind, ObjectMutation, ObjectRef, ObservationValue, OriginRef, ProvenanceChange,
+    RelationBindingDescriptor, RelationValue, RememberChange, RevertToRevision, SetObservationTier,
+    SubmitMode, SupersedeObservation, UpdateEntity, UpdateRelation,
+};
 pub use consolidate::{ConsolidateConfig, ConsolidateReport};
+pub use diff::{FieldChange, MemoryDiff, ScalarValue, TextValue, ValueChange};
+pub use destroy::{DestroyInventory, DestroyPreview, DestroyReceipt};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use normalize::NormalizeMatch;
@@ -101,8 +115,19 @@ pub use recall::{
     SPREADING_DISTANCE_DECAY,
 };
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
+pub use revision::{
+    ChangeSetAuditRow, ChangeSetDetail, DomainGeneration, HistoryPage, RevisionSummary,
+    SemanticReadiness,
+};
 pub use schema::MEMORY_SCHEMA_VERSION;
-pub use store::{EntityListRow, MemoryStatus, MemoryStore, WalCheckpointReport, MEMORY_DB_FILE};
+pub use snapshot::{
+    CanonicalDomainImport, CanonicalDomainRecords, CanonicalEndpoint, CanonicalRelationRecord,
+    MaterializedRelation, MaterializedStub,
+};
+pub use store::{
+    load_or_create_compat_space_id, EntityListRow, MemoryStatus, MemoryStore, WalCheckpointReport,
+    MEMORY_DB_FILE,
+};
 pub use types::{
     new_id, Entity, EntityType, MemoryTier, Observation, Relation, PARTITION_STUB_SOURCE,
 };

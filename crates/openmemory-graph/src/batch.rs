@@ -175,6 +175,13 @@ impl MemoryStore {
             }
             outcomes.push(group.outcome);
         }
+        let audit_generation = crate::changeset::audit_legacy_remember(
+            &tx,
+            self.space_id(),
+            &outcomes,
+            "legacy_batch",
+            now,
+        )?;
 
         if let Some((key, value)) = &opts.checkpoint {
             // Monotonic upsert: a checkpoint never moves backwards, so a
@@ -192,6 +199,9 @@ impl MemoryStore {
         drop(conn);
 
         self.sync_search_groups(&sync_groups, vectors, PersistIndex::Defer)?;
+        if let Some(generation) = audit_generation {
+            self.acknowledge_index_outbox(generation)?;
+        }
 
         Ok(outcomes)
     }

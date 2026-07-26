@@ -50,7 +50,7 @@
 //! domains (ids are UUIDv7, collisions across domains are not a
 //! concern).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -59,12 +59,17 @@ use std::time::{Duration, Instant};
 
 use lru::LruCache;
 use openmemory_core::config::Config;
+use openmemory_core::space::SpaceId;
+use openmemory_core::space::{ActorKind, ChangeSetId, PrincipalId, RevisionId};
 use openmemory_graph::batch::BatchOptions;
 use openmemory_graph::recall::{RecallFilters, RecallResult};
 use openmemory_graph::{
-    ConsolidateConfig, ConsolidateReport, Entity, EntityListRow, EntityType, MemoryError,
-    MemoryResult, MemoryStatus, MemoryStore, Observation, ObservationInput, PruneReport, Relation,
-    RelationInput, RememberOutcome, RememberRequest, SearchMode,
+    ChangeOperation, ChangeSetAuditRow, ChangeSetDetail, ChangeSetDraft, ChangeSetReceipt,
+    ConsolidateConfig, ConsolidateReport, DestroyPreview, DestroyReceipt, Entity, EntityListRow,
+    EntityType, HistoryBackfillReport, HistoryPage, MemoryDiff, MemoryError, MemoryResult,
+    MemoryStatus, MemoryStore, ObjectKind, ObjectRef, Observation, ObservationInput, PruneReport,
+    Relation, RelationBindingDescriptor, RelationInput, RememberOutcome, RememberRequest,
+    SearchMode, SubmitMode,
 };
 use serde::{Deserialize, Serialize};
 
@@ -144,6 +149,7 @@ struct RecallCacheEntry {
 pub struct DomainStore {
     stores: Vec<Arc<MemoryStore>>,
     data_dir: PathBuf,
+    space_id: SpaceId,
     /// Bumped (Release) after every facade write commits; recall
     /// captures it (Acquire) BEFORE fanning out and tags the cached
     /// entry with the pre-search value, so a write that lands during
@@ -151,6 +157,17 @@ pub struct DomainStore {
     write_version: AtomicU64,
     recall_cache: Mutex<LruCache<u64, RecallCacheEntry>>,
     recall_cache_ttl: Duration,
+}
+
+fn compatibility_space_id(data_dir: &Path) -> MemoryResult<SpaceId> {
+    let manifest_path = data_dir.join(crate::space::SPACE_MANIFEST_FILE);
+    match crate::space::SpaceManifest::load(&manifest_path) {
+        Ok(manifest) => Ok(manifest.space_id),
+        Err(MemoryError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            openmemory_graph::load_or_create_compat_space_id(data_dir)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 impl std::fmt::Debug for DomainStore {
@@ -167,7 +184,18 @@ impl DomainStore {
     /// with `domains` families. `domains = 1` opens the legacy
     /// single-store layout at the root.
     pub fn open(config: &Config, data_dir: &Path, domains: usize) -> MemoryResult<Self> {
-        Self::open_inner(config, data_dir, domains, None)
+        let space_id = compatibility_space_id(data_dir)?;
+        Self::open_inner(config, data_dir, domains, space_id, None)
+    }
+
+    /// Open every performance domain bound to one semantic space ID.
+    pub fn open_scoped(
+        config: &Config,
+        data_dir: &Path,
+        domains: usize,
+        space_id: SpaceId,
+    ) -> MemoryResult<Self> {
+        Self::open_inner(config, data_dir, domains, space_id, None)
     }
 
     /// As [`Self::open`], attaching `embedder` to every domain store.
@@ -178,7 +206,20 @@ impl DomainStore {
         domains: usize,
         embedder: Arc<dyn Embedder>,
     ) -> MemoryResult<Self> {
-        Self::open_inner(config, data_dir, domains, Some(embedder))
+        let space_id = compatibility_space_id(data_dir)?;
+        Self::open_inner(config, data_dir, domains, space_id, Some(embedder))
+    }
+
+    /// As [`Self::open_scoped`], attaching `embedder` to every domain.
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
+    pub fn open_scoped_with_embedder(
+        config: &Config,
+        data_dir: &Path,
+        domains: usize,
+        space_id: SpaceId,
+        embedder: Arc<dyn Embedder>,
+    ) -> MemoryResult<Self> {
+        Self::open_inner(config, data_dir, domains, space_id, Some(embedder))
     }
 
     #[cfg_attr(
@@ -189,6 +230,7 @@ impl DomainStore {
         config: &Config,
         data_dir: &Path,
         domains: usize,
+        space_id: SpaceId,
         #[cfg(any(feature = "testing", feature = "embeddings"))] embedder: Option<
             Arc<dyn Embedder>,
         >,
@@ -271,7 +313,7 @@ impl DomainStore {
 
         let mut stores = Vec::with_capacity(dirs.len());
         for dir in &dirs {
-            let store = MemoryStore::open(config, dir)?;
+            let store = MemoryStore::open_scoped(config, dir, space_id)?;
             #[cfg(any(feature = "testing", feature = "embeddings"))]
             let store = match &embedder {
                 Some(embedder) => store.with_embedder(Arc::clone(embedder)),
@@ -282,18 +324,28 @@ impl DomainStore {
             stores.push(Arc::new(store));
         }
 
-        Ok(Self::assemble(stores, data_dir.to_path_buf()))
+        Self::assemble(stores, data_dir.to_path_buf(), space_id)
     }
 
-    fn assemble(stores: Vec<Arc<MemoryStore>>, data_dir: PathBuf) -> Self {
+    fn assemble(
+        stores: Vec<Arc<MemoryStore>>,
+        data_dir: PathBuf,
+        space_id: SpaceId,
+    ) -> MemoryResult<Self> {
+        if stores.is_empty() || stores.iter().any(|store| store.space_id() != space_id) {
+            return Err(MemoryError::InvalidInput(
+                "domain stores disagree on semantic space identity".to_string(),
+            ));
+        }
         let capacity = NonZeroUsize::new(RECALL_CACHE_CAPACITY).unwrap_or(NonZeroUsize::MIN);
-        Self {
+        Ok(Self {
             stores,
             data_dir,
+            space_id,
             write_version: AtomicU64::new(0),
             recall_cache: Mutex::new(LruCache::new(capacity)),
             recall_cache_ttl: RECALL_CACHE_TTL,
-        }
+        })
     }
 
     /// Override the facade recall cache TTL. Tests use short TTLs;
@@ -355,7 +407,9 @@ impl DomainStore {
     /// callers that owned the open ceremony before partitioning existed.
     pub fn from_single(store: Arc<MemoryStore>) -> Self {
         let data_dir = store.data_dir().to_path_buf();
-        Self::assemble(vec![store], data_dir)
+        let space_id = store.space_id();
+        Self::assemble(vec![store], data_dir, space_id)
+            .expect("one already-open store has a stable space ID")
     }
 
     /// Number of domains.
@@ -368,10 +422,331 @@ impl DomainStore {
         &self.data_dir
     }
 
+    /// Semantic space identity shared by every performance domain.
+    pub const fn space_id(&self) -> SpaceId {
+        self.space_id
+    }
+
     /// Every domain store, indexed by domain. The context engine maps
     /// its shards onto these.
     pub fn stores(&self) -> &[Arc<MemoryStore>] {
         &self.stores
+    }
+
+    /// Find an exact immutable revision hash without inventing one for legacy
+    /// rows. Observation IDs are UUIDs, so at most one domain may match.
+    pub fn observation_revision_hash(&self, observation_id: &str) -> MemoryResult<Option<Vec<u8>>> {
+        for store in &self.stores {
+            if let Some(hash) = store.observation_revision_hash(observation_id)? {
+                return Ok(Some(hash));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Route and atomically submit one audited domain-local changeset.
+    pub fn submit_changeset(
+        &self,
+        draft: &ChangeSetDraft,
+        mode: SubmitMode,
+    ) -> MemoryResult<ChangeSetReceipt> {
+        if draft.space_id != self.space_id {
+            return Err(MemoryError::Authorization(
+                "changeset targets another semantic space".to_string(),
+            ));
+        }
+        let mut selected = None;
+        for operation in &draft.operations {
+            let domain = self.changeset_operation_domain(operation)?;
+            if selected
+                .replace(domain)
+                .is_some_and(|current| current != domain)
+            {
+                return Err(MemoryError::ChangeSetCrossDomain);
+            }
+        }
+        self.stores[selected.unwrap_or(0)].submit_changeset(draft, mode)
+    }
+
+    /// Approve the proposal in its owning physical domain.
+    pub fn approve_changeset(
+        &self,
+        id: ChangeSetId,
+        reviewer: &PrincipalId,
+        reviewer_kind: ActorKind,
+        authorization_generation: u64,
+    ) -> MemoryResult<ChangeSetReceipt> {
+        let domain = self.changeset_domain(id)?;
+        self.stores[domain].approve_changeset(id, reviewer, reviewer_kind, authorization_generation)
+    }
+
+    /// Reject the proposal in its owning physical domain.
+    pub fn reject_changeset(
+        &self,
+        id: ChangeSetId,
+        reviewer: &PrincipalId,
+        reviewer_kind: ActorKind,
+        authorization_generation: u64,
+    ) -> MemoryResult<ChangeSetReceipt> {
+        let domain = self.changeset_domain(id)?;
+        self.stores[domain].reject_changeset(id, reviewer, reviewer_kind, authorization_generation)
+    }
+
+    /// Revert an applied changeset inside the same physical domain.
+    pub fn revert_changeset(
+        &self,
+        id: ChangeSetId,
+        actor_principal: &PrincipalId,
+        actor_kind: ActorKind,
+        authorization_generation: u64,
+        idempotency_key: &str,
+        reason: &str,
+    ) -> MemoryResult<ChangeSetReceipt> {
+        let domain = self.changeset_domain(id)?;
+        self.stores[domain].revert_changeset(
+            id,
+            actor_principal,
+            actor_kind,
+            authorization_generation,
+            idempotency_key,
+            reason,
+        )
+    }
+
+    pub fn get_changeset(&self, id: ChangeSetId) -> MemoryResult<Option<ChangeSetDetail>> {
+        let domain = self.changeset_domain(id)?;
+        self.stores[domain].get_changeset(id)
+    }
+
+    pub fn list_changesets(
+        &self,
+        before: Option<(i64, ChangeSetId)>,
+        limit: usize,
+    ) -> MemoryResult<Vec<ChangeSetAuditRow>> {
+        if self.stores.len() == 1 {
+            return self.stores[0].list_changesets(before, limit);
+        }
+        let mut rows = Vec::new();
+        for store in &self.stores {
+            rows.extend(store.list_changesets(before, limit)?);
+        }
+        rows.sort_by(|left, right| {
+            right
+                .created_at
+                .cmp(&left.created_at)
+                .then_with(|| right.id.cmp(&left.id))
+        });
+        rows.truncate(limit);
+        Ok(rows)
+    }
+
+    pub fn object_history(
+        &self,
+        object: ObjectRef,
+        before: Option<(i64, RevisionId)>,
+        limit: usize,
+    ) -> MemoryResult<HistoryPage> {
+        let domain = self.object_domain(&object)?;
+        self.stores[domain].object_history(object, before, limit)
+    }
+
+    pub fn diff_revisions(
+        &self,
+        object: ObjectRef,
+        from: Option<RevisionId>,
+        to: Option<RevisionId>,
+        expected_current_revision: Option<RevisionId>,
+    ) -> MemoryResult<MemoryDiff> {
+        let domain = self.object_domain(&object)?;
+        self.stores[domain].diff_revisions(object, from, to, expected_current_revision)
+    }
+
+    pub fn preview_destroy(&self, object: ObjectRef, scope: &str) -> MemoryResult<DestroyPreview> {
+        let domain = self.object_domain(&object)?;
+        self.stores[domain].preview_destroy(object, scope)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn destroy_previewed(
+        &self,
+        object: ObjectRef,
+        scope: &str,
+        confirmation: &str,
+        actor_principal: &PrincipalId,
+        actor_kind: ActorKind,
+        reason: &str,
+    ) -> MemoryResult<DestroyReceipt> {
+        let domain = self.object_domain(&object)?;
+        self.stores[domain].destroy_previewed(
+            object,
+            scope,
+            confirmation,
+            actor_principal,
+            actor_kind,
+            reason,
+        )
+    }
+
+    fn changeset_domain(&self, id: ChangeSetId) -> MemoryResult<usize> {
+        for (domain, store) in self.stores.iter().enumerate() {
+            if store.contains_changeset(id)? {
+                return Ok(domain);
+            }
+        }
+        Err(MemoryError::ChangeSetStale(
+            "changeset does not exist".to_string(),
+        ))
+    }
+
+    fn changeset_operation_domain(&self, operation: &ChangeOperation) -> MemoryResult<usize> {
+        match operation {
+            ChangeOperation::Remember(change) => Ok(self.domain_for(&change.entity.name)),
+            ChangeOperation::SupersedeObservation(change) => self.object_domain(&ObjectRef {
+                kind: ObjectKind::Observation,
+                logical_id: change.logical_id.clone(),
+            }),
+            ChangeOperation::SetObservationTier(change) => self.object_domain(&ObjectRef {
+                kind: ObjectKind::Observation,
+                logical_id: change.logical_id.clone(),
+            }),
+            ChangeOperation::Retire(change) | ChangeOperation::Restore(change) => {
+                self.object_domain(&change.object)
+            }
+            ChangeOperation::RevertToRevision(change) => self.object_domain(&change.object),
+            ChangeOperation::UpdateEntity(change) => {
+                let object = ObjectRef {
+                    kind: ObjectKind::Entity,
+                    logical_id: change.logical_id.clone(),
+                };
+                let current = self.object_domain(&object)?;
+                let new = self.domain_for(&change.value.name);
+                if current != new {
+                    return Err(MemoryError::ChangeSetCrossDomain);
+                }
+                Ok(current)
+            }
+            ChangeOperation::UpdateRelation(change) => self.object_domain(&ObjectRef {
+                kind: ObjectKind::Relation,
+                logical_id: change.logical_id.clone(),
+            }),
+            ChangeOperation::CherryPick(change) | ChangeOperation::MergeContribution(change) => {
+                self.changeset_operation_domain(&change.operation)
+            }
+        }
+    }
+
+    fn object_domain(&self, object: &ObjectRef) -> MemoryResult<usize> {
+        for (domain, store) in self.stores.iter().enumerate() {
+            if store.contains_object(object)? {
+                return Ok(domain);
+            }
+        }
+        match object.kind {
+            ObjectKind::Entity => Err(MemoryError::EntityNotFound(object.logical_id.clone())),
+            ObjectKind::Observation => {
+                Err(MemoryError::ObservationNotFound(object.logical_id.clone()))
+            }
+            ObjectKind::Relation => Err(MemoryError::InvalidInput(format!(
+                "relation not found: {}",
+                object.logical_id
+            ))),
+        }
+    }
+
+    /// Resume history baselines and deterministically bind legacy cross-domain
+    /// mirror rows to their canonical source edge.
+    pub fn backfill_history_and_mirrors(
+        &self,
+        batch_size: usize,
+    ) -> MemoryResult<HistoryBackfillReport> {
+        let mut report = HistoryBackfillReport::default();
+        for store in &self.stores {
+            loop {
+                let batch = store.backfill_history_batch(batch_size)?;
+                report.entities += batch.entities;
+                report.observations += batch.observations;
+                report.relations += batch.relations;
+                if batch.complete {
+                    break;
+                }
+            }
+        }
+        self.bind_legacy_relation_mirrors()?;
+        for store in &self.stores {
+            store.mark_mirror_backfill_ready()?;
+        }
+        report.complete = true;
+        Ok(report)
+    }
+
+    fn bind_legacy_relation_mirrors(&self) -> MemoryResult<()> {
+        type RelationKey = (String, String, String, u64, String);
+        let mut canonical: BTreeMap<RelationKey, Vec<(usize, RelationBindingDescriptor)>> =
+            BTreeMap::new();
+        let mut mirrors = Vec::<(usize, RelationBindingDescriptor)>::new();
+        for (domain, store) in self.stores.iter().enumerate() {
+            for descriptor in store.relation_binding_descriptors()? {
+                let key = (
+                    descriptor.from_name.clone(),
+                    descriptor.to_name.clone(),
+                    descriptor.relation_type.clone(),
+                    descriptor.weight_bits,
+                    descriptor.source.clone(),
+                );
+                if descriptor.from_is_stub {
+                    mirrors.push((domain, descriptor));
+                } else {
+                    canonical.entry(key).or_default().push((domain, descriptor));
+                }
+            }
+        }
+        for rows in canonical.values_mut() {
+            rows.sort_by(|left, right| left.1.relation_id.cmp(&right.1.relation_id));
+            for (domain, descriptor) in rows.iter() {
+                self.stores[*domain].bind_relation_role(
+                    &descriptor.relation_id,
+                    &descriptor.relation_id,
+                    "canonical",
+                )?;
+            }
+        }
+        mirrors.sort_by(|left, right| {
+            left.1
+                .from_name
+                .cmp(&right.1.from_name)
+                .then_with(|| left.1.to_name.cmp(&right.1.to_name))
+                .then_with(|| left.1.relation_id.cmp(&right.1.relation_id))
+        });
+        let mut consumed: HashMap<RelationKey, usize> = HashMap::new();
+        for (domain, mirror) in mirrors {
+            let key = (
+                mirror.from_name.clone(),
+                mirror.to_name.clone(),
+                mirror.relation_type.clone(),
+                mirror.weight_bits,
+                mirror.source.clone(),
+            );
+            let index = consumed.entry(key.clone()).or_default();
+            let candidates = canonical.get(&key).ok_or_else(|| {
+                MemoryError::InvalidInput(format!(
+                    "legacy mirror {} has no canonical relation",
+                    mirror.relation_id
+                ))
+            })?;
+            let (_, source) = candidates.get(*index).ok_or_else(|| {
+                MemoryError::InvalidInput(format!(
+                    "legacy mirror {} has ambiguous canonical relation",
+                    mirror.relation_id
+                ))
+            })?;
+            *index += 1;
+            self.stores[domain].bind_relation_role(
+                &mirror.relation_id,
+                &source.relation_id,
+                &format!("mirror:{domain}"),
+            )?;
+        }
+        Ok(())
     }
 
     /// The single underlying store when not partitioned. Surfaces that
@@ -1268,6 +1643,47 @@ mod tests {
         let status = store.status().unwrap();
         assert_eq!(status.total_entities, 2);
         assert_eq!(status.total_relations, 1);
+    }
+
+    #[test]
+    fn history_backfill_pairs_cross_domain_mirrors() {
+        let (store, _dir) = open_domains(4);
+        let (a, b) = cross_domain_pair(&store);
+        store
+            .remember(
+                &a,
+                EntityType::Person,
+                &[obs("source")],
+                &[RelationInput::new(
+                    "maintains",
+                    b.clone(),
+                    EntityType::Project,
+                )],
+                "test",
+            )
+            .unwrap();
+        let report = store.backfill_history_and_mirrors(2).unwrap();
+        assert!(report.complete);
+        let descriptors = store
+            .stores()
+            .iter()
+            .flat_map(|domain| domain.relation_binding_descriptors().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(descriptors.len(), 2);
+        let canonical = descriptors
+            .iter()
+            .find(|descriptor| !descriptor.from_is_stub)
+            .unwrap();
+        let mirror = descriptors
+            .iter()
+            .find(|descriptor| descriptor.from_is_stub)
+            .unwrap();
+        assert_eq!(
+            mirror.canonical_relation_id.as_deref(),
+            Some(canonical.relation_id.as_str())
+        );
+        assert_eq!(canonical.mirror_role, "canonical");
+        assert!(mirror.mirror_role.starts_with("mirror:"));
     }
 
     #[test]

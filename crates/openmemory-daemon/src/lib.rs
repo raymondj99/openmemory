@@ -14,6 +14,7 @@ use std::io::Write as _;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path as AxumPath, Query, State};
@@ -32,6 +33,7 @@ use openmemory_admin::{
     HealthResponse, IntegrationSummary, Page, PageRequest, ADMIN_API_VERSION,
 };
 use openmemory_core::config::Config;
+use openmemory_core::space::PrincipalId;
 #[cfg(feature = "embeddings")]
 use openmemory_embed::{ModelManager, ModelRegistry};
 use openmemory_engine::partition::DomainStore;
@@ -46,9 +48,16 @@ use thiserror::Error;
 use tokio_stream::wrappers::{BroadcastStream, WatchStream};
 use tokio_stream::StreamExt;
 
+mod admin_audit;
+mod admin_merge;
+mod admin_spaces;
 mod backup;
+pub mod identity;
 mod integrations;
+pub mod merges;
 mod product_store;
+pub mod space_registry;
+pub mod spaces;
 mod state;
 
 use backup::{
@@ -59,7 +68,9 @@ use integrations::{
     integration_install, integration_preview, integrations_response, parse_integration_client,
     spawn_integration_verify_job,
 };
-use state::{AdminState, JobMessages, JobRegistry, RedactedLogRing, StoreRuntime};
+use state::{
+    ActiveStoreLease, AdminState, JobMessages, JobRegistry, RedactedLogRing, StoreRuntime,
+};
 
 pub const RUN_DIR: &str = "run";
 pub const ADMIN_TOKEN_FILE: &str = "admin-token";
@@ -288,7 +299,7 @@ fn build_router_with_shutdown(
     let logs = Arc::new(RedactedLogRing::new(DEFAULT_LOG_RING_CAPACITY));
     let jobs = Arc::new(JobRegistry::open(config.home()));
     let store = Arc::new(RwLock::new(open_profile_runtime(&config)));
-    let (token_generation, _) = tokio::sync::watch::channel(0);
+    let (token_generation, _) = tokio::sync::watch::channel(0_u64);
     logs.push(
         AdminLogLevel::Info,
         "admin_router_ready",
@@ -304,21 +315,18 @@ fn build_router_with_shutdown(
     // exact same long-lived store as the admin API; stdio integrations proxy
     // here instead of opening independent vector indexes and journals.
     let initial_store = store.read().unwrap_or_else(|error| error.into_inner());
-    let (mcp_router, engine, mcp_auth) = match &*initial_store {
+    let (mcp_server, mcp_runtime, mcp_auth) = match &*initial_store {
         StoreRuntime::Ready(memory) => match load_config(config.home()) {
             Ok(mut engine_config) => {
                 engine_config.engine.enabled = true;
                 engine_config.engine.journal = true;
                 match OpenMemoryMcpServer::from_domain_store(engine_config, Arc::clone(memory)) {
                     Ok(server) => {
-                        let engine = server.engine().cloned();
+                        let runtime = server.runtime_controller();
                         let auth = BearerToken::new(config.admin_token.expected.to_string());
                         (
-                            Some(openmemory_mcp::http::build_router(
-                                server,
-                                Some(auth.clone()),
-                            )),
-                            engine,
+                            Some(server),
+                            Some(runtime),
                             Some(auth),
                         )
                     }
@@ -347,6 +355,78 @@ fn build_router_with_shutdown(
     };
     drop(initial_store);
 
+    let (spaces, space_registry) = load_config(config.home())
+        .ok()
+        .and_then(|loaded| {
+            let profile_root = profile_data_dir(config.home(), config.active_profile());
+            if !profile_root.is_dir() {
+                return None;
+            }
+            let service =
+                spaces::LocalSpaceService::open(config.home(), &profile_root, loaded.clone())
+                    .ok()?;
+            let registry = space_registry::SpaceRegistry::new(
+                service.clone(),
+                loaded.spaces.max_open_spaces,
+                Duration::from_secs(loaded.spaces.idle_close_secs),
+            )
+            .ok()?;
+            Some((service, registry))
+        })
+        .map_or((None, None), |(service, registry)| {
+            (Some(service), Some(registry))
+        });
+    let mcp_router = match (
+        mcp_server,
+        mcp_auth.clone(),
+        spaces.clone(),
+        space_registry.clone(),
+    ) {
+        (Some(server), Some(auth), Some(service), Some(registry)) => {
+            let profile = config.active_profile().to_string();
+            let generation = token_generation.clone();
+            let resolver = move |capability: Option<&str>| {
+                let now = i64::try_from(unix_now_secs().unwrap_or(0)).unwrap_or(i64::MAX);
+                let bearer_generation = (*generation.borrow()).saturating_add(1);
+                let context = match capability {
+                    Some(capability) => service
+                        .load_context_capability(capability, bearer_generation, now)
+                        .map_err(|error| error.to_string())?,
+                    None => service
+                        .resolve_context(
+                            &spaces::ResolveContextRequest {
+                                principal: "local:installation"
+                                    .parse()
+                                    .expect("static installation principal is valid"),
+                                actor_kind: openmemory_core::space::ActorKind::Agent,
+                                profile: profile.clone(),
+                                workspace: None,
+                                project: None,
+                                active_team: None,
+                                read_mode: spaces::ReadMode::GlobalOnly,
+                                write_selection: spaces::WriteSelection::Personal,
+                            },
+                            now,
+                        )
+                        .map_err(|error| error.to_string())?,
+                };
+                registry
+                    .mcp_context(context)
+                    .map(Arc::new)
+                    .map_err(|error| error.to_string())
+            };
+            Some(openmemory_mcp::http::build_context_router(
+                server,
+                Some(auth),
+                Arc::new(resolver),
+            ))
+        }
+        (Some(server), auth, _, _) => {
+            Some(openmemory_mcp::http::build_router(server, auth))
+        }
+        _ => None,
+    };
+
     let state = AdminState {
         token: Arc::new(RwLock::new(config.admin_token.clone())),
         token_generation,
@@ -354,8 +434,11 @@ fn build_router_with_shutdown(
         logs,
         jobs,
         store,
-        engine,
+        store_admission: Arc::new(state::StoreAdmission::default()),
+        mcp_runtime,
         mcp_auth,
+        spaces,
+        space_registry,
         shutdown,
     };
 
@@ -391,6 +474,9 @@ fn build_router_with_shutdown(
         .route("/admin/backups/create", post(handle_backup_create))
         .route("/admin/restore/preflight", post(handle_restore_preflight))
         .route("/admin/restore", post(handle_restore))
+        .merge(admin_audit::router())
+        .merge(admin_merge::router())
+        .merge(admin_spaces::router())
         .with_state(state);
     if let Some(mcp) = mcp_router {
         admin.merge(mcp)
@@ -668,6 +754,33 @@ fn open_profile_runtime(config: &DaemonConfig) -> StoreRuntime {
             })),
         );
     }
+    let installation_principal: PrincipalId = "local:installation"
+        .parse()
+        .expect("static installation principal is valid");
+    let space_service =
+        match spaces::LocalSpaceService::open(config.home(), &data_dir, loaded_config.clone())
+            .and_then(|service| {
+                service.bind_legacy_personal_global(
+                    config.active_profile(),
+                    &installation_principal,
+                    "Personal global",
+                    unix_now_secs().unwrap_or(0) as i64,
+                )
+            }) {
+            Ok(_) => None,
+            Err(error) => Some(error),
+        };
+    if let Some(error) = space_service {
+        return StoreRuntime::Unavailable(
+            AdminError::new(
+                AdminErrorCode::RecoveryRequired,
+                "personal-global space binding could not be verified",
+                Some("Run `openmemory doctor` and resolve the catalog/manifest mismatch."),
+                false,
+            )
+            .with_details(serde_json::json!({ "error": error.to_string() })),
+        );
+    }
     #[cfg(feature = "embeddings")]
     let opened = {
         let models_dir = config.home().join("models");
@@ -871,7 +984,7 @@ fn profiles_response(config: &DaemonConfig) -> AdminProfilesResponse {
 
 fn spawn_consolidate_job(
     config: DaemonConfig,
-    store: Arc<DomainStore>,
+    store: ActiveStoreLease,
     request: AdminConsolidateRequest,
     job_id: String,
     jobs: Arc<JobRegistry>,
@@ -922,14 +1035,29 @@ fn run_consolidate_blocking(
     })
 }
 
-fn open_active_store(state: &AdminState) -> Result<Arc<DomainStore>, (StatusCode, AdminError)> {
+fn open_active_store(state: &AdminState) -> Result<ActiveStoreLease, (StatusCode, AdminError)> {
     refresh_store_runtime(state);
     let store = state
         .store
         .read()
         .unwrap_or_else(|error| error.into_inner());
     match &*store {
-        StoreRuntime::Ready(store) => Ok(Arc::clone(store)),
+        StoreRuntime::Ready(store) => {
+            state
+                .store_admission
+                .lease(Arc::clone(store))
+                .map_err(|error| {
+                    (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        AdminError::new(
+                            AdminErrorCode::RecoveryRequired,
+                            error.to_string(),
+                            Some("Retry after profile maintenance completes."),
+                            true,
+                        ),
+                    )
+                })
+        }
         StoreRuntime::Unavailable(error) => {
             let status = if error.code == AdminErrorCode::ProfileNotInitialized {
                 StatusCode::NOT_FOUND
@@ -1018,6 +1146,7 @@ fn admin_entity(entity: &Entity, observation_count: u64) -> AdminEntitySummary {
         confidence: entity.confidence,
         source: entity.source.clone(),
         observation_count,
+        provenance: None,
     }
 }
 
@@ -1038,6 +1167,7 @@ fn admin_observation(observation: Observation) -> AdminObservation {
         source_kind: observation.source_kind,
         concepts: observation.concepts,
         source_files: observation.source_files,
+        provenance: None,
     }
 }
 
@@ -1052,6 +1182,7 @@ fn admin_relation(relation: Relation) -> AdminRelation {
         valid_from: relation.valid_from,
         valid_until: relation.valid_until,
         source: relation.source,
+        provenance: None,
     }
 }
 
@@ -1160,8 +1291,15 @@ async fn handle_shutdown(State(state): State<AdminState>, headers: HeaderMap) ->
         serde_json::json!({ "shutting_down_at_unix_secs": shutting_down_at_unix_secs }),
     );
 
-    if let Some(engine) = state.engine.clone() {
-        if let Err(error) = tokio::task::spawn_blocking(move || engine.quiesce()).await {
+    if let Some(runtime) = state.mcp_runtime.clone() {
+        let closed =
+            tokio::task::spawn_blocking(move || runtime.pause_and_close(Duration::from_secs(30)))
+                .await;
+        if let Err(error) = closed
+            .as_ref()
+            .map_err(ToString::to_string)
+            .and_then(|result| result.as_ref().map(|_| ()).map_err(ToString::to_string))
+        {
             return json_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 AdminErrorResponse::new(
@@ -1472,6 +1610,7 @@ async fn handle_search(
                 raw_score: result.raw_score,
                 score: result.score,
                 observation: admin_observation(result.observation),
+                duplicate_origins: Vec::new(),
             })
             .collect(),
         Ok(Err(error)) => {
@@ -1726,7 +1865,10 @@ async fn handle_backup_create(
         Ok(store) => store,
         Err((status, error)) => return json_error(status, AdminErrorResponse::new(error)),
     };
-    let engine = state.engine.clone();
+    let engine = state
+        .mcp_runtime
+        .as_ref()
+        .and_then(openmemory_mcp::McpRuntimeController::engine);
     let prepared = tokio::task::spawn_blocking(move || {
         let pause = engine.map(|engine| engine.pause_admissions());
         for domain in store.stores() {

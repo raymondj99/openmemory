@@ -12,8 +12,7 @@ use std::time::Duration;
 
 use openmemory_core::config::Config;
 use openmemory_engine::partition::DomainStore;
-use openmemory_engine::ContextEngine;
-use openmemory_mcp::OpenMemoryMcpServer;
+use openmemory_mcp::{McpEngineLease, OpenMemoryMcpServer};
 use serde_json::{json, Value};
 
 /// An in-process `openmemory mcp --http` instance over a fresh
@@ -22,7 +21,7 @@ pub struct TestServer {
     /// `http://127.0.0.1:<port>/mcp`
     pub base: String,
     pub domains: Arc<DomainStore>,
-    pub engine: Arc<ContextEngine>,
+    pub engine: McpEngineLease,
     pub config: Config,
     pub data_dir: std::path::PathBuf,
     runtime: tokio::runtime::Runtime,
@@ -43,7 +42,7 @@ impl TestServer {
             Arc::new(DomainStore::open(&config, &data_dir, domains_count).expect("open domains"));
         let server = OpenMemoryMcpServer::from_domain_store(config.clone(), Arc::clone(&domains))
             .expect("start server");
-        let engine = server.engine().cloned().expect("engine enabled");
+        let engine = server.engine().expect("engine enabled");
 
         let port = {
             let probe = std::net::TcpListener::bind("127.0.0.1:0").expect("probe port");
@@ -89,12 +88,13 @@ impl TestServer {
     /// offline follow-up phases such as migration.
     pub fn shutdown(self) -> OfflineProfile {
         self.runtime.shutdown_timeout(Duration::from_secs(5));
+        let controller = self.server.runtime_controller();
+        drop(self.engine);
         drop(self.server);
         drop(self.domains);
-        Arc::try_unwrap(self.engine)
-            .map_err(|_| ())
-            .expect("sole engine handle")
-            .shutdown();
+        let _closed = controller
+            .pause_and_close(Duration::from_secs(5))
+            .expect("drain MCP runtime");
         OfflineProfile {
             config: self.config,
             data_dir: self.data_dir,

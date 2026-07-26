@@ -97,6 +97,7 @@ mod tests {
             extensions: extensions.iter().map(|s| (*s).to_string()).collect(),
             max_size: u64::MAX,
             initial_scan: true,
+            backend: crate::WatchBackend::Native,
         }
     }
 

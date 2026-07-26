@@ -21,9 +21,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use openmemory_core::space::ChangeSetId;
 use openmemory_graph::{
-    EntityType, MemoryError, MemoryTier, NormalizeMatch, ObservationInput, RecallFilters,
-    RelationInput,
+    ChangeOperation, ChangeSetDraft, EntityType, EntityValue, MemoryError, MemoryTier,
+    NewObservation, NewRelation, NormalizeMatch, ObservationInput, ObservationValue,
+    RecallFilters, RelationInput, RememberChange, SubmitMode,
 };
 
 use crate::params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
@@ -52,6 +54,41 @@ fn map_memory_err(e: MemoryError) -> JsonRpcError {
             data: None,
         },
         other => JsonRpcError::internal_error(other.to_string()),
+    }
+}
+
+fn validate_write_target(
+    server: &OpenMemoryMcpServer,
+    requested: Option<&str>,
+) -> Result<(), JsonRpcError> {
+    let requested = requested.unwrap_or("default");
+    if !matches!(requested, "" | "default" | "personal" | "team") {
+        return Err(JsonRpcError::invalid_params(
+            "target must be default, personal, or team",
+        ));
+    }
+    let Some(context) = server.resolved_context() else {
+        if requested == "team" {
+            return Err(JsonRpcError::invalid_params(
+                "team target requires an authorized context capability",
+            ));
+        }
+        return Ok(());
+    };
+    let owner = context
+        .context
+        .read_set
+        .iter()
+        .find(|grant| grant.space.id == context.context.default_write)
+        .map(|grant| &grant.space.owner)
+        .ok_or_else(|| JsonRpcError::invalid_params("context write target is unavailable"))?;
+    match (requested, owner) {
+        ("" | "default", _)
+        | ("personal", openmemory_core::space::SpaceOwner::User(_))
+        | ("team", openmemory_core::space::SpaceOwner::Team(_)) => Ok(()),
+        _ => Err(JsonRpcError::invalid_params(
+            "target does not match the capability's authorized write space",
+        )),
     }
 }
 
@@ -90,6 +127,16 @@ pub struct RememberInput {
     /// returning. Defaults to the configured `engine.durable_ack`.
     #[serde(default)]
     pub durable: Option<bool>,
+    /// Context write selection. This can narrow a resolved capability but can
+    /// never authorize a space outside it.
+    #[serde(default)]
+    pub target: Option<String>,
+    /// Stable retry key for audited writes/proposals.
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
+    /// Human-readable audit reason.
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 /// One observation on the remember API. Either a bare string (the
@@ -269,6 +316,91 @@ impl Tool for OpenMemoryRememberTool {
             })
             .collect();
 
+        validate_write_target(server, req.target.as_deref())?;
+        let write_space_id = server.memory().space_id();
+        if server
+            .resolved_context()
+            .is_some_and(|context| context.proposal_required)
+        {
+            let context = server
+                .resolved_context()
+                .expect("proposal requirement has a resolved context");
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |duration| {
+                    i64::try_from(duration.as_secs()).unwrap_or(i64::MAX)
+                });
+            let change = RememberChange {
+                entity: EntityValue {
+                    name: req.entity.clone(),
+                    entity_type,
+                    confidence,
+                    source: source.clone(),
+                    aliases: Vec::new(),
+                    identifiers: Vec::new(),
+                },
+                observations: observations
+                    .iter()
+                    .map(|observation| NewObservation {
+                        logical_id: None,
+                        value: ObservationValue {
+                            content: observation.content.clone(),
+                            observed_at: now,
+                            valid_from: observation.valid_from,
+                            valid_until: observation.valid_until,
+                            confidence: observation.confidence,
+                            source: observation.source.clone(),
+                            memory_tier: observation.memory_tier,
+                            title: observation.title.clone(),
+                            summary: observation.summary.clone(),
+                            importance: observation.importance,
+                            source_kind: observation.source_kind.clone(),
+                            concepts: observation.concepts.clone(),
+                            source_files: observation.source_files.clone(),
+                        },
+                    })
+                    .collect(),
+                relations: relations
+                    .iter()
+                    .map(|relation| NewRelation {
+                        logical_id: None,
+                        to_entity_name: relation.target_name.clone(),
+                        to_entity_type: relation.target_type,
+                        relation_type: relation.relation_type.clone(),
+                        weight: relation.weight,
+                        source: relation.source.clone(),
+                    })
+                    .collect(),
+            };
+            let draft = ChangeSetDraft {
+                idempotency_key: req
+                    .idempotency_key
+                    .clone()
+                    .unwrap_or_else(|| format!("mcp:{}", ChangeSetId::new())),
+                space_id: context.context.default_write,
+                actor_principal: context.context.principal.clone(),
+                actor_kind: context.context.actor_kind,
+                authorization_generation: context.context.authorization_generation,
+                reason: req
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| "agent team-memory proposal".to_string()),
+                source: source.clone(),
+                operations: vec![ChangeOperation::Remember(change)],
+            };
+            let receipt = server
+                .memory()
+                .submit_changeset(&draft, SubmitMode::Propose)
+                .map_err(map_memory_err)?;
+            return json_text_result(&json!({
+                "accepted": true,
+                "proposed": true,
+                "changeset_id": receipt.id.to_string(),
+                "state": "proposed",
+                "space_id": write_space_id.to_string(),
+            }));
+        }
+
         // Write-behind path: when the context engine is enabled, submit
         // to its sharded queue instead of paying a per-call transaction.
         // The response is an ingestion receipt; ids are not minted until
@@ -292,6 +424,7 @@ impl Tool for OpenMemoryRememberTool {
                 "entity": req.entity,
                 "shard": ticket.shard,
                 "seq": ticket.seq,
+                "space_id": write_space_id.to_string(),
             }));
         }
 
@@ -304,6 +437,7 @@ impl Tool for OpenMemoryRememberTool {
             "entity_existed": outcome.entity_existed,
             "observation_ids": outcome.observation_ids,
             "relation_ids": outcome.relation_ids,
+            "space_id": write_space_id.to_string(),
         });
         if let Some(ref norm) = outcome.normalized {
             let (action, matched_id, score) = match norm {
@@ -352,6 +486,10 @@ pub struct RecallInput {
     /// Search mode. Defaults to `hybrid`.
     #[serde(default)]
     pub mode: Option<SearchModeParam>,
+    /// Context narrowing. The capability resolver determines the authorized
+    /// layers; tool input can never add a space.
+    #[serde(default)]
+    pub read_mode: Option<String>,
 }
 
 const RECALL_DESC: &str =
@@ -393,6 +531,72 @@ impl Tool for OpenMemoryRecallTool {
         filters.entity_names = req.entity_names;
         filters.mode = req.mode.map(|p| p.to_mode());
         filters.memory_tier = req.memory_tier.map(|p| p.to_tier());
+
+        if let Some(mode) = req.read_mode.as_deref() {
+            if !matches!(
+                mode,
+                "" | "contextual" | "project_only" | "global_only"
+            ) {
+                return Err(JsonRpcError::invalid_params(
+                    "read_mode must be contextual, project_only, or global_only",
+                ));
+            }
+            if server.resolved_context().is_some() && mode != "" && mode != "contextual" {
+                return Err(JsonRpcError::invalid_params(
+                    "read_mode must be selected when resolving the context capability",
+                ));
+            }
+        }
+
+        let layered_request = openmemory_engine::space::LayeredRecallRequest::new(
+            req.query.clone(),
+            limit,
+            filters.clone(),
+        );
+        if let Some(layered) = server
+            .contextual_recall(&layered_request)
+            .map_err(map_memory_err)?
+        {
+            let results: Vec<Value> = layered
+                .results
+                .into_iter()
+                .map(|hit| {
+                    json!({
+                        "observation_id": hit.local.observation.id,
+                        "entity_name": hit.local.entity_name,
+                        "entity_type": hit.local.entity_type.as_str(),
+                        "content": hit.local.observation.content,
+                        "observed_at": hit.local.observation.observed_at,
+                        "score": super::round2(hit.adjusted_score),
+                        "raw_score": super::round2(hit.local.raw_score),
+                        "confidence": super::round2(hit.local.observation.confidence),
+                        "source": hit.local.observation.source,
+                        "access_count": hit.local.observation.access_count,
+                        "memory_tier": hit.local.observation.memory_tier.as_str(),
+                        "space_id": hit.space.id.to_string(),
+                        "revision_hash": hit.semantic_revision_hash.map(|hash| {
+                            format!("blake3:{}", hash.iter()
+                                .map(|byte| format!("{byte:02x}"))
+                                .collect::<String>())
+                        }),
+                        "read_priority": hit.read_priority,
+                        "layer_prior": hit.layer_prior,
+                        "duplicate_origins": hit.duplicate_origins.into_iter().map(|origin| {
+                            json!({
+                                "space_id": origin.space_id.to_string(),
+                                "logical_id": origin.logical_id,
+                            })
+                        }).collect::<Vec<_>>(),
+                    })
+                })
+                .collect();
+            return json_text_result(&json!({
+                "results": results,
+                "limit": limit,
+                "missing_spaces": layered.missing_spaces,
+                "fusion_policy_version": layered.fusion_policy_version,
+            }));
+        }
 
         let hits = server
             .memory()

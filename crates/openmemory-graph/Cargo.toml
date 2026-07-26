@@ -21,6 +21,7 @@ testing = ["openmemory-core/testing"]
 openmemory-core = { workspace = true }
 openmemory-index = { workspace = true, default-features = false }
 openmemory-embed = { workspace = true, default-features = false, optional = true }
+openmemory-merge = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

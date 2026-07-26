@@ -1,18 +1,21 @@
 use std::collections::{HashMap, VecDeque};
+use std::ops::Deref;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::time::{Duration, Instant};
 
 use openmemory_admin::{
     AdminError, AdminErrorCode, AdminEvent, AdminEventType, AdminJob, AdminJobKind, AdminJobState,
     AdminLogEntry, AdminLogLevel, ComponentHealth,
 };
 use openmemory_engine::partition::DomainStore;
-use openmemory_engine::ContextEngine;
 use openmemory_graph::new_id;
-use openmemory_mcp::BearerToken;
+use openmemory_mcp::{BearerToken, McpRuntimeController};
 use tokio::sync::{broadcast, watch};
 
 use crate::product_store::{ProductStore, ProductStoreError};
+use crate::space_registry::SpaceRegistry;
+use crate::spaces::LocalSpaceService;
 use crate::{redact_log_text, redact_log_value, unix_now_secs, AdminToken, DaemonConfig};
 
 #[derive(Clone)]
@@ -23,8 +26,11 @@ pub(crate) struct AdminState {
     pub(crate) logs: Arc<RedactedLogRing>,
     pub(crate) jobs: Arc<JobRegistry>,
     pub(crate) store: Arc<RwLock<StoreRuntime>>,
-    pub(crate) engine: Option<Arc<ContextEngine>>,
+    pub(crate) store_admission: Arc<StoreAdmission>,
+    pub(crate) mcp_runtime: Option<McpRuntimeController>,
     pub(crate) mcp_auth: Option<BearerToken>,
+    pub(crate) spaces: Option<LocalSpaceService>,
+    pub(crate) space_registry: Option<SpaceRegistry>,
     pub(crate) shutdown: Option<watch::Sender<bool>>,
 }
 
@@ -35,6 +41,130 @@ pub(crate) struct AdminState {
 pub(crate) enum StoreRuntime {
     Ready(Arc<DomainStore>),
     Unavailable(AdminError),
+}
+
+#[derive(Debug, Default)]
+struct StoreAdmissionState {
+    paused: bool,
+    active: usize,
+}
+
+/// Tracks every admin request that borrows the active legacy store. Promotion
+/// pauses this gate and waits without polling until all request leases drain.
+#[derive(Debug, Default)]
+pub(crate) struct StoreAdmission {
+    state: Mutex<StoreAdmissionState>,
+    changed: Condvar,
+}
+
+#[derive(Debug)]
+pub(crate) struct ActiveStoreLease {
+    store: Arc<DomainStore>,
+    admission: Arc<StoreAdmission>,
+}
+
+impl Deref for ActiveStoreLease {
+    type Target = DomainStore;
+
+    fn deref(&self) -> &Self::Target {
+        &self.store
+    }
+}
+
+impl Drop for ActiveStoreLease {
+    fn drop(&mut self) {
+        let mut state = self
+            .admission
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.active = state.active.saturating_sub(1);
+        self.admission.changed.notify_all();
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct StoreAdmissionPause {
+    admission: Arc<StoreAdmission>,
+    resumed: bool,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum StoreAdmissionError {
+    #[error("active profile is paused for maintenance")]
+    Paused,
+    #[error("timed out waiting for active profile requests to drain")]
+    DrainTimeout,
+}
+
+impl StoreAdmission {
+    pub(crate) fn lease(
+        self: &Arc<Self>,
+        store: Arc<DomainStore>,
+    ) -> Result<ActiveStoreLease, StoreAdmissionError> {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        if state.paused {
+            return Err(StoreAdmissionError::Paused);
+        }
+        state.active = state.active.saturating_add(1);
+        drop(state);
+        Ok(ActiveStoreLease {
+            store,
+            admission: Arc::clone(self),
+        })
+    }
+
+    pub(crate) fn pause(
+        self: &Arc<Self>,
+        timeout: Duration,
+    ) -> Result<StoreAdmissionPause, StoreAdmissionError> {
+        let deadline = Instant::now() + timeout;
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        if state.paused {
+            return Err(StoreAdmissionError::Paused);
+        }
+        state.paused = true;
+        while state.active != 0 {
+            let now = Instant::now();
+            if now >= deadline {
+                state.paused = false;
+                self.changed.notify_all();
+                return Err(StoreAdmissionError::DrainTimeout);
+            }
+            let wait = deadline.saturating_duration_since(now);
+            let (next, _) = self
+                .changed
+                .wait_timeout(state, wait)
+                .unwrap_or_else(|error| error.into_inner());
+            state = next;
+        }
+        Ok(StoreAdmissionPause {
+            admission: Arc::clone(self),
+            resumed: false,
+        })
+    }
+}
+
+impl StoreAdmissionPause {
+    pub(crate) fn resume(mut self) {
+        let mut state = self
+            .admission
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.paused = false;
+        self.resumed = true;
+        self.admission.changed.notify_all();
+    }
+}
+
+impl Drop for StoreAdmissionPause {
+    fn drop(&mut self) {
+        if self.resumed {
+            return;
+        }
+        // Fail closed: promotion must explicitly reopen a verified store.
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

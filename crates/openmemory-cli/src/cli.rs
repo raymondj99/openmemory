@@ -69,6 +69,27 @@ pub enum Command {
     /// Start and inspect the local OpenMemory daemon.
     #[command(subcommand)]
     Daemon(DaemonCommand),
+    /// List, create, inspect, close, and delete memory spaces.
+    #[command(subcommand)]
+    Space(SpaceCommand),
+    /// Manage stable project/workspace mappings.
+    #[command(subcommand)]
+    Project(ProjectCommand),
+    /// Inspect the resolved memory context.
+    #[command(subcommand)]
+    Context(ContextCommand),
+    /// Inspect auditable semantic changesets.
+    #[command(subcommand)]
+    Changeset(ChangeSetCommand),
+    /// Approve or reject proposed team changes.
+    #[command(subcommand)]
+    Review(ReviewCommand),
+    /// Inspect and manually correct semantic memory history.
+    #[command(subcommand)]
+    Memory(MemoryCommand),
+    /// Preview, review, apply, and recover directional material merges.
+    #[command(subcommand)]
+    Merge(MergeCommand),
     /// Start the MCP server (stdio by default; --http for HTTP).
     Mcp(McpArgs),
     /// Run dedup + decay/prune consolidation once.
@@ -136,6 +157,553 @@ pub enum DaemonCommand {
     Status(DaemonStatusArgs),
     /// Request graceful shutdown of the local daemon.
     Stop(DaemonStopArgs),
+}
+
+/// Subcommands for `openmemory space`.
+#[derive(Debug, Subcommand)]
+pub enum SpaceCommand {
+    /// List spaces in the active profile.
+    List(JsonArgs),
+    /// Create one physically isolated semantic space.
+    Create(SpaceCreateArgs),
+    /// Show one space and its readiness.
+    Show(SpaceShowArgs),
+    /// Close a space to new runtime leases.
+    Close(SpaceShowArgs),
+    /// Begin guarded space deletion.
+    Delete(SpaceDeleteArgs),
+}
+
+/// Subcommands for `openmemory project`.
+#[derive(Debug, Subcommand)]
+pub enum ProjectCommand {
+    /// Map a canonical workspace path to a stable project.
+    Map(ProjectMapArgs),
+}
+
+/// Subcommands for `openmemory context`.
+#[derive(Debug, Subcommand)]
+pub enum ContextCommand {
+    /// Show the authorized ordered read set and single write target.
+    Show(ContextShowArgs),
+}
+
+/// Subcommands for `openmemory changeset`.
+#[derive(Debug, Subcommand)]
+pub enum ChangeSetCommand {
+    /// List bounded changeset metadata.
+    List(ChangeSetListArgs),
+    /// Show one changeset and its requested operations.
+    Show(ChangeSetShowArgs),
+    /// Revert an applied changeset as a new audited changeset.
+    Revert(ChangeSetRevertArgs),
+}
+
+/// Subcommands for `openmemory review`.
+#[derive(Debug, Subcommand)]
+pub enum ReviewCommand {
+    /// Approve a current proposal after authority revalidation.
+    Approve(ReviewDecisionArgs),
+    /// Reject a current proposal after authority revalidation.
+    Reject(ReviewDecisionArgs),
+}
+
+/// Subcommands for `openmemory memory`.
+#[derive(Debug, Subcommand)]
+pub enum MemoryCommand {
+    /// Show immutable revision history.
+    History(MemoryHistoryArgs),
+    /// Diff two immutable revisions.
+    Diff(MemoryDiffArgs),
+    /// Edit observation fields with optimistic concurrency.
+    Edit(MemoryEditArgs),
+    /// Retire an object without destroying history.
+    Retire(MemoryLifecycleArgs),
+    /// Restore a retired object.
+    Restore(MemoryLifecycleArgs),
+    /// Revert an object to an earlier immutable revision.
+    Revert(MemoryRevertArgs),
+    /// Copy one source object into a destination as an audited contribution.
+    CherryPick(MemoryCherryPickArgs),
+    /// Preview the exact scope of irreversible destruction.
+    DestroyPreview(MemoryDestroyPreviewArgs),
+    /// Irreversibly destroy the confirmed object scope.
+    Destroy(MemoryDestroyArgs),
+}
+
+/// Subcommands for `openmemory merge`.
+#[derive(Debug, Subcommand)]
+pub enum MergeCommand {
+    /// Create a deterministic merge preview job.
+    Preview(MergePreviewArgs),
+    /// List bounded identity candidates for a job.
+    Candidates(MergeCandidatesArgs),
+    /// Decide one revision-bound identity candidate.
+    Decide(MergeDecideArgs),
+    /// Resolve a fully reviewed job and mint a short-lived confirmation.
+    Resolve(MergeJobArgs),
+    /// Apply a confirmed deterministic plan.
+    Apply(MergeApplyArgs),
+    /// Show durable merge job state.
+    Status(MergeJobArgs),
+    /// Recover an interrupted promotion.
+    Recover(MergeRecoverArgs),
+    /// Cancel a non-terminal merge job.
+    Cancel(MergeJobArgs),
+}
+
+/// Common `--json` output switch.
+#[derive(Debug, Args)]
+pub struct JsonArgs {
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `space create` arguments.
+#[derive(Debug, Args)]
+pub struct SpaceCreateArgs {
+    /// Owner: `personal` or `team:<team-id>`.
+    #[arg(long)]
+    pub owner: String,
+    /// Context: `global` or `project:<project-id>`.
+    #[arg(long)]
+    pub context: String,
+    /// Human-facing display name.
+    #[arg(long)]
+    pub name: String,
+    /// Physical performance-shard count inside the semantic space.
+    #[arg(long, default_value_t = 1)]
+    pub domains: usize,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `space show|close` arguments.
+#[derive(Debug, Args)]
+pub struct SpaceShowArgs {
+    /// Opaque space ID.
+    pub id: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `space delete` arguments.
+#[derive(Debug, Args)]
+pub struct SpaceDeleteArgs {
+    /// Opaque space ID.
+    pub id: String,
+    /// Confirm this destructive operation.
+    #[arg(long)]
+    pub yes: bool,
+    /// Skip the default pre-delete backup.
+    #[arg(long)]
+    pub no_backup: bool,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `project map` arguments.
+#[derive(Debug, Args)]
+#[command(group(
+    clap::ArgGroup::new("project_selection")
+        .required(true)
+        .args(["project", "new"])
+))]
+pub struct ProjectMapArgs {
+    /// Workspace path to canonicalize and map.
+    pub path: std::path::PathBuf,
+    /// Existing opaque project ID.
+    #[arg(long)]
+    pub project: Option<String>,
+    /// Create a project with this display name, then map it.
+    #[arg(long)]
+    pub new: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `context show` arguments.
+#[derive(Debug, Args)]
+pub struct ContextShowArgs {
+    /// Workspace path used for project resolution.
+    #[arg(long)]
+    pub workspace: Option<std::path::PathBuf>,
+    /// Optional active team ID.
+    #[arg(long)]
+    pub team: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `changeset list` arguments.
+#[derive(Debug, Args)]
+pub struct ChangeSetListArgs {
+    /// Concrete space ID; defaults to the current write target.
+    #[arg(long)]
+    pub space: Option<String>,
+    /// Optional state filter such as `proposed`.
+    #[arg(long)]
+    pub state: Option<String>,
+    /// Maximum number of rows.
+    #[arg(long, default_value_t = 50)]
+    pub limit: usize,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `changeset show` arguments.
+#[derive(Debug, Args)]
+pub struct ChangeSetShowArgs {
+    /// Opaque changeset ID.
+    pub id: String,
+    /// Concrete space ID; defaults to the current write target.
+    #[arg(long)]
+    pub space: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `changeset revert` arguments.
+#[derive(Debug, Args)]
+pub struct ChangeSetRevertArgs {
+    /// Opaque changeset ID.
+    pub id: String,
+    /// Concrete space ID; defaults to the current write target.
+    #[arg(long)]
+    pub space: Option<String>,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Stable retry key.
+    #[arg(long)]
+    pub idempotency_key: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `review approve|reject` arguments.
+#[derive(Debug, Args)]
+pub struct ReviewDecisionArgs {
+    /// Opaque changeset ID.
+    pub id: String,
+    /// Concrete space ID; defaults to the current write target.
+    #[arg(long)]
+    pub space: Option<String>,
+    /// Current team authority generation.
+    #[arg(long)]
+    pub authority_generation: u64,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Common object selection for history.
+#[derive(Debug, Args)]
+pub struct MemoryHistoryArgs {
+    /// Logical object ID within the selected space.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Maximum revision rows.
+    #[arg(long, default_value_t = 50)]
+    pub limit: usize,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory diff` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryDiffArgs {
+    /// Logical object ID within the selected space.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Earlier revision.
+    #[arg(long)]
+    pub from: Option<String>,
+    /// Later revision; defaults to current.
+    #[arg(long)]
+    pub to: Option<String>,
+    /// Expected current head for stale-view reporting.
+    #[arg(long)]
+    pub expected: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory edit` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryEditArgs {
+    /// Observation logical ID.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// Expected immutable head revision.
+    #[arg(long)]
+    pub expected_revision: Option<String>,
+    /// Expected projection row version.
+    #[arg(long)]
+    pub expected_row_version: u64,
+    /// Expected lifecycle.
+    #[arg(long, default_value = "active")]
+    pub expected_lifecycle: String,
+    /// Complete typed observation fields as JSON.
+    #[arg(long)]
+    pub fields_json: String,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory retire|restore` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryLifecycleArgs {
+    /// Logical object ID.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Expected immutable head revision.
+    #[arg(long)]
+    pub expected_revision: Option<String>,
+    /// Expected projection row version.
+    #[arg(long)]
+    pub expected_row_version: u64,
+    /// Expected lifecycle.
+    #[arg(long)]
+    pub expected_lifecycle: String,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory revert` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryRevertArgs {
+    /// Logical object ID.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Expected current immutable head revision.
+    #[arg(long)]
+    pub expected_revision: Option<String>,
+    /// Expected projection row version.
+    #[arg(long)]
+    pub expected_row_version: u64,
+    /// Earlier revision to select as a new head event.
+    #[arg(long)]
+    pub revision: String,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory cherry-pick` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryCherryPickArgs {
+    /// Source logical object ID.
+    pub logical_id: String,
+    /// Source space ID.
+    #[arg(long)]
+    pub from: String,
+    /// Destination space ID.
+    #[arg(long)]
+    pub to: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Stable retry key.
+    #[arg(long)]
+    pub idempotency_key: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory destroy-preview` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryDestroyPreviewArgs {
+    /// Logical object ID.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Explicit destruction scope.
+    #[arg(long, default_value = "object")]
+    pub scope: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `memory destroy` arguments.
+#[derive(Debug, Args)]
+pub struct MemoryDestroyArgs {
+    /// Logical object ID.
+    pub logical_id: String,
+    /// Concrete space ID.
+    #[arg(long)]
+    pub space: String,
+    /// `observation`, `entity`, or `relation`.
+    #[arg(long, default_value = "observation")]
+    pub object_kind: String,
+    /// Explicit destruction scope.
+    #[arg(long, default_value = "object")]
+    pub scope: String,
+    /// Short-lived confirmation hash returned by preview.
+    #[arg(long)]
+    pub confirmation: String,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Confirm this irreversible operation.
+    #[arg(long)]
+    pub yes: bool,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `merge preview` arguments.
+#[derive(Debug, Args)]
+pub struct MergePreviewArgs {
+    /// Read-only source space.
+    #[arg(long)]
+    pub source: String,
+    /// Destination space.
+    #[arg(long)]
+    pub target: String,
+    /// Stable retry key.
+    #[arg(long)]
+    pub idempotency_key: Option<String>,
+    /// Treat unresolved candidates as distinct instead of blocking.
+    #[arg(long)]
+    pub keep_undetermined_distinct: bool,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Common merge job arguments.
+#[derive(Debug, Args)]
+pub struct MergeJobArgs {
+    /// Opaque merge job ID.
+    pub job: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `merge candidates` arguments.
+#[derive(Debug, Args)]
+pub struct MergeCandidatesArgs {
+    /// Opaque merge job ID.
+    pub job: String,
+    /// Optional candidate state filter.
+    #[arg(long)]
+    pub state: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `merge decide` arguments.
+#[derive(Debug, Args)]
+pub struct MergeDecideArgs {
+    /// Opaque identity candidate ID.
+    pub candidate: String,
+    /// `same`, `different`, or `undetermined`.
+    pub decision: String,
+    /// Revision-bound packet hash shown by candidate detail.
+    #[arg(long)]
+    pub packet_hash: String,
+    /// Current authority generation.
+    #[arg(long)]
+    pub authority_generation: u64,
+    /// Human audit rationale.
+    #[arg(long)]
+    pub reason: String,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `merge apply` arguments.
+#[derive(Debug, Args)]
+pub struct MergeApplyArgs {
+    /// Opaque merge job ID.
+    pub job: String,
+    /// Plan hash shown by resolve.
+    #[arg(long)]
+    pub plan_hash: String,
+    /// Target snapshot hash shown by resolve.
+    #[arg(long)]
+    pub target_hash: String,
+    /// Short-lived confirmation token shown by resolve.
+    #[arg(long)]
+    pub confirmation: String,
+    /// Confirm directional material promotion.
+    #[arg(long)]
+    pub yes: bool,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// `merge recover` arguments.
+#[derive(Debug, Args)]
+pub struct MergeRecoverArgs {
+    /// Opaque merge job ID.
+    #[arg(long)]
+    pub job: Option<String>,
+    /// Emit compact typed JSON.
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// `remember` arguments.
@@ -520,6 +1088,13 @@ where
         Command::Setup(args) => commands::setup::run(&cli.profile, args),
         Command::Status => commands::status::run(&cli.profile),
         Command::Daemon(command) => commands::daemon::run(&cli.profile, command),
+        Command::Space(command) => commands::admin::space(command),
+        Command::Project(command) => commands::admin::project(command),
+        Command::Context(command) => commands::admin::context(command),
+        Command::Changeset(command) => commands::admin::changeset(command),
+        Command::Review(command) => commands::admin::review(command),
+        Command::Memory(command) => commands::admin::memory(command),
+        Command::Merge(command) => commands::admin::merge(command),
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {

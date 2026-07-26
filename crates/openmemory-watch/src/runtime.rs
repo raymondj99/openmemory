@@ -21,13 +21,16 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use notify::RecursiveMode;
-use notify_debouncer_full::{new_debouncer, DebounceEventResult};
+use notify::{Config, PollWatcher, RecommendedWatcher, RecursiveMode};
+use notify_debouncer_full::{
+    new_debouncer, new_debouncer_opt, DebounceEventResult, Debouncer, NoCache, RecommendedCache,
+};
 use tracing::{debug, info, warn};
 
 use crate::error::{WatchError, WatchResult};
 use crate::events::process_batch;
 use crate::index::ScanReport;
+use crate::WatchBackend;
 
 /// Snapshot emitted to the caller's optional notifier after each
 /// debounced batch is processed. Cumulative across the watcher's
@@ -45,6 +48,27 @@ pub struct BatchSummary {
 /// the next debounced batch. 50 ms keeps shutdown latency low without
 /// burning CPU.
 const SHUTDOWN_POLL: Duration = Duration::from_millis(50);
+
+enum ActiveDebouncer {
+    Native(Debouncer<RecommendedWatcher, RecommendedCache>),
+    Polling(Debouncer<PollWatcher, NoCache>),
+}
+
+impl ActiveDebouncer {
+    fn watch(&mut self, root: &std::path::Path) -> notify::Result<()> {
+        match self {
+            Self::Native(debouncer) => debouncer.watch(root, RecursiveMode::Recursive),
+            Self::Polling(debouncer) => debouncer.watch(root, RecursiveMode::Recursive),
+        }
+    }
+
+    fn stop(self) {
+        match self {
+            Self::Native(debouncer) => debouncer.stop(),
+            Self::Polling(debouncer) => debouncer.stop(),
+        }
+    }
+}
 
 impl crate::Watcher {
     /// Run the watcher to completion. Equivalent to
@@ -88,6 +112,46 @@ impl crate::Watcher {
             options,
         } = self;
 
+        // Register the native backend before scanning or publishing the first
+        // notification. Besides giving callers a causal readiness boundary,
+        // this closes the classic scan-then-watch gap in which a file created
+        // after the scan but before registration could be missed forever.
+        // Events which race the initial scan remain queued and are harmless:
+        // normal content-hash deduplication makes their processing idempotent.
+        let (tx, rx) = mpsc::sync_channel::<DebounceEventResult>(64);
+        let handler = move |res| {
+            // The debouncer's closure runs on its own thread. Drop the
+            // result if the consumer is gone — that means the run loop
+            // has exited and the channel has been dropped.
+            let _ = tx.send(res);
+        };
+        let mut debouncer = match options.backend {
+            WatchBackend::Native => ActiveDebouncer::Native(
+                new_debouncer(options.debounce, None, handler).map_err(WatchError::from)?,
+            ),
+            WatchBackend::Polling { interval } => {
+                if interval.is_zero() {
+                    return Err(WatchError::InvalidInput(
+                        "watch polling interval must be positive".to_string(),
+                    ));
+                }
+                ActiveDebouncer::Polling(
+                    new_debouncer_opt::<_, PollWatcher, NoCache>(
+                        options.debounce,
+                        None,
+                        handler,
+                        NoCache,
+                        Config::default()
+                            .with_poll_interval(interval)
+                            .with_compare_contents(true),
+                    )
+                    .map_err(WatchError::from)?,
+                )
+            }
+        };
+
+        debouncer.watch(&root).map_err(WatchError::from)?;
+
         let mut report = ScanReport::default();
         if options.initial_scan {
             // Build a temporary borrow-borrowing watcher view for the
@@ -114,23 +178,6 @@ impl crate::Watcher {
             initial_indexed = report.inserted,
             "watcher running"
         );
-
-        // Channel between the debouncer's internal thread and the run loop.
-        // SyncSender(0) would deadlock the debouncer if the consumer is
-        // slow; bound at 64 to absorb bursts without unbounded memory growth.
-        let (tx, rx) = mpsc::sync_channel::<DebounceEventResult>(64);
-
-        let mut debouncer = new_debouncer(options.debounce, None, move |res| {
-            // The debouncer's closure runs on its own thread. Drop the
-            // result if the consumer is gone — that means the run loop
-            // has exited and the channel has been dropped.
-            let _ = tx.send(res);
-        })
-        .map_err(WatchError::from)?;
-
-        debouncer
-            .watch(&root, RecursiveMode::Recursive)
-            .map_err(WatchError::from)?;
 
         loop {
             if shutdown.load(Ordering::Relaxed) {
@@ -174,9 +221,9 @@ impl crate::Watcher {
             }
         }
 
-        // `Debouncer::stop` is idempotent and waits for the internal
-        // thread to drain. Drop here gives the same behaviour.
-        drop(debouncer);
+        // Explicit stop joins the debouncer thread before the native watcher
+        // is dropped. Plain `Drop` only flips the debouncer stop flag.
+        debouncer.stop();
         Ok(report)
     }
 }

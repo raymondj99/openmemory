@@ -19,12 +19,14 @@ testing = ["openmemory-graph/testing", "openmemory-core/testing"]
 openmemory-core = { workspace = true }
 openmemory-graph = { workspace = true }
 openmemory-index = { workspace = true, default-features = false }
+openmemory-merge = { workspace = true }
 lru = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 fs4 = { workspace = true }
+blake3 = { workspace = true }
 
 [dev-dependencies]
 clap = { workspace = true }

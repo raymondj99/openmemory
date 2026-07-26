@@ -13,6 +13,7 @@ members = [
     "crates/openmemory-bench",
     "crates/openmemory-eval",
     "crates/openmemory-engine",
+    "crates/openmemory-merge",
 ]
 
 [workspace.package]
@@ -36,6 +37,7 @@ openmemory-engine = { path = "crates/openmemory-engine", version = "0.4.4", defa
 openmemory-mcp = { path = "crates/openmemory-mcp", version = "0.4.4", default-features = false }
 openmemory-watch = { path = "crates/openmemory-watch", version = "0.4.4", default-features = false }
 openmemory-eval = { path = "crates/openmemory-eval", version = "0.4.4", default-features = false }
+openmemory-merge = { path = "crates/openmemory-merge", version = "0.4.4" }
 
 # Foundation
 serde = { version = "1", features = ["derive"] }

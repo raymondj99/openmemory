@@ -8,6 +8,14 @@
 
 use serde::{Deserialize, Serialize};
 
+mod audit;
+mod merge;
+mod spaces;
+
+pub use audit::*;
+pub use merge::*;
+pub use spaces::*;
+
 /// Version label for the first daemon/admin API contract.
 pub const ADMIN_API_VERSION: &str = "v1alpha1";
 
@@ -38,7 +46,35 @@ pub enum AdminErrorCode {
     RestorePreflightFailed,
     JobNotFound,
     Conflict,
+    AuthorizationDenied,
+    NotFound,
+    Stale,
+    ValidationFailed,
+    SpaceLocked,
+    IndexRepairRequired,
+    RecoveryRequired,
     Internal,
+}
+
+/// Optional additive space/revision metadata carried by old DTOs.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdminMemoryProvenance {
+    pub space_id: String,
+    pub space_label: String,
+    pub owner: String,
+    pub context: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision_id: Option<String>,
+    pub semantic_generation: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub origins: Vec<AdminOrigin>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdminOrigin {
+    pub space_id: String,
+    pub logical_id: String,
+    pub revision_id: String,
 }
 
 /// Error payload returned by every failing admin endpoint.
@@ -248,6 +284,8 @@ pub struct AdminEntitySummary {
     pub confidence: f32,
     pub source: String,
     pub observation_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<AdminMemoryProvenance>,
 }
 
 /// Observation payload used by detail and search endpoints.
@@ -276,6 +314,8 @@ pub struct AdminObservation {
     pub concepts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_files: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<AdminMemoryProvenance>,
 }
 
 /// Relation payload used by entity detail endpoints.
@@ -292,6 +332,8 @@ pub struct AdminRelation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valid_until: Option<i64>,
     pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<AdminMemoryProvenance>,
 }
 
 /// Response from `GET /admin/entities/{id}`.
@@ -310,6 +352,8 @@ pub struct AdminSearchResult {
     pub raw_score: f32,
     pub score: f32,
     pub observation: AdminObservation,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub duplicate_origins: Vec<AdminOrigin>,
 }
 
 /// Request body for `POST /admin/consolidate`.

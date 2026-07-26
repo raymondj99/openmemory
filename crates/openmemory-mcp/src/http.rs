@@ -37,13 +37,16 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::protocol::{JsonRpcError, JsonRpcRequest, JsonRpcResponse};
-use crate::OpenMemoryMcpServer;
+use crate::{McpResolvedContext, OpenMemoryMcpServer};
 
 /// Environment variable consulted by [`serve`] to decide whether to
 /// require bearer-token auth on the HTTP transport. Set it to a
 /// non-empty string to enable; unset or empty leaves the server
 /// unauthenticated.
 pub const BEARER_TOKEN_ENV: &str = "OPENMEMORY_HTTP_TOKEN";
+/// Optional opaque context capability. It can narrow a request to an
+/// authorized project/team read set but can never replace daemon bearer auth.
+pub const CONTEXT_CAPABILITY_HEADER: &str = "x-openmemory-context";
 
 /// Optional shared secret required on the `Authorization: Bearer …`
 /// header for every `/mcp` request. Clones share a tiny read/write-locked
@@ -127,6 +130,23 @@ impl std::fmt::Debug for BearerToken {
 struct HttpState {
     server: Arc<OpenMemoryMcpServer>,
     auth: Option<BearerToken>,
+    context_resolver: Option<Arc<dyn HttpContextResolver>>,
+}
+
+/// Daemon-owned capability resolver. Implementations validate expiry,
+/// revocation, bearer generation, current membership, and catalog generation
+/// before returning physical registry leases.
+pub trait HttpContextResolver: Send + Sync + 'static {
+    fn resolve(&self, capability: Option<&str>) -> Result<Arc<McpResolvedContext>, String>;
+}
+
+impl<F> HttpContextResolver for F
+where
+    F: Fn(Option<&str>) -> Result<Arc<McpResolvedContext>, String> + Send + Sync + 'static,
+{
+    fn resolve(&self, capability: Option<&str>) -> Result<Arc<McpResolvedContext>, String> {
+        self(capability)
+    }
 }
 
 /// Build the axum router for the HTTP transport.
@@ -141,6 +161,26 @@ struct HttpState {
 /// The server is wrapped in an `Arc` so cloning the state per request
 /// is cheap.
 pub fn build_router(server: OpenMemoryMcpServer, auth: Option<BearerToken>) -> Router {
+    build_router_inner(server, auth, None)
+}
+
+/// Build an HTTP router whose requests are bound to daemon-validated context
+/// capabilities. Absence of the context header is resolved explicitly by the
+/// callback (normally to personal-global compatibility), never by catalog
+/// scanning.
+pub fn build_context_router(
+    server: OpenMemoryMcpServer,
+    auth: Option<BearerToken>,
+    context_resolver: Arc<dyn HttpContextResolver>,
+) -> Router {
+    build_router_inner(server, auth, Some(context_resolver))
+}
+
+fn build_router_inner(
+    server: OpenMemoryMcpServer,
+    auth: Option<BearerToken>,
+    context_resolver: Option<Arc<dyn HttpContextResolver>>,
+) -> Router {
     let cors = CorsLayer::new()
         .allow_methods([Method::POST, Method::GET])
         .allow_origin(Any)
@@ -149,6 +189,7 @@ pub fn build_router(server: OpenMemoryMcpServer, auth: Option<BearerToken>) -> R
     let state = HttpState {
         server: Arc::new(server),
         auth,
+        context_resolver,
     };
 
     Router::new()
@@ -210,7 +251,31 @@ async fn handle_mcp(State(state): State<HttpState>, headers: HeaderMap, body: St
         }
     };
 
-    match state.server.handle(request) {
+    let context = match &state.context_resolver {
+        Some(resolver) => {
+            let capability = headers
+                .get(CONTEXT_CAPABILITY_HEADER)
+                .and_then(|value| value.to_str().ok());
+            match resolver.resolve(capability) {
+                Ok(context) => Some(context),
+                Err(error) => {
+                    return error_response(
+                        StatusCode::UNAUTHORIZED,
+                        JsonRpcError::invalid_request(format!(
+                            "invalid or stale memory context: {error}"
+                        )),
+                    )
+                }
+            }
+        }
+        None => None,
+    };
+
+    let response = match context {
+        Some(context) => state.server.handle_with_context(request, context),
+        None => state.server.handle(request),
+    };
+    match response {
         Some(response) => json_response(StatusCode::OK, response),
         None => StatusCode::NO_CONTENT.into_response(),
     }

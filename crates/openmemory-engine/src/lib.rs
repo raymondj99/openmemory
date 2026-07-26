@@ -58,7 +58,9 @@
 pub mod adapter;
 pub mod engine;
 pub mod journal;
+pub mod merge;
 pub mod migrate;
 pub mod partition;
+pub mod space;
 
 pub use engine::{ContextEngine, EngineOptions, EnginePause, EngineStats, Ticket};

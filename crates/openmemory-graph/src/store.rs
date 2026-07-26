@@ -26,16 +26,20 @@
 //!   crate in here would require the heavyweight ONNX deps).
 
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 use openmemory_core::clock::{Clock, SystemClock};
 use openmemory_core::config::Config;
+use openmemory_core::space::SpaceId;
 use openmemory_index::engine::{open_engine, OpenEngine};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::{MemoryError, MemoryResult};
 use crate::pool::ReadPool;
+use crate::remember::RememberOutcome;
 use crate::schema::{configure, migrate, MEMORY_SCHEMA_VERSION};
 use crate::types::{new_id, Entity, EntityType, MemoryTier, Observation, Relation};
 
@@ -44,6 +48,8 @@ use openmemory_core::testing::Embedder;
 
 /// SQLite filename for the knowledge-graph database, under `data_dir`.
 pub const MEMORY_DB_FILE: &str = "memory.sqlite";
+/// Compatibility root identity used before a product catalog is bound.
+pub const SPACE_ID_FILE: &str = ".space-id";
 
 /// Aggregate counts and timestamps for a [`MemoryStore`]. Returned by
 /// [`MemoryStore::status`] and surfaced through the MCP `status` tool.
@@ -101,6 +107,8 @@ pub struct MemoryStore {
     engine: OpenEngine,
     rebuild_lock: RwLock<()>,
     data_dir: PathBuf,
+    space_id: SpaceId,
+    pub(crate) max_audit_payload_bytes: usize,
     decay_rate: f64,
     pub(crate) normalization_enabled: bool,
     pub(crate) auto_merge_threshold: f64,
@@ -133,6 +141,20 @@ impl MemoryStore {
     /// read-only Connections sized to `config.num_jobs()` (CPU count by
     /// default).
     pub fn open(config: &Config, data_dir: &Path) -> MemoryResult<Self> {
+        Self::open_impl(config, data_dir, None)
+    }
+
+    /// Open a store bound to one already-authorized semantic space.
+    /// Existing databases with another bound ID fail closed.
+    pub fn open_scoped(config: &Config, data_dir: &Path, space_id: SpaceId) -> MemoryResult<Self> {
+        Self::open_impl(config, data_dir, Some(space_id))
+    }
+
+    fn open_impl(
+        config: &Config,
+        data_dir: &Path,
+        requested_space_id: Option<SpaceId>,
+    ) -> MemoryResult<Self> {
         if !data_dir.as_os_str().is_empty() {
             std::fs::create_dir_all(data_dir)?;
         }
@@ -141,6 +163,22 @@ impl MemoryStore {
         let conn = Connection::open(&db_path)?;
         configure(&conn)?;
         migrate(&conn)?;
+        let existing_space_id = bound_space_id(&conn)?;
+        let space_id = match (existing_space_id, requested_space_id) {
+            (Some(existing), Some(requested)) if existing != requested => {
+                return Err(MemoryError::InvalidInput(format!(
+                    "memory store space binding mismatch: expected {requested}, found {existing}"
+                )));
+            }
+            (Some(existing), None) => {
+                ensure_compat_space_id(data_dir, existing)?;
+                existing
+            }
+            (Some(existing), Some(_)) => existing,
+            (None, Some(requested)) => requested,
+            (None, None) => load_or_create_compat_space_id(data_dir)?,
+        };
+        bind_space_id(&conn, space_id)?;
 
         let engine = open_engine(config, data_dir)?;
         let readers = ReadPool::open(&db_path, config.num_jobs())?;
@@ -151,6 +189,8 @@ impl MemoryStore {
             engine,
             rebuild_lock: RwLock::new(()),
             data_dir: data_dir.to_path_buf(),
+            space_id,
+            max_audit_payload_bytes: config.audit.max_payload_bytes,
             decay_rate: config.memory.decay_rate,
             normalization_enabled: config.normalization.enabled,
             auto_merge_threshold: config.normalization.auto_merge_threshold,
@@ -179,6 +219,8 @@ impl MemoryStore {
         // applying the rest is still correct.
         configure(&conn)?;
         migrate(&conn)?;
+        let space_id = SpaceId::new();
+        bind_space_id(&conn, space_id)?;
 
         // The hybrid engine needs an on-disk home for its FTS5/vector files.
         // tempfile cleans the directory up when the returned `_temp_dir`
@@ -195,6 +237,8 @@ impl MemoryStore {
             engine,
             rebuild_lock: RwLock::new(()),
             data_dir: temp_dir.path().to_path_buf(),
+            space_id,
+            max_audit_payload_bytes: config.audit.max_payload_bytes,
             decay_rate: config.memory.decay_rate,
             normalization_enabled: config.normalization.enabled,
             auto_merge_threshold: config.normalization.auto_merge_threshold,
@@ -245,6 +289,12 @@ impl MemoryStore {
     /// Path passed at open time. Empty for `open_in_memory`.
     pub fn data_dir(&self) -> &Path {
         &self.data_dir
+    }
+
+    /// Semantic memory space permanently bound to this graph database.
+    #[must_use]
+    pub const fn space_id(&self) -> SpaceId {
+        self.space_id
     }
 
     /// Borrow the open engine — useful for tests that want to peek at the
@@ -369,6 +419,25 @@ impl MemoryStore {
         self.readers.size()
     }
 
+    /// Immutable semantic hash of an observation's current revision.
+    /// Legacy rows which have not yet acquired a baseline return `None`;
+    /// callers must never approximate those for cross-space deduplication.
+    pub fn observation_revision_hash(&self, observation_id: &str) -> MemoryResult<Option<Vec<u8>>> {
+        self.with_reader(|conn| {
+            conn.query_row(
+                "SELECT revision.semantic_hash
+                 FROM observations AS observation
+                 JOIN observation_revisions AS revision
+                   ON revision.id = observation.current_revision_id
+                 WHERE observation.id = ?1",
+                [observation_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+        })
+    }
+
     /// Acquire the rebuild-lock for read. Held by the recall path so a
     /// search never observes a half-rebuilt vector index.
     pub(crate) fn read_rebuild(&self) -> std::sync::RwLockReadGuard<'_, ()> {
@@ -455,13 +524,14 @@ impl MemoryStore {
             LEFT JOIN observations o \
                 ON o.entity_id = e.id \
                 AND o.tombstoned = 0 \
+                AND o.lifecycle = 'active' \
                 AND (o.valid_until IS NULL OR o.valid_until > ?1)";
 
         self.with_reader(|conn| {
             if let Some(et) = entity_type {
                 let sql = format!(
                     "{base} \
-                     WHERE e.entity_type = ?2 \
+                     WHERE e.entity_type = ?2 AND e.lifecycle = 'active' \
                      GROUP BY e.id \
                      ORDER BY e.updated_at DESC \
                      LIMIT ?3 OFFSET ?4"
@@ -474,7 +544,7 @@ impl MemoryStore {
                 collect_rows(rows)
             } else {
                 let sql = format!(
-                    "{base} \
+                    "{base} WHERE e.lifecycle = 'active' \
                      GROUP BY e.id \
                      ORDER BY e.updated_at DESC \
                      LIMIT ?2 OFFSET ?3"
@@ -537,6 +607,7 @@ impl MemoryStore {
                  FROM observations
                  WHERE entity_id = ?1
                     AND tombstoned = 0
+                    AND lifecycle = 'active'
                     AND (valid_until IS NULL OR valid_until > ?2)
                  ORDER BY observed_at DESC",
             )?;
@@ -582,6 +653,7 @@ impl MemoryStore {
                         valid_from, valid_until, source
                  FROM relations
                  WHERE (from_entity = ?1 OR to_entity = ?1)
+                    AND lifecycle = 'active'
                     AND (valid_until IS NULL OR valid_until > ?2)
                  ORDER BY created_at DESC",
             )?;
@@ -658,7 +730,20 @@ impl MemoryStore {
                 source,
             ],
         )?;
+        let outcome = RememberOutcome {
+            entity_id: from_entity_id.to_string(),
+            entity_existed: true,
+            observation_ids: Vec::new(),
+            relation_ids: vec![id.clone()],
+            normalized: None,
+        };
+        let audit_generation =
+            crate::changeset::audit_legacy_remember(&tx, self.space_id(), &[outcome], source, now)?;
         tx.commit()?;
+        drop(conn);
+        if let Some(generation) = audit_generation {
+            self.drain_index_outbox(generation)?;
+        }
         Ok(id)
     }
 
@@ -681,16 +766,7 @@ impl MemoryStore {
                 "observation_id must not be empty".into(),
             ));
         }
-        let _guard = self.write_rebuild();
-        let mut conn = self.lock_db();
-        let tx = conn.transaction()?;
-        let updated = tx.execute(
-            "UPDATE observations SET memory_tier = ?1
-              WHERE id = ?2 AND tombstoned = 0",
-            params![tier.as_str(), observation_id],
-        )?;
-        tx.commit()?;
-        Ok(updated > 0)
+        self.compatibility_set_observation_tier(observation_id, tier)
     }
 
     /// Aggregate counts + timestamps for the store.
@@ -799,6 +875,106 @@ impl MemoryStore {
             reader_pool_size: pool_size,
         })
     }
+}
+
+fn bound_space_id(conn: &Connection) -> MemoryResult<Option<SpaceId>> {
+    let raw = conn
+        .query_row(
+            "SELECT value FROM memory_meta WHERE key = 'space_id'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    raw.map(|value| {
+        value.parse().map_err(|_| {
+            MemoryError::InvalidInput("memory store has an invalid bound space ID".to_string())
+        })
+    })
+    .transpose()
+}
+
+fn bind_space_id(conn: &Connection, space_id: SpaceId) -> MemoryResult<()> {
+    conn.execute(
+        "INSERT INTO memory_meta(key, value) VALUES('space_id', ?1)
+         ON CONFLICT(key) DO NOTHING",
+        [space_id.to_string()],
+    )?;
+    let observed = bound_space_id(conn)?.ok_or_else(|| {
+        MemoryError::InvalidInput("memory store space binding was not persisted".to_string())
+    })?;
+    if observed != space_id {
+        return Err(MemoryError::InvalidInput(format!(
+            "memory store space binding mismatch: expected {space_id}, found {observed}"
+        )));
+    }
+    Ok(())
+}
+
+/// Load or atomically mint the pre-catalog identity marker for a store root.
+pub fn load_or_create_compat_space_id(data_dir: &Path) -> MemoryResult<SpaceId> {
+    let marker = data_dir.join(SPACE_ID_FILE);
+    match read_space_id_marker(&marker) {
+        Ok(id) => Ok(id),
+        Err(MemoryError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            let id = SpaceId::new();
+            write_space_id_marker(data_dir, id)?;
+            read_space_id_marker(&marker)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn ensure_compat_space_id(data_dir: &Path, expected: SpaceId) -> MemoryResult<()> {
+    let marker = data_dir.join(SPACE_ID_FILE);
+    match read_space_id_marker(&marker) {
+        Ok(observed) if observed == expected => Ok(()),
+        Ok(observed) => Err(MemoryError::InvalidInput(format!(
+            "compatibility space marker mismatch: expected {expected}, found {observed}"
+        ))),
+        Err(MemoryError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            write_space_id_marker(data_dir, expected)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn read_space_id_marker(path: &Path) -> MemoryResult<SpaceId> {
+    let value = std::fs::read_to_string(path)?;
+    value.trim().parse().map_err(|_| {
+        MemoryError::InvalidInput(format!(
+            "invalid compatibility space marker at {}",
+            path.display()
+        ))
+    })
+}
+
+fn write_space_id_marker(data_dir: &Path, space_id: SpaceId) -> MemoryResult<()> {
+    std::fs::create_dir_all(data_dir)?;
+    let final_path = data_dir.join(SPACE_ID_FILE);
+    let temp_path = data_dir.join(format!(".{SPACE_ID_FILE}.tmp-{}", SpaceId::new()));
+    let mut temp = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp_path)?;
+    writeln!(temp, "{space_id}")?;
+    temp.sync_all()?;
+    match std::fs::hard_link(&temp_path, &final_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(error.into());
+        }
+    }
+    let _ = std::fs::remove_file(&temp_path);
+    std::fs::File::open(data_dir)?.sync_all()?;
+    let observed = read_space_id_marker(&final_path)?;
+    if observed != space_id {
+        return Err(MemoryError::InvalidInput(format!(
+            "concurrent space binding chose {observed}, not {space_id}"
+        )));
+    }
+    Ok(())
 }
 
 // --------------------- row mappers ---------------------
@@ -1365,6 +1541,18 @@ mod tests {
         let rels = store.get_entity_relations(&a.entity_id).unwrap();
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation_type, "supersedes");
+        let history = store
+            .object_history(
+                crate::ObjectRef {
+                    kind: crate::ObjectKind::Relation,
+                    logical_id: rel_id,
+                },
+                None,
+                10,
+            )
+            .unwrap();
+        assert_eq!(history.revisions.len(), 1);
+        assert_eq!(store.list_changesets(None, 10).unwrap().len(), 3);
     }
 
     #[test]

@@ -100,73 +100,49 @@ impl MemoryStore {
         let now = self.clock().now_secs();
         let mut report = ConsolidateReport::default();
 
-        // Phases 1+2: collect candidates, then apply tombstones in one tx.
-        // The rebuild write-lock spans the dedup/decay collection and the
-        // tombstone-and-engine-sync write, then drops before we delegate
-        // to `prune` for orphan cleanup. `prune` re-acquires the same lock;
-        // taking it twice while it's already held would deadlock since the
-        // RwLock is non-reentrant.
-        {
+        let candidate_groups = self.collect_dedup_candidates()?;
+        let mut duplicate_targets = Vec::new();
+        let mut access_rollups: HashMap<String, u32> = HashMap::new();
+        for observations in candidate_groups.values() {
+            let merges = dedup_within_entity(observations, config.dedup_text_threshold);
+            for (survivor_id, loser_ids, accumulated_access) in merges {
+                if !loser_ids.is_empty() {
+                    *access_rollups.entry(survivor_id).or_default() += accumulated_access;
+                }
+                duplicate_targets.extend(loser_ids);
+            }
+        }
+        let decay_targets = self.collect_decay_prune_targets(config, now)?;
+
+        // Retirement is semantic state. Route each compatibility mutation
+        // through the audited changeset transaction so revision history and
+        // the durable index outbox can never lag the projection silently.
+        for id in &duplicate_targets {
+            if self.compatibility_retire_observation(id)? {
+                report.duplicates_merged += 1;
+            }
+        }
+        for id in &decay_targets {
+            if self.compatibility_retire_observation(id)? {
+                report.observations_pruned += 1;
+            }
+        }
+
+        // Access counts are operational ranking state, not semantic state.
+        if !access_rollups.is_empty() {
             let _guard = self.write_rebuild();
-
-            let candidate_groups = self.collect_dedup_candidates()?;
-            let mut to_tombstone: Vec<String> = Vec::new();
-            let mut access_rollups: HashMap<String, u32> = HashMap::new();
-
-            for observations in candidate_groups.values() {
-                let merges = dedup_within_entity(observations, config.dedup_text_threshold);
-                for (survivor_id, loser_ids, accumulated_access) in merges {
-                    if !loser_ids.is_empty() {
-                        *access_rollups.entry(survivor_id).or_default() += accumulated_access;
-                    }
-                    to_tombstone.extend(loser_ids);
-                }
+            let mut conn = self.lock_db();
+            let tx = conn.transaction()?;
+            for (survivor_id, bonus) in &access_rollups {
+                tx.execute(
+                    "UPDATE observations
+                     SET access_count = access_count + ?1
+                     WHERE id = ?2",
+                    params![i64::from(*bonus), survivor_id],
+                )?;
             }
-            report.duplicates_merged = to_tombstone.len();
-
-            let prune_targets = self.collect_decay_prune_targets(config, now)?;
-            report.observations_pruned = prune_targets.len();
-
-            if !to_tombstone.is_empty() || !prune_targets.is_empty() || !access_rollups.is_empty() {
-                let mut conn = self.lock_db();
-                let tx = conn.transaction()?;
-                for id in &to_tombstone {
-                    tx.execute(
-                        "UPDATE observations
-                         SET tombstoned = 1,
-                             valid_until = COALESCE(valid_until, ?1)
-                         WHERE id = ?2 AND tombstoned = 0",
-                        params![now, id],
-                    )?;
-                }
-                for id in &prune_targets {
-                    tx.execute(
-                        "UPDATE observations
-                         SET tombstoned = 1,
-                             valid_until = COALESCE(valid_until, ?1)
-                         WHERE id = ?2 AND tombstoned = 0",
-                        params![now, id],
-                    )?;
-                }
-                for (survivor_id, bonus) in &access_rollups {
-                    tx.execute(
-                        "UPDATE observations
-                         SET access_count = access_count + ?1
-                         WHERE id = ?2",
-                        params![i64::from(*bonus), survivor_id],
-                    )?;
-                }
-                tx.commit()?;
-                drop(conn);
-
-                // Hybrid-engine sync (best-effort).
-                for id in to_tombstone.iter().chain(prune_targets.iter()) {
-                    let uri = format!("memory://observation/{id}");
-                    let _ = self.engine().engine.delete_by_uri(&uri);
-                }
-                self.flush_engine();
-            }
-        } // <-- rebuild_lock released here so prune() can acquire it
+            tx.commit()?;
+        }
 
         // Orphan-cleanup pass. prune() takes write_rebuild internally; we
         // must not be holding it.
@@ -415,6 +391,20 @@ mod tests {
             .unwrap();
         assert_eq!(live.len(), 2);
         assert!(live.iter().any(|o| o.id == outcome.observation_ids[2]));
+        let audit = store.list_changesets(None, 10).unwrap();
+        assert_eq!(audit.len(), 2, "remember and retirement are both audited");
+        assert!(audit.into_iter().any(|row| {
+            store
+                .get_changeset(row.id)
+                .is_ok_and(|detail| {
+                    detail.is_some_and(|detail| {
+                        detail
+                        .operations
+                        .iter()
+                        .any(|operation| matches!(operation, crate::ChangeOperation::Retire(_)))
+                    })
+                })
+        }));
     }
 
     #[test]
