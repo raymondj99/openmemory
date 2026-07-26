@@ -1,0 +1,533 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-07-18",
+  "spaces": [
+    {
+      "space_id": "project-tokio-rs-axum",
+      "project_name": "tokio-rs/axum",
+      "repository": {
+        "url": "https://github.com/tokio-rs/axum",
+        "commit": "b7e37889932edcf521ca54e5ed30245f01180994",
+        "tracked_files": 503
+      },
+      "sources": [
+        {"id":"a-readme","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/README.md"},
+        {"id":"a-workspace","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/Cargo.toml"},
+        {"id":"a-crate","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/Cargo.toml"},
+        {"id":"a-core-crate","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum-core/Cargo.toml"},
+        {"id":"a-extra-crate","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum-extra/Cargo.toml"},
+        {"id":"a-macros-crate","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum-macros/Cargo.toml"},
+        {"id":"a-lib","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/lib.rs"},
+        {"id":"a-router","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/routing/mod.rs"},
+        {"id":"a-handler","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/handler/mod.rs"},
+        {"id":"a-extract","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum-core/src/extract/mod.rs"},
+        {"id":"a-path","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/extract/path/mod.rs"},
+        {"id":"a-query","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/extract/query.rs"},
+        {"id":"a-state","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/extract/state.rs"},
+        {"id":"a-response","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum-core/src/response/mod.rs"},
+        {"id":"a-middleware","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/docs/middleware.md"},
+        {"id":"a-websocket","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/axum/src/extract/ws.rs"},
+        {"id":"a-lock","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/Cargo.lock"},
+        {"id":"a-ci","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/.github/workflows/CI.yml"},
+        {"id":"a-license","url":"https://github.com/tokio-rs/axum/blob/b7e37889932edcf521ca54e5ed30245f01180994/LICENSE"}
+      ],
+      "records": [
+        {
+          "logical_id":"a-repository","label":"tokio-rs/axum","aliases":["Rust web framework repository"],"kind":"repository",
+          "identifiers":{"github_repository":"tokio-rs/axum"},
+          "description":"Repository snapshot with 503 tracked files containing the four-crate Axum workspace, a separate examples workspace, CI, documentation, and extensive examples.",
+          "sources":["a-readme","a-workspace"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"a-organization","source":"a-readme"},
+            {"relation_type":"contains","target":"a-workspace-node","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-ci-node","source":"a-ci"}
+          ]
+        },
+        {
+          "logical_id":"a-organization","label":"tokio-rs","aliases":[],"kind":"organization",
+          "identifiers":{"github_owner":"tokio-rs"},
+          "description":"GitHub organization that owns the Axum repository.","sources":["a-readme"],"relations":[]
+        },
+        {
+          "logical_id":"a-workspace-node","label":"Axum Rust workspace","aliases":[],"kind":"rust_workspace",
+          "identifiers":{},
+          "description":"Root Cargo workspace whose member pattern includes `axum` and `axum-*`, yielding the axum, axum-core, axum-extra, and axum-macros crates; examples are maintained in a separate nested workspace.",
+          "sources":["a-workspace"],
+          "relations":[
+            {"relation_type":"contains","target":"a-axum","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-core","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-extra","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-macros","source":"a-workspace"}
+          ]
+        },
+        {
+          "logical_id":"a-axum","label":"Axum","aliases":["Rust web framework package"],"kind":"web_framework_crate",
+          "identifiers":{"crates_io_package":"axum"},
+          "description":"Version 0.8.9 manifest on main for an ergonomic, modular HTTP routing and request-handling library built for Tokio, Hyper, and Tower; the README warns main is accumulating breaking work toward 0.9.",
+          "sources":["a-crate","a-readme"],
+          "relations":[
+            {"relation_type":"depends_on","target":"a-core","source":"a-crate"},
+            {"relation_type":"uses","target":"a-tokio","source":"a-crate"},
+            {"relation_type":"uses","target":"a-http-package","source":"a-crate"},
+            {"relation_type":"exposes","target":"a-router-type","source":"a-router"},
+            {"relation_type":"exposes","target":"a-handler-trait","source":"a-handler"},
+            {"relation_type":"exposes","target":"a-from-request","source":"a-extract"},
+            {"relation_type":"exposes","target":"a-path-type","source":"a-path"},
+            {"relation_type":"exposes","target":"a-query-type","source":"a-query"},
+            {"relation_type":"exposes","target":"a-state-type","source":"a-state"},
+            {"relation_type":"exposes","target":"a-request-type","source":"a-extract"},
+            {"relation_type":"exposes","target":"a-response-type","source":"a-response"},
+            {"relation_type":"uses","target":"a-middleware-contract","source":"a-middleware"},
+            {"relation_type":"supports","target":"a-websocket-session","source":"a-websocket"},
+            {"relation_type":"licensed_under","target":"a-license-policy","source":"a-crate"}
+          ]
+        },
+        {
+          "logical_id":"a-core","label":"axum-core","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"axum-core"},
+          "description":"Version 0.5.6 crate holding Axum's core body, extraction, error, extension, and response traits and types.","sources":["a-core-crate"],"relations":[]
+        },
+        {
+          "logical_id":"a-extra","label":"axum-extra","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"axum-extra"},
+          "description":"Version 0.12.6 crate providing optional extractors, responses, typed routing, cookies, protobuf, and other utilities layered on Axum.","sources":["a-extra-crate"],"relations":[]
+        },
+        {
+          "logical_id":"a-macros","label":"axum-macros","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"axum-macros"},
+          "description":"Version 0.5.1 procedural-macro crate for debug handlers, request derivation, FromRef, typed paths, and related Axum macros.","sources":["a-macros-crate"],"relations":[]
+        },
+        {
+          "logical_id":"a-router-type","label":"axum::Router","aliases":["framework application routing root"],"kind":"application_builder",
+          "identifiers":{"rust_item":"axum@0.8.9::Router"},
+          "description":"Cloneable router for composing handlers and services; `Router<S>` tracks state still missing before the application can be served.",
+          "sources":["a-router"],
+          "relations":[{"relation_type":"realizes","target":"a-routing-concept","source":"a-router"}]
+        },
+        {
+          "logical_id":"a-handler-trait","label":"axum::handler::Handler","aliases":["framework handler trait"],"kind":"handler_trait",
+          "identifiers":{"rust_item":"axum@0.8.9::handler::Handler<T,S>"},
+          "description":"Send, Sync, Clone handler abstraction whose call receives Axum's request and explicit state, returns a response future, and can be layered with Tower middleware.",
+          "sources":["a-handler"],
+          "relations":[
+            {"relation_type":"uses","target":"a-from-request","source":"a-handler"},
+            {"relation_type":"returns","target":"a-response-type","source":"a-handler"}
+          ]
+        },
+        {
+          "logical_id":"a-from-request","label":"axum::extract::FromRequest","aliases":["framework extractor trait"],"kind":"extractor_trait",
+          "identifiers":{"rust_item":"axum-core@0.5.6::extract::FromRequest<S,M>"},
+          "description":"State-parameterized request extractor that may consume the body; the companion FromRequestParts trait handles reusable head-only extraction.",
+          "sources":["a-extract"],
+          "relations":[{"relation_type":"realizes","target":"a-extraction-concept","source":"a-extract"}]
+        },
+        {
+          "logical_id":"a-path-type","label":"axum::extract::Path<T>","aliases":["framework path extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"axum@0.8.9::extract::Path<T>"},
+          "description":"Public tuple extractor that deserializes route captures from request parts through Axum's URL-parameter representation.",
+          "sources":["a-path"],
+          "relations":[{"relation_type":"implements","target":"a-from-request","source":"a-path"}]
+        },
+        {
+          "logical_id":"a-query-type","label":"axum::extract::Query<T>","aliases":["framework query extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"axum@0.8.9::extract::Query<T>"},
+          "description":"Query-string extractor using serde-html-form semantics and FromRequestParts, with a direct try_from_uri constructor.",
+          "sources":["a-query"],
+          "relations":[{"relation_type":"implements","target":"a-from-request","source":"a-query"}]
+        },
+        {
+          "logical_id":"a-state-type","label":"axum::extract::State<S>","aliases":["framework application state extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"axum@0.8.9::extract::State<S>"},
+          "description":"Typed extractor backed by Router state and FromRef substate conversion; its wrapper stores S directly and is cloned through the router state model.",
+          "sources":["a-state"],
+          "relations":[
+            {"relation_type":"implements","target":"a-from-request","source":"a-state"},
+            {"relation_type":"realizes","target":"a-state-concept","source":"a-state"}
+          ]
+        },
+        {
+          "logical_id":"a-request-type","label":"axum::extract::Request<T>","aliases":["framework request concrete type"],"kind":"request_type",
+          "identifiers":{"rust_item":"axum-core@0.5.6::extract::Request<T>"},
+          "description":"Public type alias to `http` 1.x Request with Axum Body as the default body parameter.","sources":["a-extract","a-crate"],"relations":[]
+        },
+        {
+          "logical_id":"a-response-type","label":"axum::response::Response<T>","aliases":["framework response concrete type"],"kind":"response_type",
+          "identifiers":{"rust_item":"axum-core@0.5.6::response::Response<T>"},
+          "description":"Public type alias to `http` 1.x Response with Axum Body as the default body parameter.","sources":["a-response","a-crate"],"relations":[]
+        },
+        {
+          "logical_id":"a-middleware-contract","label":"Tower Service and Layer","aliases":["framework middleware contract"],"kind":"middleware_contract",
+          "identifiers":{"rust_item":"tower@0.5.2::Service"},
+          "description":"Axum deliberately has no bespoke middleware system; routers and handlers compose Tower Service and Layer implementations, including tower-http middleware.",
+          "sources":["a-readme","a-middleware"],
+          "relations":[{"relation_type":"realizes","target":"a-middleware-concept","source":"a-middleware"}]
+        },
+        {
+          "logical_id":"a-websocket-session","label":"axum::extract::ws::WebSocket","aliases":["framework websocket session concrete type"],"kind":"websocket_session",
+          "identifiers":{"rust_item":"axum@0.8.9::extract::ws::WebSocket"},
+          "description":"Async Stream/Sink-style WebSocket session wrapping tokio-tungstenite over a Hyper upgraded connection, created through WebSocketUpgrade.",
+          "sources":["a-websocket","a-crate"],
+          "relations":[{"relation_type":"realizes","target":"a-websocket-concept","source":"a-websocket"}]
+        },
+        {
+          "logical_id":"a-tokio","label":"Tokio","aliases":["shared async runtime package"],"kind":"software_package",
+          "identifiers":{"crates_io_package":"tokio"},
+          "description":"Runtime package required by Axum's supported server path; the pinned lock resolves Tokio 1.49.0 while manifests accept the Tokio 1.x line.","sources":["a-crate","a-lock"],"relations":[]
+        },
+        {
+          "logical_id":"a-http-package","label":"http crate","aliases":["shared HTTP types package"],"kind":"software_package",
+          "identifiers":{"crates_io_package":"http"},
+          "description":"The crates.io `http` package used directly at the 1.x API line; the pinned lock resolves version 1.4.0.","sources":["a-crate","a-lock"],"relations":[]
+        },
+        {
+          "logical_id":"a-routing-concept","label":"HTTP request routing","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Mapping request paths and methods to handlers or services through composable routers.","sources":["a-lib","a-router"],"relations":[]
+        },
+        {
+          "logical_id":"a-extraction-concept","label":"request extraction","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Declaratively deriving typed handler inputs from request parts, state, and at most one body-consuming extractor.","sources":["a-lib","a-extract"],"relations":[]
+        },
+        {
+          "logical_id":"a-middleware-concept","label":"HTTP middleware","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Cross-cutting request and response processing layered around routers, routes, or handlers.","sources":["a-middleware"],"relations":[]
+        },
+        {
+          "logical_id":"a-state-concept","label":"application state","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Typed data shared with request handlers through router configuration and extraction.","sources":["a-lib","a-state"],"relations":[]
+        },
+        {
+          "logical_id":"a-websocket-concept","label":"WebSocket protocol support","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Upgrading HTTP connections and exchanging framed bidirectional WebSocket messages.","sources":["a-websocket"],"relations":[]
+        },
+        {
+          "logical_id":"a-ci-node","label":"Axum CI matrix","aliases":[],"kind":"ci_pipeline",
+          "identifiers":{},
+          "description":"CI runs formatting and Clippy for code and examples, strict rustdoc, per-feature cargo-hack checks, stable/beta tests, macro nightly tests, MSRV tests, dependency policy, cross-target checks, dependency sorting, and spelling checks.","sources":["a-ci"],"relations":[]
+        },
+        {
+          "logical_id":"a-license-policy","label":"Axum MIT-only license policy","aliases":["repository license policy"],"kind":"license_policy",
+          "identifiers":{"spdx_expression":"MIT"},
+          "description":"The Axum workspace and repository are licensed under MIT only.","sources":["a-crate","a-license"],"relations":[]
+        }
+      ]
+    },
+    {
+      "space_id": "project-actix-web",
+      "project_name": "actix/actix-web",
+      "repository": {
+        "url": "https://github.com/actix/actix-web",
+        "commit": "82eed0ba1a128af6654efcb0317e9f2b60b23428",
+        "tracked_files": 444
+      },
+      "sources": [
+        {"id":"b-readme","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/README.md"},
+        {"id":"b-workspace","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/Cargo.toml"},
+        {"id":"b-crate","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/Cargo.toml"},
+        {"id":"b-http-crate","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-http/Cargo.toml"},
+        {"id":"b-lib","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/lib.rs"},
+        {"id":"b-app","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/app.rs"},
+        {"id":"b-handler","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/handler.rs"},
+        {"id":"b-extract","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/extract.rs"},
+        {"id":"b-path","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/types/path.rs"},
+        {"id":"b-query","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/types/query.rs"},
+        {"id":"b-data","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/data.rs"},
+        {"id":"b-request","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/request.rs"},
+        {"id":"b-response","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/response/response.rs"},
+        {"id":"b-middleware","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web/src/middleware/authors-guide.md"},
+        {"id":"b-actors-crate","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web-actors/Cargo.toml"},
+        {"id":"b-websocket","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/actix-web-actors/src/ws.rs"},
+        {"id":"b-lock","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/Cargo.lock"},
+        {"id":"b-ci","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/.github/workflows/ci.yml"},
+        {"id":"b-bench-ci","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/.github/workflows/bench.yml"},
+        {"id":"b-license-mit","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/LICENSE-MIT"},
+        {"id":"b-license-apache","url":"https://github.com/actix/actix-web/blob/82eed0ba1a128af6654efcb0317e9f2b60b23428/LICENSE-APACHE"}
+      ],
+      "records": [
+        {
+          "logical_id":"b-repository","label":"actix/actix-web","aliases":["Rust web framework repository"],"kind":"repository",
+          "identifiers":{"github_repository":"actix/actix-web"},
+          "description":"Repository snapshot with 444 tracked files containing ten root workspace crates, the deprecated actor integration crate, CI, benchmarks, migrations, documentation, and examples.",
+          "sources":["b-readme","b-workspace","b-actors-crate"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"b-organization","source":"b-readme"},
+            {"relation_type":"contains","target":"b-workspace-node","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-actors","source":"b-actors-crate"},
+            {"relation_type":"contains","target":"b-ci-node","source":"b-ci"}
+          ]
+        },
+        {
+          "logical_id":"b-organization","label":"actix","aliases":[],"kind":"organization",
+          "identifiers":{"github_owner":"actix"},
+          "description":"GitHub organization that owns the Actix Web repository.","sources":["b-readme"],"relations":[]
+        },
+        {
+          "logical_id":"b-workspace-node","label":"Actix Web Rust workspace","aliases":[],"kind":"rust_workspace",
+          "identifiers":{},
+          "description":"Root Cargo workspace with ten members spanning web APIs, HTTP transport, routing, files, multipart, code generation, test utilities, and the awc client.",
+          "sources":["b-workspace"],
+          "relations":[
+            {"relation_type":"contains","target":"b-actix-web","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-http","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-router","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-files","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-http-test","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-multipart","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-multipart-derive","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-test","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-codegen","source":"b-workspace"},
+            {"relation_type":"contains","target":"b-awc","source":"b-workspace"}
+          ]
+        },
+        {
+          "logical_id":"b-actix-web","label":"Actix Web","aliases":["Rust web framework package"],"kind":"web_framework_crate",
+          "identifiers":{"crates_io_package":"actix-web"},
+          "description":"Version 4.14.0 pragmatic Rust web framework providing HTTP servers, routing, extractors, responders, middleware, compression, TLS, and WebSocket support on the Actix service stack with Tokio compatibility.",
+          "sources":["b-crate","b-readme"],
+          "relations":[
+            {"relation_type":"depends_on","target":"b-http","source":"b-crate"},
+            {"relation_type":"depends_on","target":"b-router","source":"b-crate"},
+            {"relation_type":"optionally_uses","target":"b-codegen","source":"b-crate"},
+            {"relation_type":"uses","target":"b-tokio","source":"b-crate"},
+            {"relation_type":"exposes","target":"b-app-type","source":"b-app"},
+            {"relation_type":"exposes","target":"b-handler-trait","source":"b-handler"},
+            {"relation_type":"exposes","target":"b-from-request","source":"b-extract"},
+            {"relation_type":"exposes","target":"b-path-type","source":"b-path"},
+            {"relation_type":"exposes","target":"b-query-type","source":"b-query"},
+            {"relation_type":"exposes","target":"b-data-type","source":"b-data"},
+            {"relation_type":"exposes","target":"b-request-type","source":"b-request"},
+            {"relation_type":"exposes","target":"b-response-type","source":"b-response"},
+            {"relation_type":"uses","target":"b-middleware-contract","source":"b-middleware"},
+            {"relation_type":"supports","target":"b-websocket-session","source":"b-websocket"},
+            {"relation_type":"licensed_under","target":"b-license-policy","source":"b-crate"}
+          ]
+        },
+        {
+          "logical_id":"b-http","label":"actix-http","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-http"},
+          "description":"Version 3.13.1 HTTP types and services crate implementing Actix HTTP/1, optional HTTP/2, bodies, codecs, compression, TLS integration, and protocol-level WebSockets.",
+          "sources":["b-http-crate"],
+          "relations":[
+            {"relation_type":"uses","target":"b-http-package","source":"b-http-crate"},
+            {"relation_type":"uses","target":"b-tokio","source":"b-http-crate"}
+          ]
+        },
+        {
+          "logical_id":"b-router","label":"actix-router","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-router"},
+          "description":"Workspace crate for resource path matching, URL decoding, resource definitions, and router lookup.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-files","label":"actix-files","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-files"},
+          "description":"Workspace crate for static-file and directory serving in Actix Web.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-http-test","label":"actix-http-test","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-http-test"},
+          "description":"Workspace crate providing helpers for testing Actix HTTP applications.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-multipart","label":"actix-multipart","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-multipart"},
+          "description":"Workspace crate for multipart request streams and typed multipart forms.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-multipart-derive","label":"actix-multipart-derive","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-multipart-derive"},
+          "description":"Workspace procedural-macro crate deriving typed multipart forms.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-test","label":"actix-test","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-test"},
+          "description":"Workspace crate with integration-testing tools for Actix Web applications.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-codegen","label":"actix-web-codegen","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-web-codegen"},
+          "description":"Workspace procedural-macro crate for Actix Web routing and runtime attributes.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-awc","label":"awc","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"awc"},
+          "description":"Workspace asynchronous HTTP and WebSocket client library integrated with the Actix stack.","sources":["b-workspace"],"relations":[]
+        },
+        {
+          "logical_id":"b-actors","label":"actix-web-actors","aliases":[],"kind":"rust_crate",
+          "identifiers":{"crates_io_package":"actix-web-actors"},
+          "description":"Version 4.3.1+deprecated actor integration crate present in the repository but omitted from the ten-member root workspace list.","sources":["b-actors-crate"],"relations":[]
+        },
+        {
+          "logical_id":"b-app-type","label":"actix_web::App","aliases":["framework application routing root"],"kind":"application_builder",
+          "identifiers":{"rust_item":"actix-web@4.14.0::App<T>"},
+          "description":"Top-level application builder backed by Actix ServiceFactory composition, registering services, defaults, layered application data, and middleware transforms.",
+          "sources":["b-app"],
+          "relations":[
+            {"relation_type":"realizes","target":"b-routing-concept","source":"b-app"},
+            {"relation_type":"provides","target":"b-state-concept","source":"b-app"}
+          ]
+        },
+        {
+          "logical_id":"b-handler-trait","label":"actix_web::Handler","aliases":["framework handler trait"],"kind":"handler_trait",
+          "identifiers":{"rust_item":"actix-web@4.14.0::Handler<Args>"},
+          "description":"Cloneable function abstraction whose call receives already-extracted arguments and returns a future; extraction is orchestrated separately by route handler services.",
+          "sources":["b-handler"],
+          "relations":[
+            {"relation_type":"uses","target":"b-from-request","source":"b-handler"},
+            {"relation_type":"returns","target":"b-response-type","source":"b-handler"}
+          ]
+        },
+        {
+          "logical_id":"b-from-request","label":"actix_web::FromRequest","aliases":["framework extractor trait"],"kind":"extractor_trait",
+          "identifiers":{"rust_item":"actix-web@4.14.0::FromRequest"},
+          "description":"Extractor trait with associated Error and Future types, invoked with a shared HttpRequest reference and mutable Payload; only one extractor may consume the payload.",
+          "sources":["b-extract"],
+          "relations":[{"relation_type":"realizes","target":"b-extraction-concept","source":"b-extract"}]
+        },
+        {
+          "logical_id":"b-path-type","label":"actix_web::web::Path<T>","aliases":["framework path extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"actix-web@4.14.0::web::Path<T>"},
+          "description":"Private-field wrapper that deserializes path captures using actix-router PathDeserializer and supports per-scope PathConfig error handling.",
+          "sources":["b-path"],
+          "relations":[{"relation_type":"implements","target":"b-from-request","source":"b-path"}]
+        },
+        {
+          "logical_id":"b-query-type","label":"actix_web::web::Query<T>","aliases":["framework query extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"actix-web@4.14.0::web::Query<T>"},
+          "description":"Query extractor using serde_urlencoded semantics, with configurable errors and a direct from_query constructor; tuple decoding is explicitly unsupported.",
+          "sources":["b-query"],
+          "relations":[{"relation_type":"implements","target":"b-from-request","source":"b-query"}]
+        },
+        {
+          "logical_id":"b-data-type","label":"actix_web::web::Data<T>","aliases":["framework application state extractor concrete type"],"kind":"request_extractor",
+          "identifiers":{"rust_item":"actix-web@4.14.0::web::Data<T>"},
+          "description":"Arc-backed application-data wrapper and extractor with layered nearest-scope lookup; shared state must be constructed outside the per-worker App factory when cross-worker sharing is required.",
+          "sources":["b-data","b-app"],
+          "relations":[
+            {"relation_type":"implements","target":"b-from-request","source":"b-data"},
+            {"relation_type":"realizes","target":"b-state-concept","source":"b-data"}
+          ]
+        },
+        {
+          "logical_id":"b-request-type","label":"actix_web::HttpRequest","aliases":["framework request concrete type"],"kind":"request_type",
+          "identifiers":{"rust_item":"actix-web@4.14.0::HttpRequest"},
+          "description":"Cloneable Actix-specific incoming request backed by Rc-held request head, router path, layered application data, connection data, extensions, and application state.","sources":["b-request"],"relations":[]
+        },
+        {
+          "logical_id":"b-response-type","label":"actix_web::HttpResponse<B>","aliases":["framework response concrete type"],"kind":"response_type",
+          "identifiers":{"rust_item":"actix-web@4.14.0::HttpResponse<B>"},
+          "description":"Actix-specific outgoing response wrapper around actix_http::Response with body and optional originating framework error.","sources":["b-response"],"relations":[]
+        },
+        {
+          "logical_id":"b-middleware-contract","label":"Actix Service and Transform","aliases":["framework middleware contract"],"kind":"middleware_contract",
+          "identifiers":{"rust_item":"actix-service@2::Transform<S,Req>"},
+          "description":"Actix middleware uses Transform as the builder/factory and actix_service::Service as the per-request processor, with reverse registration order and Actix body/error conventions.",
+          "sources":["b-middleware","b-app"],
+          "relations":[{"relation_type":"realizes","target":"b-middleware-concept","source":"b-middleware"}]
+        },
+        {
+          "logical_id":"b-websocket-session","label":"actix_web_actors::ws::WebsocketContext","aliases":["framework websocket session concrete type"],"kind":"websocket_session",
+          "identifiers":{"rust_item":"actix-web-actors@4.3.1+deprecated::ws::WebsocketContext<A>"},
+          "description":"Actor Context used by the deprecated actor integration crate; it drives WebSocket sessions through Actix Actor and StreamHandler abstractions over actix-http codecs.",
+          "sources":["b-websocket","b-actors-crate"],
+          "relations":[
+            {"relation_type":"realizes","target":"b-websocket-concept","source":"b-websocket"},
+            {"relation_type":"uses","target":"b-http","source":"b-websocket"}
+          ]
+        },
+        {
+          "logical_id":"b-tokio","label":"Tokio","aliases":["shared async runtime package"],"kind":"software_package",
+          "identifiers":{"crates_io_package":"tokio"},
+          "description":"Runtime package underneath actix-http and compatible with Actix Web macros; the pinned lock resolves Tokio 1.52.3.","sources":["b-http-crate","b-lock"],"relations":[]
+        },
+        {
+          "logical_id":"b-http-package","label":"http crate","aliases":["shared HTTP types package"],"kind":"software_package",
+          "identifiers":{"crates_io_package":"http"},
+          "description":"The same crates.io package identity, but actix-http's public stack declares the 0.2 API line and resolves 0.2.12; the lock also contains an unrelated transitive 1.4.2 revision.","sources":["b-http-crate","b-lock"],"relations":[]
+        },
+        {
+          "logical_id":"b-routing-concept","label":"HTTP request routing","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Registering path and method resources, scopes, routes, and handler services in an application service factory.","sources":["b-readme","b-app"],"relations":[]
+        },
+        {
+          "logical_id":"b-extraction-concept","label":"request extraction","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Creating typed handler arguments from an HttpRequest and mutable Payload through the FromRequest contract.","sources":["b-extract"],"relations":[]
+        },
+        {
+          "logical_id":"b-middleware-concept","label":"HTTP middleware","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Cross-cutting preprocessing, postprocessing, short-circuiting, and state access around application, scope, or resource services.","sources":["b-middleware"],"relations":[]
+        },
+        {
+          "logical_id":"b-state-concept","label":"application state","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"Typed data layered at App, Scope, or Resource boundaries and retrieved by request methods or Data extraction.","sources":["b-app","b-data"],"relations":[]
+        },
+        {
+          "logical_id":"b-websocket-concept","label":"WebSocket protocol support","aliases":[],"kind":"concept",
+          "identifiers":{},
+          "description":"HTTP upgrade, WebSocket framing, and bidirectional message handling in the Actix HTTP and optional actor integrations.","sources":["b-readme","b-websocket"],"relations":[]
+        },
+        {
+          "logical_id":"b-ci-node","label":"Actix Web CI and benchmark matrix","aliases":[],"kind":"ci_pipeline",
+          "identifiers":{},
+          "description":"CI exercises MSRV and stable Rust across Linux, macOS, and Windows, minimal/default configurations, the full test suite, dependency policy, io-uring, and rustdoc; a main-branch benchmark workflow runs the server Criterion benchmark.","sources":["b-ci","b-bench-ci"],"relations":[]
+        },
+        {
+          "logical_id":"b-license-policy","label":"Actix Web dual license policy","aliases":["repository license policy"],"kind":"license_policy",
+          "identifiers":{"spdx_expression":"MIT OR Apache-2.0"},
+          "description":"The Actix Web workspace and packages are offered under either MIT or Apache-2.0 at the user's option.","sources":["b-crate","b-license-mit","b-license-apache"],"relations":[]
+        }
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-repository","right":"b-repository","decision":"different"},
+    {"left":"a-axum","right":"b-actix-web","decision":"different"},
+    {"left":"a-router-type","right":"b-app-type","decision":"different"},
+    {"left":"a-handler-trait","right":"b-handler-trait","decision":"different"},
+    {"left":"a-from-request","right":"b-from-request","decision":"different"},
+    {"left":"a-path-type","right":"b-path-type","decision":"different"},
+    {"left":"a-query-type","right":"b-query-type","decision":"different"},
+    {"left":"a-state-type","right":"b-data-type","decision":"different"},
+    {"left":"a-request-type","right":"b-request-type","decision":"different"},
+    {"left":"a-response-type","right":"b-response-type","decision":"different"},
+    {"left":"a-middleware-contract","right":"b-middleware-contract","decision":"different"},
+    {"left":"a-websocket-session","right":"b-websocket-session","decision":"different"},
+    {"left":"a-license-policy","right":"b-license-policy","decision":"different"},
+    {"left":"a-tokio","right":"b-tokio","decision":"same"},
+    {"left":"a-http-package","right":"b-http-package","decision":"same"},
+    {"left":"a-routing-concept","right":"b-routing-concept","decision":"same"},
+    {"left":"a-extraction-concept","right":"b-extraction-concept","decision":"same"},
+    {"left":"a-middleware-concept","right":"b-middleware-concept","decision":"same"},
+    {"left":"a-state-concept","right":"b-state-concept","decision":"same"},
+    {"left":"a-websocket-concept","right":"b-websocket-concept","decision":"same"}
+  ],
+  "negative_checks": [
+    {
+      "space_id":"project-tokio-rs-axum",
+      "query":"actix[-_]",
+      "match_count":0,
+      "scope":"all tracked Cargo.toml manifests among 503 files at the pinned commit"
+    },
+    {
+      "space_id":"project-actix-web",
+      "query":"axum",
+      "match_count":0,
+      "scope":"all tracked Cargo.toml manifests among 444 files at the pinned commit"
+    }
+  ],
+  "guarded_non_edges": [
+    "no application-root coalescence: axum::Router -/-> actix_web::App",
+    "no handler-trait coalescence: axum::handler::Handler -/-> actix_web::Handler",
+    "no extractor-type coalescence: axum::extract::Path<T> -/-> actix_web::web::Path<T>",
+    "no middleware-contract equivalence: tower::Service/Layer -/-> actix_service::Service/Transform",
+    "no type equivalence implied by package merge: http@1::Request -/-> http@0.2::Request"
+  ]
+}

@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-07-18T19:20:00Z",
+  "spaces": [
+    {
+      "space_id": "project-mathlib4",
+      "project_name": "leanprover-community/mathlib4",
+      "repository": {
+        "url": "https://github.com/leanprover-community/mathlib4",
+        "commit": "168b9f3a7b2a75315d46232ec28c97f66a467c61",
+        "tracked_files": 8986
+      },
+      "sources": [
+        {"id":"a-readme","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/README.md"},
+        {"id":"a-toolchain","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/lean-toolchain"},
+        {"id":"a-lakefile","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/lakefile.lean"},
+        {"id":"a-manifest","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/lake-manifest.json"},
+        {"id":"a-root","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/Mathlib.lean"},
+        {"id":"a-init","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/Mathlib/Init.lean"},
+        {"id":"a-tactics","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/Mathlib/Tactic.lean"},
+        {"id":"a-meta","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/Mathlib/Lean/Meta.lean"},
+        {"id":"a-primes","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/Mathlib/Data/Nat/Prime/Basic.lean"},
+        {"id":"a-ci","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/.github/workflows/build_template.yml"},
+        {"id":"a-license","url":"https://github.com/leanprover-community/mathlib4/blob/168b9f3a7b2a75315d46232ec28c97f66a467c61/LICENSE"}
+      ],
+      "records": [
+        {
+          "logical_id":"a-repository","label":"leanprover-community/mathlib4","aliases":[],"kind":"repository",
+          "identifiers":{"github_repository":"leanprover-community/mathlib4"},
+          "description":"Pinned Mathlib repository snapshot with 8,986 tracked files, including 8,284 files under Mathlib, 389 under MathlibTest, archives, counterexamples, cache tooling, scripts, documentation, and CI.",
+          "sources":["a-readme","a-lakefile"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"a-organization","source":"a-readme"},
+            {"relation_type":"contains","target":"a-package","source":"a-lakefile"},
+            {"relation_type":"contains","target":"a-root-module","source":"a-root"},
+            {"relation_type":"contains","target":"a-init-module","source":"a-init"},
+            {"relation_type":"contains","target":"a-tactic-module","source":"a-tactics"},
+            {"relation_type":"contains","target":"a-meta-module","source":"a-meta"},
+            {"relation_type":"contains","target":"a-prime-module","source":"a-primes"},
+            {"relation_type":"contains","target":"a-ci","source":"a-ci"},
+            {"relation_type":"contains","target":"a-algebra","source":"a-root"},
+            {"relation_type":"contains","target":"a-category-theory","source":"a-root"},
+            {"relation_type":"contains","target":"a-analysis","source":"a-root"},
+            {"relation_type":"contains","target":"a-topology","source":"a-root"},
+            {"relation_type":"contains","target":"a-number-theory","source":"a-root"}
+          ]
+        },
+        {
+          "logical_id":"a-organization","label":"leanprover-community","aliases":[],"kind":"organization",
+          "identifiers":{"github_owner":"leanprover-community"},
+          "description":"GitHub organization maintaining the community Mathlib repository.","sources":["a-readme"],"relations":[]
+        },
+        {
+          "logical_id":"a-package","label":"Mathlib","aliases":["Lean ecosystem project"],"kind":"lean_project",
+          "identifiers":{"lean_project":"mathlib"},
+          "description":"User-maintained Lean library combining programming infrastructure, a broad formalized mathematics corpus, and proof tactics; its Lake package is fixed to the toolchain it was built with.",
+          "sources":["a-readme","a-lakefile"],
+          "relations":[
+            {"relation_type":"depends_on_repository","target":"a-lean-upstream","source":"a-toolchain"},
+            {"relation_type":"requires_toolchain","target":"a-pinned-toolchain","source":"a-toolchain"},
+            {"relation_type":"built_with","target":"a-lake","source":"a-lakefile"},
+            {"relation_type":"imports","target":"a-std","source":"a-root"},
+            {"relation_type":"uses_declaration","target":"a-nat","source":"a-primes"},
+            {"relation_type":"realizes","target":"a-language-concept","source":"a-readme"},
+            {"relation_type":"realizes","target":"a-theorem-proving","source":"a-readme"},
+            {"relation_type":"realizes","target":"a-dependent-types","source":"a-readme"},
+            {"relation_type":"realizes","target":"a-module-system","source":"a-root"},
+            {"relation_type":"licensed_under","target":"a-license-policy","source":"a-license"},
+            {"relation_type":"governed_by","target":"a-fixed-policy","source":"a-lakefile"}
+          ]
+        },
+        {
+          "logical_id":"a-lean-upstream","label":"leanprover/lean4","aliases":[],"kind":"repository",
+          "identifiers":{"github_repository":"leanprover/lean4"},
+          "description":"Upstream Lean 4 repository named by Mathlib's pinned toolchain reference.","sources":["a-toolchain"],
+          "relations":[{"relation_type":"provides","target":"a-pinned-toolchain","source":"a-toolchain"}]
+        },
+        {
+          "logical_id":"a-pinned-toolchain","label":"Lean v4.33.0-rc1 toolchain","aliases":[],"kind":"toolchain_release",
+          "identifiers":{"lean_toolchain":"leanprover/lean4:v4.33.0-rc1"},
+          "description":"Exact Lean toolchain selected by this Mathlib snapshot; it is not Lean master at the separately pinned source snapshot.","sources":["a-toolchain"],"relations":[]
+        },
+        {
+          "logical_id":"a-lake","label":"Lake","aliases":[],"kind":"lean_module",
+          "identifiers":{"lean_module":"Lake"},
+          "description":"Lean build system and package manager used by Mathlib's lakefile, dependency manifest, build, test, and cache workflows.","sources":["a-lakefile","a-manifest"],"relations":[]
+        },
+        {
+          "logical_id":"a-std","label":"Std","aliases":[],"kind":"lean_module",
+          "identifiers":{"lean_module":"Std"},
+          "description":"Lean standard-library module imported by Mathlib's generated root module.","sources":["a-root"],"relations":[]
+        },
+        {
+          "logical_id":"a-nat","label":"Nat","aliases":[],"kind":"lean_declaration",
+          "identifiers":{"lean_declaration":"Nat"},
+          "description":"Upstream natural-number declaration whose namespace and theory Mathlib extends.","sources":["a-primes"],
+          "relations":[{"relation_type":"realizes","target":"a-natural-numbers","source":"a-primes"}]
+        },
+        {
+          "logical_id":"a-lean-namespace","label":"namespace Lean","aliases":[],"kind":"lean_namespace",
+          "identifiers":{"lean_namespace":"Lean"},
+          "description":"Upstream Lean namespace reopened by Mathlib metaprogramming utilities.","sources":["a-meta"],"relations":[]
+        },
+        {
+          "logical_id":"a-parser-namespace","label":"namespace Lean.Parser","aliases":[],"kind":"lean_namespace",
+          "identifiers":{"lean_namespace":"Lean.Parser"},
+          "description":"Upstream parser namespace used by Mathlib syntax and metaprogramming code.","sources":["a-init","a-meta"],"relations":[]
+        },
+        {
+          "logical_id":"a-root-module","label":"Mathlib","aliases":["Lean library root module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Mathlib"},
+          "description":"Generated all-import root for Mathlib's formalized mathematics and supporting infrastructure.","sources":["a-root"],
+          "relations":[
+            {"relation_type":"imports","target":"a-init-module","source":"a-root"},
+            {"relation_type":"imports","target":"a-algebra","source":"a-root"},
+            {"relation_type":"imports","target":"a-category-theory","source":"a-root"},
+            {"relation_type":"imports","target":"a-analysis","source":"a-root"},
+            {"relation_type":"imports","target":"a-topology","source":"a-root"},
+            {"relation_type":"imports","target":"a-number-theory","source":"a-root"}
+          ]
+        },
+        {
+          "logical_id":"a-init-module","label":"Mathlib.Init","aliases":["Lean initialization root"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Mathlib.Init"},
+          "description":"Carefully curated initialization root imported by virtually every Mathlib file, installing linters, suggestions, adaptation notes, and shared tactic infrastructure.","sources":["a-init"],
+          "relations":[
+            {"relation_type":"extends","target":"a-lean-namespace","source":"a-init"},
+            {"relation_type":"uses","target":"a-parser-namespace","source":"a-init"}
+          ]
+        },
+        {
+          "logical_id":"a-tactic-module","label":"Mathlib.Tactic","aliases":["Lean tactic suite root"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Mathlib.Tactic"},
+          "description":"Large Mathlib tactic aggregation module importing hundreds of domain-specific and general proof procedures; it is not Lean's core Init.Tactics module.","sources":["a-tactics"],
+          "relations":[{"relation_type":"realizes","target":"a-tactics-concept","source":"a-tactics"}]
+        },
+        {
+          "logical_id":"a-meta-module","label":"Mathlib.Lean.Meta","aliases":["Lean metaprogramming utility module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Mathlib.Lean.Meta"},
+          "description":"Mathlib utilities layered on Lean elaboration, metavariable, and tactic APIs under reopened Lean namespaces; distinct from upstream Lean.Meta.","sources":["a-meta"],
+          "relations":[
+            {"relation_type":"extends","target":"a-lean-namespace","source":"a-meta"},
+            {"relation_type":"uses","target":"a-parser-namespace","source":"a-meta"}
+          ]
+        },
+        {
+          "logical_id":"a-prime-module","label":"Mathlib.Data.Nat.Prime.Basic","aliases":["natural-number implementation module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Mathlib.Data.Nat.Prime.Basic"},
+          "description":"Mathlib module developing prime-number theory in namespace Nat on top of the upstream natural-number declaration.","sources":["a-primes"],
+          "relations":[
+            {"relation_type":"extends","target":"a-nat","source":"a-primes"},
+            {"relation_type":"develops","target":"a-number-theory","source":"a-primes"}
+          ]
+        },
+        {
+          "logical_id":"a-cache","label":"Mathlib olean cache","aliases":[],"kind":"artifact_cache",
+          "identifiers":{},
+          "description":"Repository tooling that retrieves precompiled olean artifacts before builds and is validated in dedicated cache jobs.","sources":["a-readme","a-lakefile","a-ci"],
+          "relations":[{"relation_type":"accelerates","target":"a-package","source":"a-readme"}]
+        },
+        {
+          "logical_id":"a-ci","label":"Mathlib CI","aliases":["project CI pipeline"],"kind":"ci_pipeline",
+          "identifiers":{"source_file":"leanprover-community/mathlib4:.github/workflows/build_template.yml"},
+          "description":"Mathlib's reusable build workflow checks builds, tests, lints, cached artifacts, downstreams, documentation, and tool packages.","sources":["a-ci"],
+          "relations":[
+            {"relation_type":"validates","target":"a-package","source":"a-ci"},
+            {"relation_type":"uses","target":"a-cache","source":"a-ci"}
+          ]
+        },
+        {
+          "logical_id":"a-fixed-policy","label":"Mathlib fixed toolchain policy","aliases":["Lean version policy"],"kind":"version_policy",
+          "identifiers":{"version_policy":"mathlib-fixed-toolchain"},
+          "description":"Mathlib declares fixedToolchain=true and states that a Mathlib version supports only the toolchain with which it was built.","sources":["a-lakefile"],
+          "relations":[{"relation_type":"pins","target":"a-pinned-toolchain","source":"a-toolchain"}]
+        },
+        {
+          "logical_id":"a-license-policy","label":"Apache-2.0","aliases":[],"kind":"license_policy",
+          "identifiers":{"spdx_license":"Apache-2.0"},
+          "description":"Apache License 2.0 governing the Mathlib repository snapshot.","sources":["a-license"],"relations":[]
+        },
+        {"logical_id":"a-algebra","label":"Mathlib algebra corpus","aliases":[],"kind":"mathematics_domain","identifiers":{},"description":"Mathlib's largest subject subtree, spanning algebraic structures and constructions.","sources":["a-root"],"relations":[]},
+        {"logical_id":"a-category-theory","label":"Mathlib category theory corpus","aliases":[],"kind":"mathematics_domain","identifiers":{},"description":"Formal category theory modules, including categorical algebra, limits, monoidal structures, and applications.","sources":["a-root"],"relations":[]},
+        {"logical_id":"a-analysis","label":"Mathlib analysis corpus","aliases":[],"kind":"mathematics_domain","identifiers":{},"description":"Formal analysis modules covering calculus, normed structures, special functions, and related topics.","sources":["a-root"],"relations":[]},
+        {"logical_id":"a-topology","label":"Mathlib topology corpus","aliases":[],"kind":"mathematics_domain","identifiers":{},"description":"Formal topology modules ranging from foundational spaces to algebraic and geometric topology dependencies.","sources":["a-root"],"relations":[]},
+        {"logical_id":"a-number-theory","label":"Mathlib number theory corpus","aliases":[],"kind":"mathematics_domain","identifiers":{},"description":"Formal number theory modules including prime numbers, arithmetic, algebraic number theory, and analytic topics.","sources":["a-root","a-primes"],"relations":[]},
+        {"logical_id":"a-language-concept","label":"Lean programming language","aliases":[],"kind":"concept","identifiers":{},"description":"The Lean language used to state definitions, write programs, elaborate terms, and construct checked proofs.","sources":["a-readme"],"relations":[]},
+        {"logical_id":"a-theorem-proving","label":"formal theorem proving","aliases":[],"kind":"concept","identifiers":{},"description":"Machine-checked construction and verification of mathematical proofs.","sources":["a-readme"],"relations":[]},
+        {"logical_id":"a-dependent-types","label":"dependent type theory","aliases":[],"kind":"concept","identifiers":{},"description":"Type-theoretic foundation in which types may depend on values and propositions are represented by types.","sources":["a-readme"],"relations":[]},
+        {"logical_id":"a-tactics-concept","label":"tactic-based proof automation","aliases":[],"kind":"concept","identifiers":{},"description":"Procedural and reflective automation for transforming proof goals and constructing proof terms.","sources":["a-tactics"],"relations":[]},
+        {"logical_id":"a-natural-numbers","label":"natural numbers","aliases":[],"kind":"concept","identifiers":{},"description":"The mathematical structure of nonnegative integers developed extensively in Mathlib.","sources":["a-primes"],"relations":[]},
+        {"logical_id":"a-module-system","label":"Lean module system","aliases":[],"kind":"concept","identifiers":{},"description":"Lean source modules and public imports used to structure libraries and determine build dependencies.","sources":["a-root","a-init"],"relations":[]}
+      ]
+    },
+    {
+      "space_id": "project-lean4",
+      "project_name": "leanprover/lean4",
+      "repository": {
+        "url": "https://github.com/leanprover/lean4",
+        "commit": "25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198",
+        "tracked_files": 13121
+      },
+      "sources": [
+        {"id":"b-readme","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/README.md"},
+        {"id":"b-build","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/CMakeLists.txt"},
+        {"id":"b-version","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/CMakeLists.txt"},
+        {"id":"b-lean-root","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean.lean"},
+        {"id":"b-init-root","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Init.lean"},
+        {"id":"b-prelude","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Init/Prelude.lean"},
+        {"id":"b-std","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Std.lean"},
+        {"id":"b-lake","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/lake/Lake.lean"},
+        {"id":"b-lake-readme","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/lake/README.md"},
+        {"id":"b-lake-init","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/lake/Lake/CLI/Init.lean"},
+        {"id":"b-parser","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean/Parser.lean"},
+        {"id":"b-meta","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean/Meta.lean"},
+        {"id":"b-kernel","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/kernel/type_checker.h"},
+        {"id":"b-runtime","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/runtime/CMakeLists.txt"},
+        {"id":"b-compiler","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean/Compiler.lean"},
+        {"id":"b-elab","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean/Elab.lean"},
+        {"id":"b-server","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/src/Lean/Server.lean"},
+        {"id":"b-ci","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/.github/workflows/ci.yml"},
+        {"id":"b-pr-ci","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/.github/workflows/pr-release.yml"},
+        {"id":"b-license","url":"https://github.com/leanprover/lean4/blob/25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198/LICENSE"}
+      ],
+      "records": [
+        {
+          "logical_id":"b-repository","label":"leanprover/lean4","aliases":[],"kind":"repository",
+          "identifiers":{"github_repository":"leanprover/lean4"},
+          "description":"Pinned Lean 4 repository snapshot with 13,121 tracked files spanning language libraries, parser, elaborator, compiler, trusted kernel, runtime, Lake, generated bootstrap sources, documentation, and extensive tests.",
+          "sources":["b-readme","b-build"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"b-organization","source":"b-readme"},
+            {"relation_type":"contains","target":"b-project","source":"b-build"},
+            {"relation_type":"contains","target":"b-lean-root","source":"b-lean-root"},
+            {"relation_type":"contains","target":"b-init","source":"b-init-root"},
+            {"relation_type":"contains","target":"b-std","source":"b-std"},
+            {"relation_type":"contains","target":"b-lake","source":"b-lake"},
+            {"relation_type":"contains","target":"b-kernel","source":"b-kernel"},
+            {"relation_type":"contains","target":"b-runtime","source":"b-runtime"},
+            {"relation_type":"contains","target":"b-ci","source":"b-ci"},
+            {"relation_type":"tests_against","target":"b-mathlib-downstream","source":"b-pr-ci"},
+            {"relation_type":"licensed_under","target":"b-license-policy","source":"b-license"}
+          ]
+        },
+        {
+          "logical_id":"b-organization","label":"leanprover","aliases":[],"kind":"organization",
+          "identifiers":{"github_owner":"leanprover"},
+          "description":"GitHub organization owning the Lean 4 implementation repository.","sources":["b-readme"],"relations":[]
+        },
+        {
+          "logical_id":"b-project","label":"Lean 4 implementation","aliases":["Lean ecosystem project"],"kind":"lean_project",
+          "identifiers":{"lean_project":"lean4"},
+          "description":"Implementation of the Lean programming language and theorem prover, including its trusted kernel, elaborator, compiler, runtime, standard libraries, server, and build system.",
+          "sources":["b-readme","b-build","b-lean-root"],
+          "relations":[
+            {"relation_type":"contains","target":"b-kernel","source":"b-build"},
+            {"relation_type":"contains","target":"b-runtime","source":"b-build"},
+            {"relation_type":"contains","target":"b-compiler","source":"b-lean-root"},
+            {"relation_type":"contains","target":"b-elaborator","source":"b-lean-root"},
+            {"relation_type":"contains","target":"b-parser-system","source":"b-lean-root"},
+            {"relation_type":"contains","target":"b-meta-module","source":"b-lean-root"},
+            {"relation_type":"contains","target":"b-server","source":"b-lean-root"},
+            {"relation_type":"built_by","target":"b-stage1","source":"b-build"},
+            {"relation_type":"realizes","target":"b-language-concept","source":"b-readme"},
+            {"relation_type":"realizes","target":"b-theorem-proving","source":"b-readme"},
+            {"relation_type":"realizes","target":"b-dependent-types","source":"b-readme"},
+            {"relation_type":"realizes","target":"b-module-system","source":"b-lean-root"}
+          ]
+        },
+        {
+          "logical_id":"b-master-version","label":"Lean master 4.34.0-pre","aliases":["Lean version policy"],"kind":"version_policy",
+          "identifiers":{"version_policy":"lean-master-development"},
+          "description":"Version constants at the pinned Lean master snapshot identify the development version as 4.34.0-pre, not Mathlib's pinned v4.33.0-rc1 release candidate.","sources":["b-version"],"relations":[]
+        },
+        {
+          "logical_id":"b-mathlib-downstream","label":"leanprover-community/mathlib4","aliases":[],"kind":"repository",
+          "identifiers":{"github_repository":"leanprover-community/mathlib4"},
+          "description":"Mathlib repository treated by Lean release and pull-request automation as a downstream compatibility target.","sources":["b-ci","b-pr-ci"],"relations":[]
+        },
+        {
+          "logical_id":"b-lean-root","label":"Lean","aliases":["Lean library root module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Lean"},
+          "description":"Root Lean library module importing compiler, runtime, environment, parser, elaborator, metaprogramming, server, pretty printer, and other language services.","sources":["b-lean-root"],
+          "relations":[
+            {"relation_type":"imports","target":"b-compiler","source":"b-lean-root"},
+            {"relation_type":"imports","target":"b-runtime","source":"b-lean-root"},
+            {"relation_type":"imports","target":"b-elaborator","source":"b-lean-root"},
+            {"relation_type":"imports","target":"b-parser-system","source":"b-lean-root"},
+            {"relation_type":"imports","target":"b-meta-module","source":"b-lean-root"},
+            {"relation_type":"imports","target":"b-server","source":"b-lean-root"}
+          ]
+        },
+        {
+          "logical_id":"b-init","label":"Init","aliases":["Lean initialization root"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Init"},
+          "description":"Core initialization root importing the prelude, core data, tactics, well-founded recursion, system APIs, metaprogramming primitives, Omega, and Grind.","sources":["b-init-root"],
+          "relations":[
+            {"relation_type":"defines","target":"b-nat","source":"b-prelude"},
+            {"relation_type":"imports","target":"b-core-tactics","source":"b-init-root"},
+            {"relation_type":"contains","target":"b-init-nat","source":"b-prelude"}
+          ]
+        },
+        {
+          "logical_id":"b-std","label":"Std","aliases":[],"kind":"lean_module",
+          "identifiers":{"lean_module":"Std"},
+          "description":"Lean standard library root importing data structures, do-notation support, SAT, synchronization, time, tactics, internals, and networking.","sources":["b-std"],"relations":[]
+        },
+        {
+          "logical_id":"b-lake","label":"Lake","aliases":[],"kind":"lean_module",
+          "identifiers":{"lean_module":"Lake"},
+          "description":"Lean Make build system and package manager, shipped in the Lean repository, with DSL, configuration, build, CLI, TOML, and utility modules.","sources":["b-lake","b-lake-readme"],
+          "relations":[
+            {"relation_type":"scaffolds_projects_using","target":"b-mathlib-downstream","source":"b-lake-init"},
+            {"relation_type":"pins_dependencies_for","target":"b-module-system","source":"b-lake-readme"}
+          ]
+        },
+        {
+          "logical_id":"b-nat","label":"Nat","aliases":[],"kind":"lean_declaration",
+          "identifiers":{"lean_declaration":"Nat"},
+          "description":"Core inductive natural-number declaration special-cased by the trusted kernel and compiler and backed by efficient runtime arithmetic.","sources":["b-prelude"],
+          "relations":[{"relation_type":"realizes","target":"b-natural-numbers","source":"b-prelude"}]
+        },
+        {
+          "logical_id":"b-lean-namespace","label":"namespace Lean","aliases":[],"kind":"lean_namespace",
+          "identifiers":{"lean_namespace":"Lean"},
+          "description":"Top-level namespace for Lean implementation APIs and data structures.","sources":["b-lean-root"],"relations":[]
+        },
+        {
+          "logical_id":"b-parser-namespace","label":"namespace Lean.Parser","aliases":[],"kind":"lean_namespace",
+          "identifiers":{"lean_namespace":"Lean.Parser"},
+          "description":"Namespace containing Lean parser combinators, syntax categories, commands, terms, tactics, modules, and formatter integration.","sources":["b-parser"],"relations":[]
+        },
+        {
+          "logical_id":"b-kernel","label":"Lean trusted kernel","aliases":[],"kind":"native_subsystem","identifiers":{},
+          "description":"Small trusted C++ type-checking core responsible for validating declarations and proof terms.","sources":["b-kernel"],
+          "relations":[{"relation_type":"checks","target":"b-theorem-proving","source":"b-kernel"}]
+        },
+        {
+          "logical_id":"b-runtime","label":"Lean runtime","aliases":[],"kind":"native_subsystem","identifiers":{},
+          "description":"Native runtime support for Lean programs, including allocation, object representation, arithmetic, tasks, I/O, and platform integration.","sources":["b-runtime"],"relations":[]
+        },
+        {
+          "logical_id":"b-compiler","label":"Lean compiler","aliases":[],"kind":"compiler_subsystem","identifiers":{},
+          "description":"Compiler pipeline rooted at Lean.Compiler that transforms elaborated Lean code through intermediate representations toward executable code.","sources":["b-compiler"],
+          "relations":[{"relation_type":"targets","target":"b-runtime","source":"b-compiler"}]
+        },
+        {
+          "logical_id":"b-elaborator","label":"Lean elaborator","aliases":[],"kind":"language_subsystem","identifiers":{},
+          "description":"Elaboration subsystem converting parsed syntax into typed expressions while resolving notation, coercions, implicits, tactics, and commands.","sources":["b-elab"],
+          "relations":[
+            {"relation_type":"consumes","target":"b-parser-system","source":"b-elab"},
+            {"relation_type":"uses","target":"b-meta-module","source":"b-elab"}
+          ]
+        },
+        {
+          "logical_id":"b-parser-system","label":"Lean parser subsystem","aliases":[],"kind":"language_subsystem","identifiers":{"lean_module":"Lean.Parser"},
+          "description":"Parser module graph covering commands, terms, tactics, levels, module syntax, aliases, pretty-printing integration, and recovery.","sources":["b-parser"],
+          "relations":[{"relation_type":"owns","target":"b-parser-namespace","source":"b-parser"}]
+        },
+        {
+          "logical_id":"b-meta-module","label":"Lean.Meta","aliases":["Lean metaprogramming utility module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Lean.Meta"},
+          "description":"Upstream metaprogramming root importing definitional equality, type inference, instance synthesis, expression traversal, tactic primitives, and diagnostics.","sources":["b-meta"],
+          "relations":[
+            {"relation_type":"extends","target":"b-lean-namespace","source":"b-meta"},
+            {"relation_type":"supports","target":"b-tactics-concept","source":"b-meta"}
+          ]
+        },
+        {
+          "logical_id":"b-server","label":"Lean language server","aliases":[],"kind":"language_server","identifiers":{},
+          "description":"Editor-facing server subsystem for incremental processing, diagnostics, code actions, completion, and language features.","sources":["b-server"],"relations":[]
+        },
+        {
+          "logical_id":"b-core-tactics","label":"Init.Tactics","aliases":["Lean tactic suite root"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Init.Tactics"},
+          "description":"Core tactic support imported during Lean initialization; distinct from Mathlib's much larger Mathlib.Tactic aggregation.","sources":["b-init-root"],
+          "relations":[{"relation_type":"realizes","target":"b-tactics-concept","source":"b-init-root"}]
+        },
+        {
+          "logical_id":"b-init-nat","label":"Init.Prelude natural-number core","aliases":["natural-number implementation module"],"kind":"lean_module",
+          "identifiers":{"lean_module":"Init.Prelude"},
+          "description":"Prelude module defining the core Nat inductive and basic typeclass infrastructure; distinct from Mathlib's prime-number theory module.","sources":["b-prelude"],
+          "relations":[{"relation_type":"defines","target":"b-nat","source":"b-prelude"}]
+        },
+        {
+          "logical_id":"b-stage0","label":"Lean stage0 bootstrap","aliases":[],"kind":"build_stage","identifiers":{},
+          "description":"Checked-in bootstrap compiler sources used to construct stage1 without requiring the current compiler binary.","sources":["b-build"],
+          "relations":[{"relation_type":"bootstraps","target":"b-stage1","source":"b-build"}]
+        },
+        {
+          "logical_id":"b-stage1","label":"Lean stage1 build","aliases":[],"kind":"build_stage","identifiers":{},
+          "description":"Primary Lean build produced by stage0 and used for normal tests and installation.","sources":["b-build"],
+          "relations":[{"relation_type":"bootstraps","target":"b-stage2","source":"b-build"}]
+        },
+        {
+          "logical_id":"b-stage2","label":"Lean stage2 build","aliases":[],"kind":"build_stage","identifiers":{},
+          "description":"Self-hosted rebuild produced by stage1 and used for benchmarks and reproducibility comparison with stage3.","sources":["b-build"],
+          "relations":[{"relation_type":"demonstrates","target":"b-self-hosting","source":"b-build"}]
+        },
+        {
+          "logical_id":"b-self-hosting","label":"Lean self-hosting","aliases":[],"kind":"concept","identifiers":{},
+          "description":"Lean's staged ability to compile its own current implementation with the compiler produced by the previous stage.","sources":["b-build"],"relations":[]
+        },
+        {
+          "logical_id":"b-ci","label":"Lean CI","aliases":["project CI pipeline"],"kind":"ci_pipeline",
+          "identifiers":{"source_file":"leanprover/lean4:.github/workflows/ci.yml"},
+          "description":"Multi-platform Lean build, test, release, sanitizer, staging, artifact, and nightly automation with downstream coordination.","sources":["b-ci"],
+          "relations":[
+            {"relation_type":"validates","target":"b-project","source":"b-ci"},
+            {"relation_type":"contains","target":"b-mathlib-compat","source":"b-pr-ci"}
+          ]
+        },
+        {
+          "logical_id":"b-mathlib-compat","label":"Lean-to-Mathlib compatibility workflow","aliases":[],"kind":"compatibility_pipeline","identifiers":{},
+          "description":"Release and pull-request automation creates Lean PR toolchains and Mathlib nightly-testing branches so Mathlib CI can report compatibility failures back to Lean changes.","sources":["b-ci","b-pr-ci"],
+          "relations":[{"relation_type":"tests_against","target":"b-mathlib-downstream","source":"b-pr-ci"}]
+        },
+        {
+          "logical_id":"b-license-policy","label":"Apache-2.0","aliases":[],"kind":"license_policy",
+          "identifiers":{"spdx_license":"Apache-2.0"},
+          "description":"Apache License 2.0 governing the Lean 4 repository snapshot.","sources":["b-license"],"relations":[]
+        },
+        {"logical_id":"b-language-concept","label":"Lean programming language","aliases":[],"kind":"concept","identifiers":{},"description":"The dependently typed Lean programming language implemented by this repository.","sources":["b-readme","b-lean-root"],"relations":[]},
+        {"logical_id":"b-theorem-proving","label":"formal theorem proving","aliases":[],"kind":"concept","identifiers":{},"description":"Construction and kernel checking of formal proof terms in Lean.","sources":["b-readme","b-kernel"],"relations":[]},
+        {"logical_id":"b-dependent-types","label":"dependent type theory","aliases":[],"kind":"concept","identifiers":{},"description":"Lean's dependent type theory foundation for programs, propositions, and proofs.","sources":["b-readme","b-kernel"],"relations":[]},
+        {"logical_id":"b-tactics-concept","label":"tactic-based proof automation","aliases":[],"kind":"concept","identifiers":{},"description":"Lean elaborator and metaprogramming facilities for interactive and automated proof construction.","sources":["b-init-root","b-meta"],"relations":[]},
+        {"logical_id":"b-natural-numbers","label":"natural numbers","aliases":[],"kind":"concept","identifiers":{},"description":"Nonnegative integers represented by Lean's special-cased Nat inductive.","sources":["b-prelude"],"relations":[]},
+        {"logical_id":"b-module-system","label":"Lean module system","aliases":[],"kind":"concept","identifiers":{},"description":"Lean source modules, imports, compiled module artifacts, libraries, and Lake-visible dependency units.","sources":["b-lean-root","b-lake-readme"],"relations":[]}
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-lean-upstream","right":"b-repository","decision":"same"},
+    {"left":"a-repository","right":"b-mathlib-downstream","decision":"same"},
+    {"left":"a-lake","right":"b-lake","decision":"same"},
+    {"left":"a-std","right":"b-std","decision":"same"},
+    {"left":"a-nat","right":"b-nat","decision":"same"},
+    {"left":"a-lean-namespace","right":"b-lean-namespace","decision":"same"},
+    {"left":"a-parser-namespace","right":"b-parser-namespace","decision":"same"},
+    {"left":"a-license-policy","right":"b-license-policy","decision":"same"},
+    {"left":"a-package","right":"b-project","decision":"different"},
+    {"left":"a-root-module","right":"b-lean-root","decision":"different"},
+    {"left":"a-init-module","right":"b-init","decision":"different"},
+    {"left":"a-tactic-module","right":"b-core-tactics","decision":"different"},
+    {"left":"a-meta-module","right":"b-meta-module","decision":"different"},
+    {"left":"a-prime-module","right":"b-init-nat","decision":"different"},
+    {"left":"a-ci","right":"b-ci","decision":"different"},
+    {"left":"a-fixed-policy","right":"b-master-version","decision":"different"},
+    {"left":"a-language-concept","right":"b-language-concept","decision":"same"},
+    {"left":"a-theorem-proving","right":"b-theorem-proving","decision":"same"},
+    {"left":"a-dependent-types","right":"b-dependent-types","decision":"same"},
+    {"left":"a-tactics-concept","right":"b-tactics-concept","decision":"same"},
+    {"left":"a-natural-numbers","right":"b-natural-numbers","decision":"same"},
+    {"left":"a-module-system","right":"b-module-system","decision":"same"}
+  ],
+  "negative_checks": [
+    {
+      "space_id":"project-mathlib4",
+      "query":"LEAN_VERSION_MINOR 34",
+      "match_count":0,
+      "scope":"all 8,986 tracked files at the pinned Mathlib commit"
+    },
+    {
+      "space_id":"project-lean4",
+      "query":"theorem prime_mul_iff",
+      "match_count":0,
+      "scope":"all 13,121 tracked files at the pinned Lean commit"
+    }
+  ],
+  "guarded_non_edges": [
+    "no snapshot-version equivalence: Mathlib's leanprover/lean4:v4.33.0-rc1 toolchain -/-> Lean master 4.34.0-pre",
+    "no project coalescence: Mathlib -/-> Lean 4 implementation",
+    "no tactic-module coalescence: Mathlib.Tactic -/-> Init.Tactics",
+    "no metaprogramming-module coalescence: Mathlib.Lean.Meta -/-> Lean.Meta",
+    "no theory-to-datatype collapse: Mathlib.Data.Nat.Prime.Basic -/-> Init.Prelude",
+    "no repository-bound CI collapse: Mathlib CI -/-> Lean CI"
+  ]
+}

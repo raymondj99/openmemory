@@ -1,0 +1,77 @@
+memory-graph diff --into openai/codex@028edf8c1e09 --from openai/homebrew-tools@065bc95028be
+# proposed target-graph changeset; both source spaces remain immutable
+# '~?' requires team review, '!' preserves distinct identity, '+' adds data
+
+@@ identity decisions @@
+~? OpenAI  <=  OpenAI
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: GitHub organization that owns the Homebrew Tools repository.
+~? Apache License 2.0  <=  Apache License 2.0
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: License declared for the Homebrew Tools repository.
+~? Homebrew  <=  Homebrew
+   identity: needs_agent; route: human_review:same
+   + observation: Package ecosystem in which the `openai/tools` tap publishes its cask and formulas.
+! keep separate: Codex CLI  !=  OpenAI CLI
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Codex Homebrew cask  !=  OpenAI CLI Homebrew cask
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Codex release pipeline  !=  Homebrew recipe release pipeline
+   identity: needs_agent; route: human_review:different
+
+@@ entities added to target space @@
++ entity openai/homebrew-tools [repository] <b-repository>
+  + summary: Small Homebrew tap repository containing one OpenAI CLI cask, four Tart-family formulas, structural validation, and tightly gated GoReleaser auto-merge automation.
++ entity openai/tools Homebrew tap [package_repository] <b-tap>
+  + summary: Custom Homebrew tap for the OpenAI CLI and Tart-related tools.
++ entity OpenAI CLI [cli_product] <b-openai-cli>
+  + summary: Official CLI for the OpenAI API, sourced from releases of the separate `openai/openai-cli` repository.
++ entity OpenAI CLI Homebrew cask [distribution_recipe] <b-openai-cask>
+  + summary: Generated `openai` cask at version 1.4.0 with SHA-256-pinned macOS and Linux artifacts, binary, man page, and shell completions from `openai/openai-cli` releases.
++ entity Tart [homebrew_formula] <b-tart>
+  + summary: Formula version 2.33.0 for running macOS and Linux VMs on Apple hardware; depends on the Softnet formula.
++ entity Softnet [homebrew_formula] <b-softnet>
+  + summary: Formula version 0.20.1 providing isolated software networking for Tart on macOS.
++ entity Orchard [homebrew_formula] <b-orchard>
+  + summary: Formula version 0.56.0 for orchestrating Tart VMs across Apple Silicon clusters, with macOS and Linux artifacts.
++ entity Tart Guest Agent [homebrew_formula] <b-guest-agent>
+  + summary: Formula version 0.11.0 for the guest agent used inside Tart VMs, with macOS and Linux artifacts.
++ entity Homebrew recipe validator [validation_tool] <b-validator>
+  + summary: Ruby validator that fails closed on unknown formulas and checks generated headers, names, semantic versions, release hosts and artifact names, SHA-256 pins, install actions, and dependencies.
++ entity Validate cask workflow [ci_workflow] <b-validation-workflow>
+  + summary: macOS CI that checks Ruby syntax, taps the repository, runs `brew readall`, and executes the structural validator on pushes and pull requests.
++ entity Homebrew recipe release pipeline [release_pipeline] <b-release-pipeline>
+  + summary: GoReleaser-driven recipe updates are auto-merged only after validation and exact checks of app identity, branch/version format, base and head, same-repo ownership, one expected changed path, successful check, and immutable head SHA.
++ entity Homebrew Tools code ownership [governance_policy] <b-code-ownership>
+  + summary: All files, with explicit workflow coverage, are owned by the OpenAI SDKs team.
++ entity Homebrew Tools security policy [security_policy] <b-security>
+  + summary: Coordinated disclosure policy scoped to the tap and its release metadata.
+
+@@ relations imported from source space @@
++ relation openai/homebrew-tools --maintained_by--> OpenAI [rewired from b-openai]
++ relation openai/homebrew-tools --contains--> openai/tools Homebrew tap
++ relation openai/homebrew-tools --contains--> Homebrew recipe validator
++ relation openai/homebrew-tools --contains--> Homebrew recipe release pipeline
++ relation openai/tools Homebrew tap --belongs_to--> Homebrew [rewired from b-homebrew]
++ relation openai/tools Homebrew tap --packages--> OpenAI CLI
++ relation openai/tools Homebrew tap --packages--> Tart
++ relation openai/tools Homebrew tap --packages--> Softnet
++ relation openai/tools Homebrew tap --packages--> Orchard
++ relation openai/tools Homebrew tap --packages--> Tart Guest Agent
++ relation OpenAI CLI --distributed_as--> OpenAI CLI Homebrew cask
++ relation OpenAI CLI Homebrew cask --packages--> OpenAI CLI
++ relation OpenAI CLI Homebrew cask --belongs_to--> Homebrew [rewired from b-homebrew]
++ relation Tart --depends_on--> Softnet
++ relation Homebrew recipe validator --validates--> OpenAI CLI Homebrew cask
++ relation Homebrew recipe validator --validates--> Tart
++ relation Validate cask workflow --runs--> Homebrew recipe validator
++ relation Homebrew recipe release pipeline --updates--> OpenAI CLI Homebrew cask
++ relation Homebrew recipe release pipeline --guarded_by--> Validate cask workflow
+
+@@ guarded non-edges at these snapshots @@
+! no packages edge: openai/tools Homebrew tap -/-> Codex CLI
+! no contains edge: openai/homebrew-tools -/-> Codex Homebrew cask
+  evidence: /homebrew-tools|openai/tools/ matched 0 files in all 5,609 tracked files at the pinned commit
+  evidence: /codex/ matched 0 files in all 12 tracked files at the pinned commit
+
+# summary: 3 reviewed merges, 3 distinct candidate pairs, 13 added entities, 19 added relations, 0 deletions

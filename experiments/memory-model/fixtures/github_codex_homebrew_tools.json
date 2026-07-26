@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-07-18",
+  "spaces": [
+    {
+      "space_id": "project-openai-codex",
+      "project_name": "openai/codex",
+      "repository": {
+        "url": "https://github.com/openai/codex",
+        "commit": "028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca",
+        "tracked_files": 5609
+      },
+      "sources": [
+        {"id":"a-repo","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/README.md"},
+        {"id":"a-workspace","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/Cargo.toml"},
+        {"id":"a-cli","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/cli/src/main.rs"},
+        {"id":"a-core","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/core/src/lib.rs"},
+        {"id":"a-app-server","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/app-server/README.md"},
+        {"id":"a-protocol","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/protocol/README.md"},
+        {"id":"a-tui","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/tui/src/lib.rs"},
+        {"id":"a-exec","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/exec/src/lib.rs"},
+        {"id":"a-tools","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/tools/README.md"},
+        {"id":"a-plugins","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/core-plugins/src/lib.rs"},
+        {"id":"a-state","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/state/src/lib.rs"},
+        {"id":"a-thread-store","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/thread-store/README.md"},
+        {"id":"a-memory","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/memories/README.md"},
+        {"id":"a-npm","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-cli/package.json"},
+        {"id":"a-ts-sdk","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/sdk/typescript/README.md"},
+        {"id":"a-python-sdk","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/sdk/python/pyproject.toml"},
+        {"id":"a-release","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/.github/workflows/rust-release.yml"},
+        {"id":"a-brew","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/tui/src/updates.rs"},
+        {"id":"a-sandbox","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/docs/sandbox.md"},
+        {"id":"a-agent-graph","url":"https://github.com/openai/codex/blob/028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca/codex-rs/agent-graph-store/src/lib.rs"}
+      ],
+      "records": [
+        {
+          "logical_id":"a-repository","label":"openai/codex","aliases":["Codex repository"],"kind":"repository",
+          "identifiers":{"github_repository":"openai/codex"},
+          "description":"Public source repository for the Codex coding agent, including the Rust implementation, distribution wrappers, SDKs, documentation, and release automation.",
+          "sources":["a-repo"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"a-openai","source":"a-repo"},
+            {"relation_type":"contains","target":"a-codex-cli","source":"a-repo"},
+            {"relation_type":"contains","target":"a-rust-workspace","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-sdks","source":"a-ts-sdk"},
+            {"relation_type":"contains","target":"a-release-pipeline","source":"a-release"}
+          ]
+        },
+        {
+          "logical_id":"a-openai","label":"OpenAI","aliases":["OpenAI organization"],"kind":"organization",
+          "identifiers":{"github_owner":"openai"},
+          "description":"GitHub organization that owns the Codex repository.","sources":["a-repo"],"relations":[]
+        },
+        {
+          "logical_id":"a-codex-cli","label":"Codex CLI","aliases":["OpenAI command-line tool"],"kind":"cli_product",
+          "identifiers":{"source_repository":"openai/codex"},
+          "description":"A local coding agent with interactive TUI, non-interactive exec and review modes, app-server, MCP, plugins, cloud tasks, sandboxing, session lifecycle, and desktop-app launch surfaces.",
+          "sources":["a-repo","a-cli"],
+          "relations":[
+            {"relation_type":"implemented_by","target":"a-rust-workspace","source":"a-workspace"},
+            {"relation_type":"distributed_as","target":"a-npm-package","source":"a-npm"},
+            {"relation_type":"distributed_as","target":"a-codex-cask","source":"a-repo"}
+          ]
+        },
+        {
+          "logical_id":"a-rust-workspace","label":"codex-rs workspace","aliases":["Codex Rust workspace"],"kind":"rust_workspace",
+          "identifiers":{},
+          "description":"The primary implementation: a Rust 2024 Cargo workspace with 124 members spanning orchestration, interfaces, protocol, persistence, execution, security, extensions, and utilities.",
+          "sources":["a-workspace"],
+          "relations":[
+            {"relation_type":"contains","target":"a-core","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-app-server","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-protocol","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-tui","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-exec","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-tools","source":"a-workspace"},
+            {"relation_type":"contains","target":"a-memory-pipeline","source":"a-workspace"}
+          ]
+        },
+        {
+          "logical_id":"a-core","label":"codex-core","aliases":["Codex agent runtime"],"kind":"rust_crate",
+          "identifiers":{},
+          "description":"Compatibility-sensitive agent orchestration for threads, turns, model calls, context, tools, approvals, MCP, skills, plugins, execution, sandboxing, rollouts, and memory runtime coordination.",
+          "sources":["a-core"],"relations":[]
+        },
+        {
+          "logical_id":"a-app-server","label":"codex app-server","aliases":["Codex application server"],"kind":"service_interface",
+          "identifiers":{},
+          "description":"Bidirectional JSON-RPC interface for rich clients. It exposes thread, turn, and item primitives over stdio, experimental WebSocket, or local Unix-socket transports with bounded backpressure.",
+          "sources":["a-app-server"],
+          "relations":[{"relation_type":"uses","target":"a-protocol","source":"a-app-server"}]
+        },
+        {
+          "logical_id":"a-protocol","label":"codex-protocol","aliases":["Codex protocol types"],"kind":"rust_crate",
+          "identifiers":{},
+          "description":"Low-dependency internal and external protocol types shared between core, TUI, and app-server; material business logic is intentionally excluded.",
+          "sources":["a-protocol"],"relations":[]
+        },
+        {
+          "logical_id":"a-tui","label":"codex-tui","aliases":["Codex terminal UI"],"kind":"user_interface",
+          "identifiers":{},
+          "description":"Interactive terminal client built on the app-server client, covering conversation display, approvals, diffs, goals, session management, plugins, updates, and multi-agent status.",
+          "sources":["a-tui"],
+          "relations":[{"relation_type":"uses","target":"a-app-server","source":"a-tui"}]
+        },
+        {
+          "logical_id":"a-exec","label":"codex-exec","aliases":["Codex headless runner"],"kind":"execution_interface",
+          "identifiers":{},
+          "description":"Non-interactive and review execution surface; it drives an in-process app-server client and emits either human-readable final output or strict JSONL events.",
+          "sources":["a-exec"],
+          "relations":[{"relation_type":"uses","target":"a-app-server","source":"a-exec"}]
+        },
+        {
+          "logical_id":"a-tools","label":"codex-tools","aliases":["Codex model-visible tools"],"kind":"rust_crate",
+          "identifiers":{},
+          "description":"Shared host-side models, discovery, adapters, and executable contracts for model-visible tools, including MCP, dynamic tools, code mode, and plugin installation requests.",
+          "sources":["a-tools"],"relations":[]
+        },
+        {
+          "logical_id":"a-extensions","label":"Codex plugins and extensions","aliases":["Codex extension system"],"kind":"extension_system",
+          "identifiers":{},
+          "description":"Plugin manifests, local and remote marketplaces, bundled and curated marketplaces, skills, hooks, apps, MCP routing, and extension-owned tools.",
+          "sources":["a-plugins"],
+          "relations":[{"relation_type":"uses","target":"a-tools","source":"a-plugins"}]
+        },
+        {
+          "logical_id":"a-persistence","label":"Codex thread and state persistence","aliases":["Codex local persistence"],"kind":"storage_subsystem",
+          "identifiers":{},
+          "description":"Storage-neutral thread APIs backed locally by canonical rollout JSONL plus queryable SQLite state, with dedicated state, thread-store, rollout, and agent-graph boundaries.",
+          "sources":["a-state","a-thread-store"],"relations":[]
+        },
+        {
+          "logical_id":"a-memory-pipeline","label":"Codex memories pipeline","aliases":["Codex memory system"],"kind":"memory_subsystem",
+          "identifiers":{},
+          "description":"A bounded two-phase pipeline: parallel per-rollout model extraction into SQLite, followed by serialized global consolidation into a git-baselined memory workspace and a git-style workspace diff.",
+          "sources":["a-memory"],
+          "relations":[{"relation_type":"uses","target":"a-persistence","source":"a-memory"}]
+        },
+        {
+          "logical_id":"a-sdks","label":"Codex SDKs","aliases":["Codex client SDKs"],"kind":"sdk_collection",
+          "identifiers":{},
+          "description":"TypeScript SDK wrapping the CLI with JSONL thread/turn events and a Python SDK backed by the Codex CLI binary package.",
+          "sources":["a-ts-sdk","a-python-sdk"],
+          "relations":[{"relation_type":"wraps","target":"a-codex-cli","source":"a-ts-sdk"}]
+        },
+        {
+          "logical_id":"a-npm-package","label":"@openai/codex","aliases":["Codex npm package"],"kind":"distribution_package",
+          "identifiers":{"npm_package":"@openai/codex"},
+          "description":"Node launcher package that resolves a target-specific optional package and spawns the native Codex binary while preserving signals and exit semantics.",
+          "sources":["a-npm"],
+          "relations":[{"relation_type":"packages","target":"a-codex-cli","source":"a-npm"}]
+        },
+        {
+          "logical_id":"a-homebrew","label":"Homebrew","aliases":["Homebrew package manager"],"kind":"package_ecosystem",
+          "identifiers":{},
+          "description":"Package ecosystem through which the upstream Codex cask is distributed.","sources":["a-repo","a-brew"],"relations":[]
+        },
+        {
+          "logical_id":"a-codex-cask","label":"Codex Homebrew cask","aliases":["Homebrew cask"],"kind":"distribution_recipe",
+          "identifiers":{"homebrew_cask":"codex"},
+          "description":"The upstream Homebrew cask installed as `brew install --cask codex`; Codex checks its published version through the formulae.brew.sh cask API.",
+          "sources":["a-repo","a-brew"],
+          "relations":[
+            {"relation_type":"packages","target":"a-codex-cli","source":"a-repo"},
+            {"relation_type":"belongs_to","target":"a-homebrew","source":"a-brew"}
+          ]
+        },
+        {
+          "logical_id":"a-release-pipeline","label":"Codex release pipeline","aliases":["release automation"],"kind":"release_pipeline",
+          "identifiers":{},
+          "description":"Tag-driven Rust release workflow that validates versions, builds and signs multi-platform native binaries and app-server bundles, and stages release artifacts used by installers and npm packages.",
+          "sources":["a-release"],
+          "relations":[{"relation_type":"publishes","target":"a-codex-cli","source":"a-release"}]
+        },
+        {
+          "logical_id":"a-sandbox","label":"Codex sandbox and approvals","aliases":["Codex execution safety"],"kind":"security_subsystem",
+          "identifiers":{},
+          "description":"OS-specific sandboxing, execution policy, network policy, permission profiles, and approval flows governing tool side effects.",
+          "sources":["a-sandbox"],"relations":[]
+        },
+        {
+          "logical_id":"a-agent-graph","label":"Codex agent graph store","aliases":["Agent graph store"],"kind":"topology_store",
+          "identifiers":{},
+          "description":"Storage-neutral parent/child topology for threads spawned by agents; it is an execution topology, not a semantic knowledge graph.",
+          "sources":["a-agent-graph"],
+          "relations":[{"relation_type":"uses","target":"a-persistence","source":"a-agent-graph"}]
+        },
+        {
+          "logical_id":"a-license","label":"Apache License 2.0","aliases":["Apache-2.0"],"kind":"software_license",
+          "identifiers":{"spdx_license":"Apache-2.0"},
+          "description":"License declared for the Codex repository and Rust workspace.","sources":["a-repo","a-workspace"],"relations":[]
+        }
+      ]
+    },
+    {
+      "space_id": "project-openai-homebrew-tools",
+      "project_name": "openai/homebrew-tools",
+      "repository": {
+        "url": "https://github.com/openai/homebrew-tools",
+        "commit": "065bc95028be59a1744ad7c66f61f5a0ab7e5bb1",
+        "tracked_files": 12
+      },
+      "sources": [
+        {"id":"b-repo","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/README.md"},
+        {"id":"b-openai-cask","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/Casks/openai.rb"},
+        {"id":"b-tart","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/Formula/tart.rb"},
+        {"id":"b-softnet","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/Formula/softnet.rb"},
+        {"id":"b-orchard","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/Formula/orchard.rb"},
+        {"id":"b-guest-agent","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/Formula/tart-guest-agent.rb"},
+        {"id":"b-validator","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/scripts/validate_recipes.rb"},
+        {"id":"b-validate-workflow","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/.github/workflows/validate-cask.yml"},
+        {"id":"b-automerge","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/.github/workflows/auto-merge-goreleaser.yml"},
+        {"id":"b-codeowners","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/.github/CODEOWNERS"},
+        {"id":"b-security","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/SECURITY.md"},
+        {"id":"b-license","url":"https://github.com/openai/homebrew-tools/blob/065bc95028be59a1744ad7c66f61f5a0ab7e5bb1/LICENSE"}
+      ],
+      "records": [
+        {
+          "logical_id":"b-repository","label":"openai/homebrew-tools","aliases":["OpenAI Homebrew Tools repository"],"kind":"repository",
+          "identifiers":{"github_repository":"openai/homebrew-tools"},
+          "description":"Small Homebrew tap repository containing one OpenAI CLI cask, four Tart-family formulas, structural validation, and tightly gated GoReleaser auto-merge automation.",
+          "sources":["b-repo"],
+          "relations":[
+            {"relation_type":"maintained_by","target":"b-openai","source":"b-repo"},
+            {"relation_type":"contains","target":"b-tap","source":"b-repo"},
+            {"relation_type":"contains","target":"b-validator","source":"b-validator"},
+            {"relation_type":"contains","target":"b-release-pipeline","source":"b-automerge"}
+          ]
+        },
+        {
+          "logical_id":"b-openai","label":"OpenAI","aliases":["OpenAI organization"],"kind":"organization",
+          "identifiers":{"github_owner":"openai"},
+          "description":"GitHub organization that owns the Homebrew Tools repository.","sources":["b-repo"],"relations":[]
+        },
+        {
+          "logical_id":"b-homebrew","label":"Homebrew","aliases":["Homebrew package manager"],"kind":"package_ecosystem",
+          "identifiers":{},
+          "description":"Package ecosystem in which the `openai/tools` tap publishes its cask and formulas.","sources":["b-repo"],"relations":[]
+        },
+        {
+          "logical_id":"b-tap","label":"openai/tools Homebrew tap","aliases":["OpenAI Homebrew Tools tap"],"kind":"package_repository",
+          "identifiers":{"homebrew_tap":"openai/tools"},
+          "description":"Custom Homebrew tap for the OpenAI CLI and Tart-related tools.",
+          "sources":["b-repo"],
+          "relations":[
+            {"relation_type":"belongs_to","target":"b-homebrew","source":"b-repo"},
+            {"relation_type":"packages","target":"b-openai-cli","source":"b-repo"},
+            {"relation_type":"packages","target":"b-tart","source":"b-tart"},
+            {"relation_type":"packages","target":"b-softnet","source":"b-softnet"},
+            {"relation_type":"packages","target":"b-orchard","source":"b-orchard"},
+            {"relation_type":"packages","target":"b-guest-agent","source":"b-guest-agent"}
+          ]
+        },
+        {
+          "logical_id":"b-openai-cli","label":"OpenAI CLI","aliases":["OpenAI command-line tool"],"kind":"cli_product",
+          "identifiers":{"source_repository":"openai/openai-cli"},
+          "description":"Official CLI for the OpenAI API, sourced from releases of the separate `openai/openai-cli` repository.",
+          "sources":["b-openai-cask"],
+          "relations":[{"relation_type":"distributed_as","target":"b-openai-cask","source":"b-openai-cask"}]
+        },
+        {
+          "logical_id":"b-openai-cask","label":"OpenAI CLI Homebrew cask","aliases":["Homebrew cask"],"kind":"distribution_recipe",
+          "identifiers":{"homebrew_cask":"openai/tools/openai"},
+          "description":"Generated `openai` cask at version 1.4.0 with SHA-256-pinned macOS and Linux artifacts, binary, man page, and shell completions from `openai/openai-cli` releases.",
+          "sources":["b-openai-cask"],
+          "relations":[
+            {"relation_type":"packages","target":"b-openai-cli","source":"b-openai-cask"},
+            {"relation_type":"belongs_to","target":"b-homebrew","source":"b-openai-cask"}
+          ]
+        },
+        {
+          "logical_id":"b-tart","label":"Tart","aliases":["Tart formula"],"kind":"homebrew_formula",
+          "identifiers":{"github_repository":"openai/tart"},
+          "description":"Formula version 2.33.0 for running macOS and Linux VMs on Apple hardware; depends on the Softnet formula.",
+          "sources":["b-tart"],
+          "relations":[{"relation_type":"depends_on","target":"b-softnet","source":"b-tart"}]
+        },
+        {
+          "logical_id":"b-softnet","label":"Softnet","aliases":["Softnet formula"],"kind":"homebrew_formula",
+          "identifiers":{"github_repository":"openai/softnet"},
+          "description":"Formula version 0.20.1 providing isolated software networking for Tart on macOS.","sources":["b-softnet"],"relations":[]
+        },
+        {
+          "logical_id":"b-orchard","label":"Orchard","aliases":["Orchard formula"],"kind":"homebrew_formula",
+          "identifiers":{"github_repository":"openai/orchard"},
+          "description":"Formula version 0.56.0 for orchestrating Tart VMs across Apple Silicon clusters, with macOS and Linux artifacts.","sources":["b-orchard"],"relations":[]
+        },
+        {
+          "logical_id":"b-guest-agent","label":"Tart Guest Agent","aliases":["tart-guest-agent formula"],"kind":"homebrew_formula",
+          "identifiers":{"github_repository":"openai/tart-guest-agent"},
+          "description":"Formula version 0.11.0 for the guest agent used inside Tart VMs, with macOS and Linux artifacts.","sources":["b-guest-agent"],"relations":[]
+        },
+        {
+          "logical_id":"b-validator","label":"Homebrew recipe validator","aliases":["recipe validation"],"kind":"validation_tool",
+          "identifiers":{},
+          "description":"Ruby validator that fails closed on unknown formulas and checks generated headers, names, semantic versions, release hosts and artifact names, SHA-256 pins, install actions, and dependencies.",
+          "sources":["b-validator"],
+          "relations":[
+            {"relation_type":"validates","target":"b-openai-cask","source":"b-validator"},
+            {"relation_type":"validates","target":"b-tart","source":"b-validator"}
+          ]
+        },
+        {
+          "logical_id":"b-validation-workflow","label":"Validate cask workflow","aliases":["recipe validation CI"],"kind":"ci_workflow",
+          "identifiers":{},
+          "description":"macOS CI that checks Ruby syntax, taps the repository, runs `brew readall`, and executes the structural validator on pushes and pull requests.",
+          "sources":["b-validate-workflow"],
+          "relations":[{"relation_type":"runs","target":"b-validator","source":"b-validate-workflow"}]
+        },
+        {
+          "logical_id":"b-release-pipeline","label":"Homebrew recipe release pipeline","aliases":["release automation"],"kind":"release_pipeline",
+          "identifiers":{},
+          "description":"GoReleaser-driven recipe updates are auto-merged only after validation and exact checks of app identity, branch/version format, base and head, same-repo ownership, one expected changed path, successful check, and immutable head SHA.",
+          "sources":["b-automerge"],
+          "relations":[
+            {"relation_type":"updates","target":"b-openai-cask","source":"b-automerge"},
+            {"relation_type":"guarded_by","target":"b-validation-workflow","source":"b-automerge"}
+          ]
+        },
+        {
+          "logical_id":"b-code-ownership","label":"Homebrew Tools code ownership","aliases":["CODEOWNERS policy"],"kind":"governance_policy",
+          "identifiers":{},
+          "description":"All files, with explicit workflow coverage, are owned by the OpenAI SDKs team.","sources":["b-codeowners"],"relations":[]
+        },
+        {
+          "logical_id":"b-security","label":"Homebrew Tools security policy","aliases":["Homebrew tap security"],"kind":"security_policy",
+          "identifiers":{},
+          "description":"Coordinated disclosure policy scoped to the tap and its release metadata.","sources":["b-security"],"relations":[]
+        },
+        {
+          "logical_id":"b-license","label":"Apache License 2.0","aliases":["Apache-2.0"],"kind":"software_license",
+          "identifiers":{"spdx_license":"Apache-2.0"},
+          "description":"License declared for the Homebrew Tools repository.","sources":["b-repo","b-license"],"relations":[]
+        }
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-openai","right":"b-openai","decision":"same"},
+    {"left":"a-license","right":"b-license","decision":"same"},
+    {"left":"a-homebrew","right":"b-homebrew","decision":"same"},
+    {"left":"a-codex-cli","right":"b-openai-cli","decision":"different"},
+    {"left":"a-codex-cask","right":"b-openai-cask","decision":"different"},
+    {"left":"a-release-pipeline","right":"b-release-pipeline","decision":"different"}
+  ],
+  "negative_checks": [
+    {
+      "space_id":"project-openai-codex",
+      "query":"homebrew-tools|openai/tools",
+      "match_count":0,
+      "scope":"all 5,609 tracked files at the pinned commit"
+    },
+    {
+      "space_id":"project-openai-homebrew-tools",
+      "query":"codex",
+      "match_count":0,
+      "scope":"all 12 tracked files at the pinned commit"
+    }
+  ],
+  "guarded_non_edges": [
+    "no packages edge: openai/tools Homebrew tap -/-> Codex CLI",
+    "no contains edge: openai/homebrew-tools -/-> Codex Homebrew cask"
+  ]
+}

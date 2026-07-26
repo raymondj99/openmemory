@@ -1,0 +1,168 @@
+{
+  "retrieved_at": "2026-07-18",
+  "sources": [
+    {"id":"mercury_planet","url":"https://en.wikipedia.org/wiki/Mercury_(planet)"},
+    {"id":"mercury_deity","url":"https://en.wikipedia.org/wiki/Mercury_(mythology)"},
+    {"id":"venus_planet","url":"https://en.wikipedia.org/wiki/Venus"},
+    {"id":"venus_deity","url":"https://en.wikipedia.org/wiki/Venus_(mythology)"},
+    {"id":"mars_planet","url":"https://en.wikipedia.org/wiki/Mars"},
+    {"id":"mars_deity","url":"https://en.wikipedia.org/wiki/Mars_(mythology)"},
+    {"id":"jupiter_planet","url":"https://en.wikipedia.org/wiki/Jupiter"},
+    {"id":"jupiter_deity","url":"https://en.wikipedia.org/wiki/Jupiter_(god)"},
+    {"id":"saturn_planet","url":"https://en.wikipedia.org/wiki/Saturn"},
+    {"id":"saturn_deity","url":"https://en.wikipedia.org/wiki/Saturn_(mythology)"},
+    {"id":"ceres_body","url":"https://en.wikipedia.org/wiki/Ceres_(dwarf_planet)"},
+    {"id":"ceres_deity","url":"https://en.wikipedia.org/wiki/Ceres_(mythology)"},
+    {"id":"pluto_body","url":"https://en.wikipedia.org/wiki/Pluto"},
+    {"id":"pluto_deity","url":"https://en.wikipedia.org/wiki/Pluto_(mythology)"},
+    {"id":"roman_mythology","url":"https://en.wikipedia.org/wiki/Roman_mythology"}
+  ],
+  "spaces": [
+    {
+      "space_id": "project-helios",
+      "project_name": "Solar System History Exhibit",
+      "records": [
+        {
+          "logical_id":"a-mercury-planet","revision_id":"a-mercury-r1","label":"Mercury",
+          "aliases":["Mercury (planet)"],"kind":"rocky_planet","wikidata":"Q308",
+          "description":"The innermost planet; Roman observers gave it the messenger god's name because of its rapid apparent motion.",
+          "neighbors":["solar-system","sun"],"sources":["mercury_planet"],
+          "relations":[{"relation_type":"named_after","target_label":"Mercury","target_kind":"roman_deity","source":"mercury_planet"}]
+        },
+        {
+          "logical_id":"a-venus-planet","revision_id":"a-venus-r1","label":"Venus",
+          "aliases":["Venus (planet)"],"kind":"rocky_planet","wikidata":"Q313",
+          "description":"The second planet from the Sun, bearing the name of the Roman goddess Venus.",
+          "neighbors":["solar-system","sun"],"sources":["venus_planet"],
+          "relations":[{"relation_type":"named_after","target_label":"Venus","target_kind":"roman_deity","source":"venus_planet"}]
+        },
+        {
+          "logical_id":"a-mars-planet","revision_id":"a-mars-r1","label":"Mars",
+          "aliases":["Mars (planet)","Red Planet"],"kind":"rocky_planet","wikidata":"Q111",
+          "description":"The fourth planet from the Sun, named for the Roman god of war.",
+          "neighbors":["solar-system","sun"],"sources":["mars_planet"],
+          "relations":[{"relation_type":"named_after","target_label":"Mars","target_kind":"roman_deity","source":"mars_planet"}]
+        },
+        {
+          "logical_id":"a-jupiter-planet","revision_id":"a-jupiter-r1","label":"Jupiter",
+          "aliases":["Jupiter (planet)"],"kind":"gas_giant","wikidata":"Q319",
+          "description":"The largest Solar System planet, named for the chief Roman god.",
+          "neighbors":["solar-system","sun"],"sources":["jupiter_planet"],
+          "relations":[{"relation_type":"named_after","target_label":"Jupiter","target_kind":"roman_deity","source":"jupiter_planet"}]
+        },
+        {
+          "logical_id":"a-saturn-planet","revision_id":"a-saturn-r1","label":"Saturn",
+          "aliases":["Saturn (planet)"],"kind":"gas_giant","wikidata":"Q193",
+          "description":"The sixth planet from the Sun, named for the Roman god associated with agriculture and wealth.",
+          "neighbors":["solar-system","sun"],"sources":["saturn_planet"],
+          "relations":[{"relation_type":"named_after","target_label":"Saturn","target_kind":"roman_deity","source":"saturn_planet"}]
+        },
+        {
+          "logical_id":"a-ceres-historical","revision_id":"a-ceres-r1","label":"Ceres",
+          "aliases":["1 Ceres"],"kind":"asteroid","wikidata":"Q596",
+          "description":"The body discovered in 1801, represented here using its long-standing historical asteroid classification.",
+          "neighbors":["solar-system","asteroid-belt"],"sources":["ceres_body"],
+          "relations":[{"relation_type":"named_after","target_label":"Ceres","target_kind":"roman_deity","source":"ceres_body"}]
+        },
+        {
+          "logical_id":"a-pluto-historical","revision_id":"a-pluto-r1","label":"Pluto",
+          "aliases":["Planet Pluto"],"kind":"planet","wikidata":"Q339",
+          "description":"The world discovered in 1930, represented here under its pre-2006 planet classification.",
+          "neighbors":["solar-system","kuiper-belt"],"sources":["pluto_body"],
+          "relations":[{"relation_type":"named_after","target_label":"Pluto","target_kind":"classical_deity","source":"pluto_body"}]
+        },
+        {
+          "logical_id":"a-roman-mythology","revision_id":"a-roman-r1","label":"Roman mythology",
+          "aliases":["Myths of ancient Rome"],"kind":"knowledge_domain","wikidata":null,
+          "description":"The body of ancient Roman myths used by the exhibit to explain astronomical names.",
+          "neighbors":["ancient-rome","planetary-naming"],"sources":["roman_mythology"]
+        },
+        {
+          "logical_id":"a-jove-namesake","revision_id":"a-jove-r1","label":"Jove",
+          "aliases":["Jupiter"],"kind":"roman_deity","wikidata":null,
+          "description":"The Roman sky and thunder god whose name was given to the planet Jupiter.",
+          "neighbors":["roman-mythology","king-of-gods"],"sources":["jupiter_deity"]
+        }
+      ]
+    },
+    {
+      "space_id": "project-pantheon",
+      "project_name": "Roman Mythology and Planetary Naming Exhibit",
+      "records": [
+        {
+          "logical_id":"b-mercury-deity","revision_id":"b-mercury-r1","label":"Mercury",
+          "aliases":["Mercurius"],"kind":"roman_deity","wikidata":"Q1150",
+          "description":"A Roman god associated with commerce, communication, travelers, boundaries, and trickery.",
+          "neighbors":["roman-mythology","dii-consentes"],"sources":["mercury_deity"]
+        },
+        {
+          "logical_id":"b-venus-deity","revision_id":"b-venus-r1","label":"Venus",
+          "aliases":["Venus (goddess)"],"kind":"roman_deity","wikidata":"Q47652",
+          "description":"A central Roman goddess associated with love, beauty, fertility, prosperity, and victory.",
+          "neighbors":["roman-mythology","dii-consentes"],"sources":["venus_deity"]
+        },
+        {
+          "logical_id":"b-mars-deity","revision_id":"b-mars-r1","label":"Mars",
+          "aliases":["Mavors","Roman god Mars"],"kind":"roman_deity","wikidata":"Q112",
+          "description":"The Roman god of war who also served as an agricultural guardian.",
+          "neighbors":["roman-mythology","dii-consentes"],"sources":["mars_deity"]
+        },
+        {
+          "logical_id":"b-jupiter-deity","revision_id":"b-jupiter-r1","label":"Jupiter",
+          "aliases":["Jove","Iuppiter"],"kind":"roman_deity","wikidata":"Q4649",
+          "description":"The Roman god of sky and thunder and the king of the gods.",
+          "neighbors":["roman-mythology","king-of-gods"],"sources":["jupiter_deity"]
+        },
+        {
+          "logical_id":"b-saturn-deity","revision_id":"b-saturn-r1","label":"Saturn",
+          "aliases":["Saturnus"],"kind":"roman_deity","wikidata":null,
+          "description":"A Roman god associated with agriculture, abundance, wealth, renewal, and liberation.",
+          "neighbors":["roman-mythology","saturnalia"],"sources":["saturn_deity"]
+        },
+        {
+          "logical_id":"b-ceres-deity","revision_id":"b-ceres-r1","label":"Ceres",
+          "aliases":["Ceres (goddess)"],"kind":"roman_deity","wikidata":"Q32102",
+          "description":"The Roman goddess of agriculture, grain, fertility, harvest, and motherhood.",
+          "neighbors":["roman-mythology","dii-consentes"],"sources":["ceres_deity"]
+        },
+        {
+          "logical_id":"b-pluto-deity","revision_id":"b-pluto-r1","label":"Pluto",
+          "aliases":["Plouton","Hades"],"kind":"classical_deity","wikidata":null,
+          "description":"The classical ruler of the underworld, whose name was later used for the astronomical body.",
+          "neighbors":["classical-mythology","underworld"],"sources":["pluto_deity"]
+        },
+        {
+          "logical_id":"b-ceres-modern","revision_id":"b-ceres-modern-r1","label":"1 Ceres",
+          "aliases":["Ceres"],"kind":"dwarf_planet","wikidata":"Q596",
+          "description":"The same 1801-discovered body under its modern dwarf-planet classification in the asteroid belt.",
+          "neighbors":["solar-system","asteroid-belt"],"sources":["ceres_body"]
+        },
+        {
+          "logical_id":"b-pluto-modern","revision_id":"b-pluto-modern-r1","label":"134340 Pluto",
+          "aliases":["Pluto"],"kind":"dwarf_planet","wikidata":"Q339",
+          "description":"The same world discovered in 1930, classified as a dwarf planet since the 2006 IAU decision.",
+          "neighbors":["solar-system","kuiper-belt"],"sources":["pluto_body"]
+        },
+        {
+          "logical_id":"b-roman-mythology","revision_id":"b-roman-r1","label":"Roman mythology",
+          "aliases":["Myths of ancient Rome"],"kind":"knowledge_domain","wikidata":null,
+          "description":"The body of myths of ancient Rome represented in Roman literature and visual culture.",
+          "neighbors":["ancient-rome","roman-religion"],"sources":["roman_mythology"]
+        }
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-mercury-planet","right":"b-mercury-deity","decision":"different","relation":"named_after"},
+    {"left":"a-venus-planet","right":"b-venus-deity","decision":"different","relation":"named_after"},
+    {"left":"a-mars-planet","right":"b-mars-deity","decision":"different","relation":"named_after"},
+    {"left":"a-jupiter-planet","right":"b-jupiter-deity","decision":"different","relation":"named_after"},
+    {"left":"a-saturn-planet","right":"b-saturn-deity","decision":"different","relation":"named_after"},
+    {"left":"a-ceres-historical","right":"b-ceres-deity","decision":"different","relation":"named_after"},
+    {"left":"a-pluto-historical","right":"b-pluto-deity","decision":"different","relation":"named_after"},
+    {"left":"a-ceres-historical","right":"b-ceres-modern","decision":"same","relation":null},
+    {"left":"a-pluto-historical","right":"b-pluto-modern","decision":"same","relation":null},
+    {"left":"a-roman-mythology","right":"b-roman-mythology","decision":"same","relation":null},
+    {"left":"a-jove-namesake","right":"b-jupiter-deity","decision":"same","relation":null}
+  ]
+}

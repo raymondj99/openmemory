@@ -1,0 +1,32 @@
+[workspace]
+
+[package]
+name = "openmemory-memory-model-poc"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+blake3 = "1"
+openmemory-core = { path = "../../crates/openmemory-core" }
+openmemory-engine = { path = "../../crates/openmemory-engine", features = ["fts5"] }
+openmemory-graph = { path = "../../crates/openmemory-graph", features = ["fts5"] }
+rusqlite = "0.32"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tempfile = "3"
+uuid = { version = "1", features = ["v7"] }
+
+[dev-dependencies]
+proptest = "1"
+
+[profile.release]
+debug = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }

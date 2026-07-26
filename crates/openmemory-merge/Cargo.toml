@@ -1,0 +1,20 @@
+[package]
+name = "openmemory-merge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pure canonical identity and directional memory-space merge planning"
+repository.workspace = true
+
+[dependencies]
+openmemory-core.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+blake3.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

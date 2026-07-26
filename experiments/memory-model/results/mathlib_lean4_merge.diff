@@ -1,0 +1,169 @@
+memory-graph diff --into leanprover-community/mathlib4@168b9f3a7b2a --from leanprover/lean4@25ba8c3d3bcb
+# proposed target-graph changeset; both source spaces remain immutable
+# '~?' requires team review, '!' preserves distinct identity, '+' adds data
+
+@@ identity decisions @@
+~? leanprover/lean4  <=  leanprover/lean4
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Pinned Lean 4 repository snapshot with 13,121 tracked files spanning language libraries, parser, elaborator, compiler, trusted kernel, runtime, Lake, generated bootstrap sources, documentation, and extensive tests.
+~? leanprover-community/mathlib4  <=  leanprover-community/mathlib4
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Mathlib repository treated by Lean release and pull-request automation as a downstream compatibility target.
+~? Lake  <=  Lake
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Lean Make build system and package manager, shipped in the Lean repository, with DSL, configuration, build, CLI, TOML, and utility modules.
+~? Std  <=  Std
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Lean standard library root importing data structures, do-notation support, SAT, synchronization, time, tactics, internals, and networking.
+~? Nat  <=  Nat
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Core inductive natural-number declaration special-cased by the trusted kernel and compiler and backed by efficient runtime arithmetic.
+~? namespace Lean  <=  namespace Lean
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Top-level namespace for Lean implementation APIs and data structures.
+~? namespace Lean.Parser  <=  namespace Lean.Parser
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Namespace containing Lean parser combinators, syntax categories, commands, terms, tactics, modules, and formatter integration.
+~? Apache-2.0  <=  Apache-2.0
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Apache License 2.0 governing the Lean 4 repository snapshot.
+! keep separate: Mathlib  !=  Lean 4 implementation
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib  !=  Lean
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib.Init  !=  Init
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib.Tactic  !=  Init.Tactics
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib.Lean.Meta  !=  Lean.Meta
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib.Data.Nat.Prime.Basic  !=  Init.Prelude natural-number core
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib CI  !=  Lean CI
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Mathlib fixed toolchain policy  !=  Lean master 4.34.0-pre
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+~? Lean programming language  <=  Lean programming language
+   identity: needs_agent; route: human_review:same
+   + observation: The dependently typed Lean programming language implemented by this repository.
+~? formal theorem proving  <=  formal theorem proving
+   identity: needs_agent; route: human_review:same
+   + observation: Construction and kernel checking of formal proof terms in Lean.
+~? dependent type theory  <=  dependent type theory
+   identity: needs_agent; route: human_review:same
+   + observation: Lean's dependent type theory foundation for programs, propositions, and proofs.
+~? tactic-based proof automation  <=  tactic-based proof automation
+   identity: needs_agent; route: human_review:same
+   + observation: Lean elaborator and metaprogramming facilities for interactive and automated proof construction.
+~? natural numbers  <=  natural numbers
+   identity: needs_agent; route: human_review:same
+   + observation: Nonnegative integers represented by Lean's special-cased Nat inductive.
+~? Lean module system  <=  Lean module system
+   identity: needs_agent; route: human_review:same
+   + observation: Lean source modules, imports, compiled module artifacts, libraries, and Lake-visible dependency units.
+
+@@ entities added to target space @@
++ entity leanprover [organization] <b-organization>
+  + summary: GitHub organization owning the Lean 4 implementation repository.
++ entity Lean 4 implementation [lean_project] <b-project>
+  + summary: Implementation of the Lean programming language and theorem prover, including its trusted kernel, elaborator, compiler, runtime, standard libraries, server, and build system.
++ entity Lean master 4.34.0-pre [version_policy] <b-master-version>
+  + summary: Version constants at the pinned Lean master snapshot identify the development version as 4.34.0-pre, not Mathlib's pinned v4.33.0-rc1 release candidate.
++ entity Lean [lean_module] <b-lean-root>
+  + summary: Root Lean library module importing compiler, runtime, environment, parser, elaborator, metaprogramming, server, pretty printer, and other language services.
++ entity Init [lean_module] <b-init>
+  + summary: Core initialization root importing the prelude, core data, tactics, well-founded recursion, system APIs, metaprogramming primitives, Omega, and Grind.
++ entity Lean trusted kernel [native_subsystem] <b-kernel>
+  + summary: Small trusted C++ type-checking core responsible for validating declarations and proof terms.
++ entity Lean runtime [native_subsystem] <b-runtime>
+  + summary: Native runtime support for Lean programs, including allocation, object representation, arithmetic, tasks, I/O, and platform integration.
++ entity Lean compiler [compiler_subsystem] <b-compiler>
+  + summary: Compiler pipeline rooted at Lean.Compiler that transforms elaborated Lean code through intermediate representations toward executable code.
++ entity Lean elaborator [language_subsystem] <b-elaborator>
+  + summary: Elaboration subsystem converting parsed syntax into typed expressions while resolving notation, coercions, implicits, tactics, and commands.
++ entity Lean parser subsystem [language_subsystem] <b-parser-system>
+  + summary: Parser module graph covering commands, terms, tactics, levels, module syntax, aliases, pretty-printing integration, and recovery.
++ entity Lean.Meta [lean_module] <b-meta-module>
+  + summary: Upstream metaprogramming root importing definitional equality, type inference, instance synthesis, expression traversal, tactic primitives, and diagnostics.
++ entity Lean language server [language_server] <b-server>
+  + summary: Editor-facing server subsystem for incremental processing, diagnostics, code actions, completion, and language features.
++ entity Init.Tactics [lean_module] <b-core-tactics>
+  + summary: Core tactic support imported during Lean initialization; distinct from Mathlib's much larger Mathlib.Tactic aggregation.
++ entity Init.Prelude natural-number core [lean_module] <b-init-nat>
+  + summary: Prelude module defining the core Nat inductive and basic typeclass infrastructure; distinct from Mathlib's prime-number theory module.
++ entity Lean stage0 bootstrap [build_stage] <b-stage0>
+  + summary: Checked-in bootstrap compiler sources used to construct stage1 without requiring the current compiler binary.
++ entity Lean stage1 build [build_stage] <b-stage1>
+  + summary: Primary Lean build produced by stage0 and used for normal tests and installation.
++ entity Lean stage2 build [build_stage] <b-stage2>
+  + summary: Self-hosted rebuild produced by stage1 and used for benchmarks and reproducibility comparison with stage3.
++ entity Lean self-hosting [concept] <b-self-hosting>
+  + summary: Lean's staged ability to compile its own current implementation with the compiler produced by the previous stage.
++ entity Lean CI [ci_pipeline] <b-ci>
+  + summary: Multi-platform Lean build, test, release, sanitizer, staging, artifact, and nightly automation with downstream coordination.
++ entity Lean-to-Mathlib compatibility workflow [compatibility_pipeline] <b-mathlib-compat>
+  + summary: Release and pull-request automation creates Lean PR toolchains and Mathlib nightly-testing branches so Mathlib CI can report compatibility failures back to Lean changes.
+
+@@ relations imported from source space @@
++ relation leanprover/lean4 --maintained_by--> leanprover
++ relation leanprover/lean4 --contains--> Lean 4 implementation
++ relation leanprover/lean4 --contains--> Lean
++ relation leanprover/lean4 --contains--> Init
++ relation leanprover/lean4 --contains--> Std [rewired from b-std]
++ relation leanprover/lean4 --contains--> Lake [rewired from b-lake]
++ relation leanprover/lean4 --contains--> Lean trusted kernel
++ relation leanprover/lean4 --contains--> Lean runtime
++ relation leanprover/lean4 --contains--> Lean CI
++ relation leanprover/lean4 --tests_against--> leanprover-community/mathlib4 [rewired from b-mathlib-downstream]
++ relation leanprover/lean4 --licensed_under--> Apache-2.0 [rewired from b-license-policy]
++ relation Lean 4 implementation --contains--> Lean trusted kernel
++ relation Lean 4 implementation --contains--> Lean runtime
++ relation Lean 4 implementation --contains--> Lean compiler
++ relation Lean 4 implementation --contains--> Lean elaborator
++ relation Lean 4 implementation --contains--> Lean parser subsystem
++ relation Lean 4 implementation --contains--> Lean.Meta
++ relation Lean 4 implementation --contains--> Lean language server
++ relation Lean 4 implementation --built_by--> Lean stage1 build
++ relation Lean 4 implementation --realizes--> Lean programming language [rewired from b-language-concept]
++ relation Lean 4 implementation --realizes--> formal theorem proving [rewired from b-theorem-proving]
++ relation Lean 4 implementation --realizes--> dependent type theory [rewired from b-dependent-types]
++ relation Lean 4 implementation --realizes--> Lean module system [rewired from b-module-system]
++ relation Lean --imports--> Lean compiler
++ relation Lean --imports--> Lean runtime
++ relation Lean --imports--> Lean elaborator
++ relation Lean --imports--> Lean parser subsystem
++ relation Lean --imports--> Lean.Meta
++ relation Lean --imports--> Lean language server
++ relation Init --defines--> Nat [rewired from b-nat]
++ relation Init --imports--> Init.Tactics
++ relation Init --contains--> Init.Prelude natural-number core
++ relation Lake --scaffolds_projects_using--> leanprover-community/mathlib4 [rewired from b-mathlib-downstream]
++ relation Lake --pins_dependencies_for--> Lean module system [rewired from b-module-system]
++ relation Nat --realizes--> natural numbers [rewired from b-natural-numbers]
++ relation Lean trusted kernel --checks--> formal theorem proving [rewired from b-theorem-proving]
++ relation Lean compiler --targets--> Lean runtime
++ relation Lean elaborator --consumes--> Lean parser subsystem
++ relation Lean elaborator --uses--> Lean.Meta
++ relation Lean parser subsystem --owns--> namespace Lean.Parser [rewired from b-parser-namespace]
++ relation Lean.Meta --extends--> namespace Lean [rewired from b-lean-namespace]
++ relation Lean.Meta --supports--> tactic-based proof automation [rewired from b-tactics-concept]
++ relation Init.Tactics --realizes--> tactic-based proof automation [rewired from b-tactics-concept]
++ relation Init.Prelude natural-number core --defines--> Nat [rewired from b-nat]
++ relation Lean stage0 bootstrap --bootstraps--> Lean stage1 build
++ relation Lean stage1 build --bootstraps--> Lean stage2 build
++ relation Lean stage2 build --demonstrates--> Lean self-hosting
++ relation Lean CI --validates--> Lean 4 implementation
++ relation Lean CI --contains--> Lean-to-Mathlib compatibility workflow
++ relation Lean-to-Mathlib compatibility workflow --tests_against--> leanprover-community/mathlib4 [rewired from b-mathlib-downstream]
+
+@@ guarded non-edges at these snapshots @@
+! no snapshot-version equivalence: Mathlib's leanprover/lean4:v4.33.0-rc1 toolchain -/-> Lean master 4.34.0-pre
+! no project coalescence: Mathlib -/-> Lean 4 implementation
+! no tactic-module coalescence: Mathlib.Tactic -/-> Init.Tactics
+! no metaprogramming-module coalescence: Mathlib.Lean.Meta -/-> Lean.Meta
+! no theory-to-datatype collapse: Mathlib.Data.Nat.Prime.Basic -/-> Init.Prelude
+! no repository-bound CI collapse: Mathlib CI -/-> Lean CI
+  evidence: /LEAN_VERSION_MINOR 34/ matched 0 files in all 8,986 tracked files at the pinned Mathlib commit
+  evidence: /theorem prime_mul_iff/ matched 0 files in all 13,121 tracked files at the pinned Lean commit
+
+# summary: 14 reviewed merges, 8 distinct candidate pairs, 20 added entities, 50 added relations, 0 deletions

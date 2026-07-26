@@ -1,0 +1,162 @@
+memory-graph diff --into tokio-rs/axum@b7e37889932e --from actix/actix-web@82eed0ba1a12
+# proposed target-graph changeset; both source spaces remain immutable
+# '~?' requires team review, '!' preserves distinct identity, '+' adds data
+
+@@ identity decisions @@
+! keep separate: tokio-rs/axum  !=  actix/actix-web
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Axum  !=  Actix Web
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::Router  !=  actix_web::App
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::handler::Handler  !=  actix_web::Handler
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::FromRequest  !=  actix_web::FromRequest
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::Path<T>  !=  actix_web::web::Path<T>
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::Query<T>  !=  actix_web::web::Query<T>
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::State<S>  !=  actix_web::web::Data<T>
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::Request<T>  !=  actix_web::HttpRequest
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::response::Response<T>  !=  actix_web::HttpResponse<B>
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Tower Service and Layer  !=  Actix Service and Transform
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: axum::extract::ws::WebSocket  !=  actix_web_actors::ws::WebsocketContext
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+! keep separate: Axum MIT-only license policy  !=  Actix Web dual license policy
+   identity: proven_different:conflicting_authoritative_id; route: auto_apply:different
+~? Tokio  <=  Tokio
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: Runtime package underneath actix-http and compatible with Actix Web macros; the pinned lock resolves Tokio 1.52.3.
+~? http crate  <=  http crate
+   identity: proven_same:shared_authoritative_id; route: human_review:same
+   + observation: The same crates.io package identity, but actix-http's public stack declares the 0.2 API line and resolves 0.2.12; the lock also contains an unrelated transitive 1.4.2 revision.
+~? HTTP request routing  <=  HTTP request routing
+   identity: needs_agent; route: human_review:same
+   + observation: Registering path and method resources, scopes, routes, and handler services in an application service factory.
+~? request extraction  <=  request extraction
+   identity: needs_agent; route: human_review:same
+   + observation: Creating typed handler arguments from an HttpRequest and mutable Payload through the FromRequest contract.
+~? HTTP middleware  <=  HTTP middleware
+   identity: needs_agent; route: human_review:same
+   + observation: Cross-cutting preprocessing, postprocessing, short-circuiting, and state access around application, scope, or resource services.
+~? application state  <=  application state
+   identity: needs_agent; route: human_review:same
+   + observation: Typed data layered at App, Scope, or Resource boundaries and retrieved by request methods or Data extraction.
+~? WebSocket protocol support  <=  WebSocket protocol support
+   identity: needs_agent; route: human_review:same
+   + observation: HTTP upgrade, WebSocket framing, and bidirectional message handling in the Actix HTTP and optional actor integrations.
+
+@@ entities added to target space @@
++ entity actix/actix-web [repository] <b-repository>
+  + summary: Repository snapshot with 444 tracked files containing ten root workspace crates, the deprecated actor integration crate, CI, benchmarks, migrations, documentation, and examples.
++ entity actix [organization] <b-organization>
+  + summary: GitHub organization that owns the Actix Web repository.
++ entity Actix Web Rust workspace [rust_workspace] <b-workspace-node>
+  + summary: Root Cargo workspace with ten members spanning web APIs, HTTP transport, routing, files, multipart, code generation, test utilities, and the awc client.
++ entity Actix Web [web_framework_crate] <b-actix-web>
+  + summary: Version 4.14.0 pragmatic Rust web framework providing HTTP servers, routing, extractors, responders, middleware, compression, TLS, and WebSocket support on the Actix service stack with Tokio compatibility.
++ entity actix-http [rust_crate] <b-http>
+  + summary: Version 3.13.1 HTTP types and services crate implementing Actix HTTP/1, optional HTTP/2, bodies, codecs, compression, TLS integration, and protocol-level WebSockets.
++ entity actix-router [rust_crate] <b-router>
+  + summary: Workspace crate for resource path matching, URL decoding, resource definitions, and router lookup.
++ entity actix-files [rust_crate] <b-files>
+  + summary: Workspace crate for static-file and directory serving in Actix Web.
++ entity actix-http-test [rust_crate] <b-http-test>
+  + summary: Workspace crate providing helpers for testing Actix HTTP applications.
++ entity actix-multipart [rust_crate] <b-multipart>
+  + summary: Workspace crate for multipart request streams and typed multipart forms.
++ entity actix-multipart-derive [rust_crate] <b-multipart-derive>
+  + summary: Workspace procedural-macro crate deriving typed multipart forms.
++ entity actix-test [rust_crate] <b-test>
+  + summary: Workspace crate with integration-testing tools for Actix Web applications.
++ entity actix-web-codegen [rust_crate] <b-codegen>
+  + summary: Workspace procedural-macro crate for Actix Web routing and runtime attributes.
++ entity awc [rust_crate] <b-awc>
+  + summary: Workspace asynchronous HTTP and WebSocket client library integrated with the Actix stack.
++ entity actix-web-actors [rust_crate] <b-actors>
+  + summary: Version 4.3.1+deprecated actor integration crate present in the repository but omitted from the ten-member root workspace list.
++ entity actix_web::App [application_builder] <b-app-type>
+  + summary: Top-level application builder backed by Actix ServiceFactory composition, registering services, defaults, layered application data, and middleware transforms.
++ entity actix_web::Handler [handler_trait] <b-handler-trait>
+  + summary: Cloneable function abstraction whose call receives already-extracted arguments and returns a future; extraction is orchestrated separately by route handler services.
++ entity actix_web::FromRequest [extractor_trait] <b-from-request>
+  + summary: Extractor trait with associated Error and Future types, invoked with a shared HttpRequest reference and mutable Payload; only one extractor may consume the payload.
++ entity actix_web::web::Path<T> [request_extractor] <b-path-type>
+  + summary: Private-field wrapper that deserializes path captures using actix-router PathDeserializer and supports per-scope PathConfig error handling.
++ entity actix_web::web::Query<T> [request_extractor] <b-query-type>
+  + summary: Query extractor using serde_urlencoded semantics, with configurable errors and a direct from_query constructor; tuple decoding is explicitly unsupported.
++ entity actix_web::web::Data<T> [request_extractor] <b-data-type>
+  + summary: Arc-backed application-data wrapper and extractor with layered nearest-scope lookup; shared state must be constructed outside the per-worker App factory when cross-worker sharing is required.
++ entity actix_web::HttpRequest [request_type] <b-request-type>
+  + summary: Cloneable Actix-specific incoming request backed by Rc-held request head, router path, layered application data, connection data, extensions, and application state.
++ entity actix_web::HttpResponse<B> [response_type] <b-response-type>
+  + summary: Actix-specific outgoing response wrapper around actix_http::Response with body and optional originating framework error.
++ entity Actix Service and Transform [middleware_contract] <b-middleware-contract>
+  + summary: Actix middleware uses Transform as the builder/factory and actix_service::Service as the per-request processor, with reverse registration order and Actix body/error conventions.
++ entity actix_web_actors::ws::WebsocketContext [websocket_session] <b-websocket-session>
+  + summary: Actor Context used by the deprecated actor integration crate; it drives WebSocket sessions through Actix Actor and StreamHandler abstractions over actix-http codecs.
++ entity Actix Web CI and benchmark matrix [ci_pipeline] <b-ci-node>
+  + summary: CI exercises MSRV and stable Rust across Linux, macOS, and Windows, minimal/default configurations, the full test suite, dependency policy, io-uring, and rustdoc; a main-branch benchmark workflow runs the server Criterion benchmark.
++ entity Actix Web dual license policy [license_policy] <b-license-policy>
+  + summary: The Actix Web workspace and packages are offered under either MIT or Apache-2.0 at the user's option.
+
+@@ relations imported from source space @@
++ relation actix/actix-web --maintained_by--> actix
++ relation actix/actix-web --contains--> Actix Web Rust workspace
++ relation actix/actix-web --contains--> actix-web-actors
++ relation actix/actix-web --contains--> Actix Web CI and benchmark matrix
++ relation Actix Web Rust workspace --contains--> Actix Web
++ relation Actix Web Rust workspace --contains--> actix-http
++ relation Actix Web Rust workspace --contains--> actix-router
++ relation Actix Web Rust workspace --contains--> actix-files
++ relation Actix Web Rust workspace --contains--> actix-http-test
++ relation Actix Web Rust workspace --contains--> actix-multipart
++ relation Actix Web Rust workspace --contains--> actix-multipart-derive
++ relation Actix Web Rust workspace --contains--> actix-test
++ relation Actix Web Rust workspace --contains--> actix-web-codegen
++ relation Actix Web Rust workspace --contains--> awc
++ relation Actix Web --depends_on--> actix-http
++ relation Actix Web --depends_on--> actix-router
++ relation Actix Web --optionally_uses--> actix-web-codegen
++ relation Actix Web --uses--> Tokio [rewired from b-tokio]
++ relation Actix Web --exposes--> actix_web::App
++ relation Actix Web --exposes--> actix_web::Handler
++ relation Actix Web --exposes--> actix_web::FromRequest
++ relation Actix Web --exposes--> actix_web::web::Path<T>
++ relation Actix Web --exposes--> actix_web::web::Query<T>
++ relation Actix Web --exposes--> actix_web::web::Data<T>
++ relation Actix Web --exposes--> actix_web::HttpRequest
++ relation Actix Web --exposes--> actix_web::HttpResponse<B>
++ relation Actix Web --uses--> Actix Service and Transform
++ relation Actix Web --supports--> actix_web_actors::ws::WebsocketContext
++ relation Actix Web --licensed_under--> Actix Web dual license policy
++ relation actix-http --uses--> http crate [rewired from b-http-package]
++ relation actix-http --uses--> Tokio [rewired from b-tokio]
++ relation actix_web::App --realizes--> HTTP request routing [rewired from b-routing-concept]
++ relation actix_web::App --provides--> application state [rewired from b-state-concept]
++ relation actix_web::Handler --uses--> actix_web::FromRequest
++ relation actix_web::Handler --returns--> actix_web::HttpResponse<B>
++ relation actix_web::FromRequest --realizes--> request extraction [rewired from b-extraction-concept]
++ relation actix_web::web::Path<T> --implements--> actix_web::FromRequest
++ relation actix_web::web::Query<T> --implements--> actix_web::FromRequest
++ relation actix_web::web::Data<T> --implements--> actix_web::FromRequest
++ relation actix_web::web::Data<T> --realizes--> application state [rewired from b-state-concept]
++ relation Actix Service and Transform --realizes--> HTTP middleware [rewired from b-middleware-concept]
++ relation actix_web_actors::ws::WebsocketContext --realizes--> WebSocket protocol support [rewired from b-websocket-concept]
++ relation actix_web_actors::ws::WebsocketContext --uses--> actix-http
+
+@@ guarded non-edges at these snapshots @@
+! no application-root coalescence: axum::Router -/-> actix_web::App
+! no handler-trait coalescence: axum::handler::Handler -/-> actix_web::Handler
+! no extractor-type coalescence: axum::extract::Path<T> -/-> actix_web::web::Path<T>
+! no middleware-contract equivalence: tower::Service/Layer -/-> actix_service::Service/Transform
+! no type equivalence implied by package merge: http@1::Request -/-> http@0.2::Request
+  evidence: /actix[-_]/ matched 0 files in all tracked Cargo.toml manifests among 503 files at the pinned commit
+  evidence: /axum/ matched 0 files in all tracked Cargo.toml manifests among 444 files at the pinned commit
+
+# summary: 7 reviewed merges, 13 distinct candidate pairs, 26 added entities, 43 added relations, 0 deletions

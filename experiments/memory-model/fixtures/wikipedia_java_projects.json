@@ -1,0 +1,52 @@
+{
+  "retrieved_at": "2026-07-18",
+  "sources": [
+    {"id":"java_language","url":"https://en.wikipedia.org/wiki/Java_(programming_language)"},
+    {"id":"java_island","url":"https://en.wikipedia.org/wiki/Java"},
+    {"id":"java_coffee","url":"https://en.wikipedia.org/wiki/Coffee_production_in_Indonesia"}
+  ],
+  "spaces": [
+    {
+      "space_id": "project-runtime-handbook",
+      "project_name": "Runtime Platform Handbook",
+      "records": [
+        {
+          "logical_id":"a-java-language","revision_id":"a-java-r1","label":"Java",
+          "aliases":["Java language"],"kind":"programming_language","wikidata":"Q251",
+          "description":"The general-purpose programming language that was initially called Oak and was later renamed after Java coffee.",
+          "neighbors":["jvm","software-platform"],"sources":["java_language"],
+          "relations":[{"relation_type":"named_after","target_label":"Java coffee","target_kind":"coffee_product","source":"java_language"}]
+        }
+      ]
+    },
+    {
+      "space_id": "project-indonesia-exhibit",
+      "project_name": "Indonesia Geography and Trade Exhibit",
+      "records": [
+        {
+          "logical_id":"b-java-language","revision_id":"b-java-language-r1","label":"Java programming language",
+          "aliases":["Java"],"kind":"programming_language","wikidata":"Q251",
+          "description":"The programming language formerly called Oak, represented in the exhibit's technology section.",
+          "neighbors":["software","programming-languages"],"sources":["java_language"]
+        },
+        {
+          "logical_id":"b-java-island","revision_id":"b-java-island-r1","label":"Java",
+          "aliases":["Java island"],"kind":"island","wikidata":"Q3757",
+          "description":"A major island of Indonesia between Sumatra and Bali.",
+          "neighbors":["indonesia","sumatra","bali"],"sources":["java_island"]
+        },
+        {
+          "logical_id":"b-java-coffee","revision_id":"b-java-coffee-r1","label":"Java coffee",
+          "aliases":["Java"],"kind":"coffee_product","wikidata":null,
+          "description":"Coffee associated with production on the Indonesian island of Java.",
+          "neighbors":["coffee","indonesia","java-island"],"sources":["java_coffee"]
+        }
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-java-language","right":"b-java-language","decision":"same","relation":null},
+    {"left":"a-java-language","right":"b-java-island","decision":"different","relation":null},
+    {"left":"a-java-language","right":"b-java-coffee","decision":"different","relation":"named_after"}
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "retrieved_at": "2026-07-18",
+  "sources": [
+    {"id":"python_language","url":"https://en.wikipedia.org/wiki/Python_(programming_language)"},
+    {"id":"python_genus","url":"https://en.wikipedia.org/wiki/Python_(genus)"},
+    {"id":"monty_python","url":"https://en.wikipedia.org/wiki/Monty_Python"}
+  ],
+  "spaces": [
+    {
+      "space_id": "project-developer-guide",
+      "project_name": "Developer Language Guide",
+      "records": [
+        {
+          "logical_id":"a-python-language","revision_id":"a-python-r1","label":"Python",
+          "aliases":["Python language"],"kind":"programming_language","wikidata":"Q28865",
+          "description":"The high-level programming language whose name was inspired by the comedy group Monty Python.",
+          "neighbors":["programming","interpreters"],"sources":["python_language"],
+          "relations":[{"relation_type":"named_after","target_label":"Monty Python","target_kind":"comedy_troupe","source":"python_language"}]
+        }
+      ]
+    },
+    {
+      "space_id": "project-culture-wildlife",
+      "project_name": "Comedy and Wildlife Catalogue",
+      "records": [
+        {
+          "logical_id":"b-python-language","revision_id":"b-python-language-r1","label":"Python programming language",
+          "aliases":["Python"],"kind":"programming_language","wikidata":"Q28865",
+          "description":"The general-purpose programming language created by Guido van Rossum.",
+          "neighbors":["software","programming-languages"],"sources":["python_language"]
+        },
+        {
+          "logical_id":"b-python-genus","revision_id":"b-python-genus-r1","label":"Python",
+          "aliases":["Python genus"],"kind":"snake_genus","wikidata":"Q271218",
+          "description":"A genus of constricting snakes in the family Pythonidae.",
+          "neighbors":["snakes","pythonidae"],"sources":["python_genus"]
+        },
+        {
+          "logical_id":"b-monty-python","revision_id":"b-monty-python-r1","label":"Monty Python",
+          "aliases":["The Pythons"],"kind":"comedy_troupe","wikidata":"Q16402",
+          "description":"The British surreal comedy troupe whose work inspired the programming language's name.",
+          "neighbors":["british-comedy","television"],"sources":["monty_python"]
+        }
+      ]
+    }
+  ],
+  "expectations": [
+    {"left":"a-python-language","right":"b-python-language","decision":"same","relation":null},
+    {"left":"a-python-language","right":"b-python-genus","decision":"different","relation":null},
+    {"left":"a-python-language","right":"b-monty-python","decision":"different","relation":"named_after"}
+  ]
+}
