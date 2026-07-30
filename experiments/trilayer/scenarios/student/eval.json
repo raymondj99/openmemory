@@ -1724,12 +1724,12 @@
         "homonym": {
           "n": 5,
           "R@10": 1.0,
-          "MRR": 0.9
+          "MRR": 1.0
         },
         "relational": {
           "n": 5,
           "R@10": 0.9,
-          "MRR": 1.0
+          "MRR": 0.9
         },
         "semantic": {
           "n": 6,
@@ -1869,12 +1869,12 @@
             "cs230/pset1-writeup.md",
             "cs224n/notes09-pretraining.md",
             "cs224n/notes01-word-vectors.md",
-            "cs229/notes10-neural-networks.md",
             "cs230/notes02-optimization.md",
+            "cs229/notes10-neural-networks.md",
             "cs229/notes13-em-kmeans.md",
             "cs230/syllabus.md",
             "cs224n/notes08-attention-transformers.md",
-            "cs229/pset2-writeup.md"
+            "cs224n/notes05-dependency-parsing.md"
           ],
           "route": null
         },
@@ -1888,8 +1888,8 @@
             "cs224n/notes01-word-vectors.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes08-attention-transformers.md",
-            "cs230/notes04-regularization.md",
             "cs229/notes13-em-kmeans.md",
+            "cs230/notes04-regularization.md",
             "cs224n/notes05-dependency-parsing.md",
             "cs224n/notes09-pretraining.md",
             "cs224n/syllabus.md",
@@ -1909,10 +1909,10 @@
             "cs230/notes02-optimization.md",
             "cs229/notes10-neural-networks.md",
             "cs230/notes06-cnn.md",
-            "cs229/pset2-writeup.md",
             "cs230/project-milestone.md",
-            "cs229/notes13-em-kmeans.md",
+            "cs229/pset2-writeup.md",
             "cs229/notes03-logistic-regression.md",
+            "cs229/notes13-em-kmeans.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes01-word-vectors.md"
           ],
@@ -1927,8 +1927,8 @@
           "top": [
             "cs224n/notes08-attention-transformers.md",
             "cs224n/a4-writeup.md",
-            "cs230/notes04-regularization.md",
             "cs229/notes07-svm-kernels.md",
+            "cs230/notes04-regularization.md",
             "cs224n/final-project.md",
             "cs230/notes02-optimization.md",
             "cs229/pset2-writeup.md",
@@ -1941,12 +1941,12 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "hom-01",
           "category": "homonym",
           "top": [
-            "cs224n/syllabus.md",
             "cs230/syllabus.md",
+            "cs224n/syllabus.md",
             "cs229/syllabus.md",
             "cs230/notes06-cnn.md",
             "cs229/notes10-neural-networks.md",
@@ -1970,9 +1970,9 @@
             "cs224n/syllabus.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes09-pretraining.md",
-            "cs230/notes02-optimization.md",
             "cs229/project-proposal.md",
             "cs230/project-milestone.md",
+            "cs230/notes02-optimization.md",
             "cs224n/final-project.md",
             "cs224n/notes01-word-vectors.md"
           ],
@@ -2008,13 +2008,13 @@
             "cs224n/final-project.md",
             "cs224n/notes09-pretraining.md",
             "cs230/notes02-optimization.md",
-            "cs230/pset1-writeup.md",
             "cs230/project-milestone.md",
-            "cs230/notes04-regularization.md",
+            "cs230/pset1-writeup.md",
             "cs230/notes06-cnn.md",
-            "cs229/notes10-neural-networks.md",
+            "cs230/notes04-regularization.md",
             "cs224n/syllabus.md",
-            "cs229/project-proposal.md"
+            "cs229/project-proposal.md",
+            "cs229/notes10-neural-networks.md"
           ],
           "route": null
         },
@@ -2027,14 +2027,14 @@
           "top": [
             "cs229/project-proposal.md",
             "cs230/project-milestone.md",
-            "cs224n/notes01-word-vectors.md",
             "cs230/notes06-cnn.md",
+            "cs224n/notes01-word-vectors.md",
             "cs230/pset1-writeup.md",
             "cs229/pset2-writeup.md",
-            "cs229/notes07-svm-kernels.md",
             "cs230/notes08-rnn-lstm.md",
+            "cs229/notes07-svm-kernels.md",
             "cs224n/syllabus.md",
-            "cs224n/notes09-pretraining.md"
+            "cs230/syllabus.md"
           ],
           "route": null
         },
@@ -2049,32 +2049,32 @@
             "cs229/notes03-logistic-regression.md",
             "cs230/notes02-optimization.md",
             "cs224n/notes01-word-vectors.md",
+            "cs230/notes08-rnn-lstm.md",
             "cs224n/notes09-pretraining.md",
             "cs224n/syllabus.md",
-            "cs230/notes08-rnn-lstm.md",
-            "cs230/notes06-cnn.md",
             "cs229/syllabus.md",
-            "cs230/pset1-writeup.md"
+            "cs230/notes06-cnn.md",
+            "cs230/syllabus.md"
           ],
           "route": null
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "rel-02",
           "category": "relational",
           "top": [
-            "cs230/notes02-optimization.md",
             "cs229/syllabus.md",
+            "cs230/notes02-optimization.md",
             "cs230/syllabus.md",
             "cs229/notes10-neural-networks.md",
             "cs224n/syllabus.md",
             "cs224n/notes08-attention-transformers.md",
             "cs224n/notes09-pretraining.md",
-            "cs229/notes07-svm-kernels.md",
             "cs230/project-milestone.md",
-            "cs224n/final-project.md"
+            "cs224n/final-project.md",
+            "cs224n/notes01-word-vectors.md"
           ],
           "route": null
         },
@@ -2092,8 +2092,8 @@
             "cs230/pset1-writeup.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes01-word-vectors.md",
-            "cs224n/notes09-pretraining.md",
             "cs230/notes06-cnn.md",
+            "cs224n/notes09-pretraining.md",
             "cs229/syllabus.md"
           ],
           "route": null
@@ -2111,10 +2111,10 @@
             "cs224n/notes08-attention-transformers.md",
             "cs224n/notes01-word-vectors.md",
             "cs230/notes04-regularization.md",
-            "cs224n/notes09-pretraining.md",
             "cs230/notes06-cnn.md",
-            "cs229/pset2-writeup.md",
-            "cs230/notes08-rnn-lstm.md"
+            "cs224n/notes09-pretraining.md",
+            "cs230/notes08-rnn-lstm.md",
+            "cs230/syllabus.md"
           ],
           "route": null
         },
@@ -2133,7 +2133,7 @@
             "cs224n/notes05-dependency-parsing.md",
             "cs230/pset1-writeup.md",
             "cs224n/syllabus.md",
-            "cs229/notes10-neural-networks.md",
+            "cs224n/final-project.md",
             "cs230/syllabus.md"
           ],
           "route": null
@@ -2577,7 +2577,7 @@
       "arm": "router-full",
       "R@5": 0.925,
       "R@10": 0.975,
-      "MRR": 0.9083,
+      "MRR": 0.9333,
       "routes": {
         "index": 16,
         "plan": 8
@@ -2591,7 +2591,7 @@
         "homonym": {
           "n": 5,
           "R@10": 1.0,
-          "MRR": 0.9
+          "MRR": 1.0
         },
         "relational": {
           "n": 5,
@@ -2755,11 +2755,11 @@
             "cs224n/notes01-word-vectors.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes08-attention-transformers.md",
-            "cs224n/notes09-pretraining.md",
-            "cs230/notes04-regularization.md",
             "cs229/notes13-em-kmeans.md",
-            "cs224n/syllabus.md",
+            "cs230/notes04-regularization.md",
             "cs224n/notes05-dependency-parsing.md",
+            "cs224n/notes09-pretraining.md",
+            "cs224n/syllabus.md",
             "cs224n/final-project.md",
             "cs229/syllabus.md"
           ],
@@ -2808,17 +2808,17 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "hom-01",
           "category": "homonym",
           "top": [
-            "cs224n/syllabus.md",
             "cs230/syllabus.md",
+            "cs224n/syllabus.md",
             "cs229/syllabus.md",
             "cs230/notes06-cnn.md",
             "cs229/notes10-neural-networks.md",
-            "cs224n/notes09-pretraining.md",
             "cs230/notes04-regularization.md",
+            "cs224n/notes09-pretraining.md",
             "cs230/notes08-rnn-lstm.md",
             "cs224n/a4-writeup.md",
             "cs229/project-proposal.md"
@@ -2857,8 +2857,8 @@
             "cs229/syllabus.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes08-attention-transformers.md",
-            "cs224n/notes01-word-vectors.md",
             "cs229/notes10-neural-networks.md",
+            "cs224n/notes01-word-vectors.md",
             "cs230/pset1-writeup.md",
             "cs224n/notes09-pretraining.md",
             "cs230/notes04-regularization.md"
@@ -2916,12 +2916,12 @@
             "cs229/notes03-logistic-regression.md",
             "cs230/notes02-optimization.md",
             "cs224n/notes01-word-vectors.md",
+            "cs230/notes08-rnn-lstm.md",
             "cs224n/notes09-pretraining.md",
             "cs224n/syllabus.md",
-            "cs230/notes08-rnn-lstm.md",
             "cs229/syllabus.md",
-            "cs230/pset1-writeup.md",
-            "cs230/notes06-cnn.md"
+            "cs230/notes06-cnn.md",
+            "cs230/syllabus.md"
           ],
           "route": "plan"
         },
@@ -2959,8 +2959,8 @@
             "cs230/pset1-writeup.md",
             "cs224n/a4-writeup.md",
             "cs224n/notes01-word-vectors.md",
-            "cs224n/notes09-pretraining.md",
             "cs230/notes06-cnn.md",
+            "cs224n/notes09-pretraining.md",
             "cs229/syllabus.md"
           ],
           "route": "plan"
@@ -2978,10 +2978,10 @@
             "cs224n/notes08-attention-transformers.md",
             "cs224n/notes01-word-vectors.md",
             "cs230/notes04-regularization.md",
-            "cs224n/notes09-pretraining.md",
             "cs230/notes06-cnn.md",
-            "cs229/pset2-writeup.md",
-            "cs230/notes08-rnn-lstm.md"
+            "cs224n/notes09-pretraining.md",
+            "cs230/notes08-rnn-lstm.md",
+            "cs230/syllabus.md"
           ],
           "route": "plan"
         },
@@ -3000,7 +3000,7 @@
             "cs224n/notes05-dependency-parsing.md",
             "cs230/pset1-writeup.md",
             "cs224n/syllabus.md",
-            "cs229/notes10-neural-networks.md",
+            "cs224n/final-project.md",
             "cs230/syllabus.md"
           ],
           "route": "plan"

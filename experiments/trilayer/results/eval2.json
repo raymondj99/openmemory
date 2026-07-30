@@ -7,7 +7,7 @@
       "R@10": 0.8037,
       "MRR": 0.5289,
       "p50_ms": 3.0,
-      "p95_ms": 5.4,
+      "p95_ms": 5.2,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -903,7 +903,7 @@
       "R@5": 0.737,
       "R@10": 0.7926,
       "MRR": 0.6184,
-      "p50_ms": 1.8,
+      "p50_ms": 1.9,
       "p95_ms": 2.2,
       "routes": null,
       "by_category": {
@@ -1806,8 +1806,8 @@
       "R@5": 0.7926,
       "R@10": 0.8593,
       "MRR": 0.6891,
-      "p50_ms": 4.2,
-      "p95_ms": 6.6,
+      "p50_ms": 4.6,
+      "p95_ms": 7.8,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -2711,9 +2711,9 @@
       "arm": "graph-keyword",
       "R@5": 0.6963,
       "R@10": 0.7481,
-      "MRR": 0.5871,
-      "p50_ms": 3.1,
-      "p95_ms": 6.5,
+      "MRR": 0.6117,
+      "p50_ms": 3.2,
+      "p95_ms": 5.6,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -2724,17 +2724,17 @@
         "homonym": {
           "n": 11,
           "R@10": 0.8182,
-          "MRR": 0.5303
+          "MRR": 0.5106
         },
         "relational": {
           "n": 10,
           "R@10": 0.55,
-          "MRR": 0.3958
+          "MRR": 0.4125
         },
         "semantic": {
           "n": 12,
           "R@10": 0.5972,
-          "MRR": 0.4829
+          "MRR": 0.5792
         }
       },
       "per_query": [
@@ -2747,14 +2747,14 @@
           "route": null,
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
-            "anyhow/src/macros.rs",
             "clap/clap_builder/src/builder/resettable.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
             "codex/codex-rs/config/src/constraint.rs",
-            "clap/clap_complete/src/env/shells.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
-            "codex/codex-rs/core/src/config/permissions.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "codex/codex-rs/config/src/tui_keymap.rs",
+            "codex/codex-rs/core/src/config/permissions.rs",
             "codex/codex-rs/core/src/guardian/review.rs"
           ]
         },
@@ -2778,15 +2778,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/parser/arg_matcher.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/config/src/permissions_toml.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
-            "codex/codex-rs/protocol/src/items.rs",
-            "codex/codex-rs/tui/src/keymap.rs",
             "codex/codex-rs/exec/src/exec_events.rs",
-            "codex/codex-rs/protocol/src/error.rs",
+            "codex/codex-rs/config/src/tui_keymap.rs",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "codex/codex-rs/config/src/permissions_toml.rs",
+            "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
             "codex/codex-rs/config/src/config_toml.rs",
-            "codex/codex-rs/config/src/tui_keymap.rs"
+            "clap/clap_builder/src/builder/value_parser.rs",
+            "anyhow/src/wrapper.rs"
           ]
         },
         {
@@ -2798,9 +2798,9 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/builder/value_parser.rs",
-            "clap/clap_derive/src/lib.rs",
             "codex/codex-rs/config/src/thread_config/remote.rs",
             "codex/codex-rs/cli/src/doctor/progress.rs",
+            "clap/clap_derive/src/lib.rs",
             "codex/codex-rs/core/src/hook_runtime.rs",
             "codex/codex-rs/config/src/thread_config.rs",
             "clap/clap_derive/src/dummies.rs",
@@ -2819,8 +2819,8 @@
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
             "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
-            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
             "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
           ]
         },
@@ -2870,12 +2870,12 @@
             "clap/clap_complete/src/lib.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_derive/src/derives/value_enum.rs",
+            "clap/examples/tutorial_builder/04_01_enum.rs",
             "clap/examples/tutorial_derive/04_01_enum.rs",
             "codex/codex-rs/protocol/src/config_types.rs",
             "codex/codex-rs/protocol/src/approvals.rs",
-            "clap/clap_derive/src/attr.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs",
-            "codex/codex-rs/protocol/src/items.rs"
+            "codex/codex-rs/tui/src/app_event.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs"
           ]
         },
         {
@@ -2902,12 +2902,12 @@
             "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs",
             "codex/codex-rs/protocol/src/mcp.rs",
             "codex/codex-rs/codex-mcp/src/tools.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
+            "clap/clap_builder/src/macros.rs",
             "codex/codex-rs/codex-mcp/src/tool_catalog_cache.rs",
-            "clap/clap_builder/src/builder/styling.rs",
-            "codex/docs/CLA.md"
+            "codex/docs/CLA.md",
+            "clap/clap_builder/src/builder/styling.rs"
           ]
         },
         {
@@ -2924,20 +2924,20 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-01",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
             "codex/codex-rs/protocol/src/permissions.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs",
             "codex/codex-rs/config/src/mcp_types.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "codex/codex-rs/core/src/config/permissions.rs",
             "codex/codex-rs/protocol/src/mcp.rs",
-            "clap/src/_concepts.rs",
+            "codex/codex-rs/exec/src/lib.rs",
             "codex/codex-rs/exec/src/cli.rs"
           ]
         },
@@ -2958,27 +2958,27 @@
             "codex/codex-rs/core/src/environment_selection.rs",
             "codex/codex-rs/tui/src/keymap_setup.rs",
             "codex/codex-rs/config/src/requirements_layers/stack.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager.rs"
+            "codex/codex-rs/config/src/requirements_layers/stack_tests.rs"
           ]
         },
         {
           "r5": 0.0,
           "r10": 0.3333333333333333,
-          "mrr": 0.1111111111111111,
+          "mrr": 0.1,
           "id": "sem-03",
           "category": "semantic",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/markdown_render.rs",
             "codex/codex-rs/tui/src/wrapping.rs",
-            "codex/codex-rs/tui/src/exec_cell/render.rs",
             "clap/clap_builder/src/builder/styled_str.rs",
+            "codex/codex-rs/tui/src/exec_cell/render.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "clap/examples/tutorial_derive/04_01_enum.rs",
             "codex/codex-rs/tui/src/pager_overlay.rs",
-            "clap/clap_builder/src/builder/command.rs",
-            "clap/clap_builder/src/output/textwrap/core.rs",
-            "codex/codex-rs/tui/src/diff_render.rs"
+            "codex/codex-rs/tui/src/diff_render.rs",
+            "clap/examples/tutorial_derive/04_01_enum.rs",
+            "clap/CHANGELOG.md",
+            "clap/clap_builder/src/output/textwrap/core.rs"
           ]
         },
         {
@@ -2993,12 +2993,12 @@
             "codex/codex-rs/apply-patch/src/lib.rs",
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
-            "clap/clap_builder/src/builder/action.rs",
-            "clap/clap_complete/src/env/shells.rs",
             "clap/examples/tutorial_derive/04_03_relations.rs",
             "clap/examples/tutorial_derive/04_04_custom.rs",
+            "clap/clap_builder/src/builder/action.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "codex/codex-rs/protocol/src/review_format.rs",
-            "clap/clap_complete/src/engine/complete.rs"
+            "codex/codex-rs/apply-patch/src/standalone_executable.rs"
           ]
         },
         {
@@ -3011,14 +3011,14 @@
           "top": [
             "codex/codex-rs/login/src/device_code_auth.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "clap/src/_concepts.rs",
-            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/cli/src/login.rs",
+            "codex/codex-rs/login/src/device_code_auth_tests.rs",
             "codex/codex-rs/core/src/session/mod.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/required.rs",
-            "codex/codex-rs/cli/src/login.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
-            "codex/codex-rs/login/src/device_code_auth_tests.rs",
-            "codex/codex-rs/cli/src/doctor/background.rs"
+            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/cli/src/doctor/background.rs",
+            "codex/codex-rs/config/src/constraint.rs"
           ]
         },
         {
@@ -3033,12 +3033,12 @@
             "codex/codex-rs/exec/src/main.rs",
             "clap/clap_builder/src/output/help_template.rs",
             "codex/codex-rs/cli/src/doctor/runtime.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "clap/CONTRIBUTING.md",
+            "clap/clap_complete/src/engine/complete.rs",
             "codex/codex-rs/login/src/test_support.rs",
-            "codex/codex-rs/config/src/mcp_types.rs",
             "codex/codex-rs/core/src/environment_selection.rs",
-            "codex/codex-rs/tui/src/bottom_pane/request_user_input/mod.rs"
+            "codex/codex-rs/config/src/mcp_types.rs",
+            "codex/codex-rs/config/src/requirements_layers/hooks.rs"
           ]
         },
         {
@@ -3050,35 +3050,35 @@
           "route": null,
           "top": [
             "clap/clap_lex/src/lib.rs",
-            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/wrapping.rs",
+            "clap/src/_concepts.rs",
             "codex/codex-rs/protocol/src/approvals.rs",
             "codex/codex-rs/protocol/src/auth.rs",
             "codex/codex-rs/exec/src/exec_events.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_builder/src/builder/command.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps/file_params.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
             "clap/clap_builder/src/builder/arg_group.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-08",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/diff_render.rs",
-            "clap/src/_concepts.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "clap/src/_cookbook/mod.rs",
+            "clap/src/_concepts.rs",
             "clap/clap_builder/src/output/fmt.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
-            "codex/codex-rs/cli/src/doctor/output.rs",
+            "codex/codex-rs/tui/src/custom_terminal.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/custom_terminal.rs"
+            "codex/codex-rs/cli/src/doctor/output.rs",
+            "codex/codex-rs/tui/src/insert_history.rs"
           ]
         },
         {
@@ -3094,31 +3094,31 @@
             "clap/clap_builder/src/output/fmt.rs",
             "anyhow/src/chain.rs",
             "anyhow/src/lib.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_builder/src/builder/arg_group.rs",
+            "codex/codex-rs/cli/src/debug_sandbox/pid_tracker.rs",
             "codex/codex-rs/cli/src/doctor/output.rs",
-            "clap/clap_builder/src/error/mod.rs",
-            "codex/codex-rs/tui/src/keymap_setup/actions.rs"
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "codex/codex-rs/tui/src/keymap_setup/actions.rs",
+            "clap/clap_builder/src/error/kind.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.5,
           "id": "sem-10",
           "category": "semantic",
           "route": null,
           "top": [
             "clap/clap_complete/src/env/shells.rs",
-            "clap/clap_complete/src/aot/mod.rs",
             "clap/clap_complete/src/aot/shells/fish.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_complete/src/aot/mod.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/clap_complete/src/engine/candidate.rs",
             "clap/src/_concepts.rs",
-            "clap/clap_complete/src/aot/generator/mod.rs"
+            "clap/clap_complete/src/env/mod.rs"
           ]
         },
         {
@@ -3130,14 +3130,14 @@
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/footer.rs",
-            "codex/codex-rs/tui/src/tui.rs",
-            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/keymap_setup/actions.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/tui/src/tui.rs",
             "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/app/pending_interactive_replay.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager.rs",
             "codex/codex-rs/core/src/config/edit.rs",
+            "codex/docs/exec.md",
             "codex/codex-rs/tui/src/keymap_setup.rs"
           ]
         },
@@ -3151,14 +3151,14 @@
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
             "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
             "codex/codex-rs/core/src/guardian/review.rs",
-            "clap/src/_concepts.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs",
             "codex/codex-rs/login/src/auth/agent_identity.rs",
+            "codex/codex-rs/protocol/src/lib.rs",
+            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/lib.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
-            "codex/codex-rs/protocol/src/exec_output.rs"
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/login/src/auth/default_client.rs"
           ]
         },
         {
@@ -3184,38 +3184,38 @@
         {
           "r5": 0.3333333333333333,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 0.25,
           "id": "hom-02",
           "category": "homonym",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/lib.rs",
-            "clap/clap_builder/src/error/kind.rs",
             "anyhow/src/error.rs",
             "codex/codex-rs/protocol/src/error.rs",
-            "clap/clap_builder/src/error/context.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "codex/codex-rs/config/src/diagnostics.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/clap_derive/src/utils/error.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/error/format.rs",
-            "clap/clap_builder/src/lib.rs"
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/login/src/auth/error.rs",
+            "clap/clap_builder/src/error/format.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.2,
           "id": "hom-03",
           "category": "homonym",
           "route": null,
           "top": [
             "clap/clap_builder/src/builder/styling.rs",
             "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/protocol/src/error.rs",
-            "codex/docs/CLA.md",
             "codex/codex-rs/codex-mcp/src/tool_catalog_cache.rs",
-            "codex/codex-rs/config/src/permissions_toml.rs",
+            "codex/docs/CLA.md",
+            "codex/codex-rs/protocol/src/error.rs",
             "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/config/src/permissions_toml.rs",
             "codex/codex-rs/protocol/src/lib.rs"
           ]
         },
@@ -3231,32 +3231,32 @@
             "anyhow/README.md",
             "codex/README.md",
             "clap/clap_builder/src/lib.rs",
-            "clap/clap_complete/src/lib.rs",
             "clap/src/lib.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_complete/src/lib.rs",
+            "clap/clap_derive/src/lib.rs",
             "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/lib.rs"
+            "clap/clap_builder/src/output/help.rs",
+            "clap/clap_complete/src/engine/complete.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.5,
           "id": "hom-05",
           "category": "homonym",
           "route": null,
           "top": [
             "anyhow/README.md",
-            "clap/README.md",
             "codex/README.md",
+            "clap/README.md",
             "codex/docs/license.md",
-            "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/core/src/agents_md_tests.rs",
+            "codex/codex-rs/exec/src/cli.rs",
             "clap/clap_builder/src/lib.rs",
             "clap/src/lib.rs",
             "clap/clap_complete/src/lib.rs",
-            "clap/clap_builder/src/derive.rs"
+            "codex/codex-rs/tui/src/custom_terminal.rs"
           ]
         },
         {
@@ -3268,15 +3268,15 @@
           "route": null,
           "top": [
             "anyhow/README.md",
-            "clap/README.md",
             "codex/README.md",
+            "clap/README.md",
             "anyhow/src/macros.rs",
             "anyhow/src/lib.rs",
-            "anyhow/src/context.rs",
-            "anyhow/src/kind.rs",
-            "anyhow/src/error.rs",
+            "anyhow/src/backtrace.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/fmt.rs",
             "anyhow/src/chain.rs",
-            "anyhow/src/ptr.rs"
+            "anyhow/src/wrapper.rs"
           ]
         },
         {
@@ -3290,11 +3290,11 @@
             "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/arg0/src/lib.rs",
             "clap/clap_derive/src/macros.rs",
-            "clap/clap_builder/src/derive.rs",
-            "anyhow/src/macros.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/util/flat_map.rs",
+            "anyhow/src/macros.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
             "clap/clap_builder/src/parser/arg_matcher.rs"
           ]
@@ -3310,13 +3310,13 @@
             "anyhow/src/lib.rs",
             "anyhow/README.md",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
-            "codex/codex-rs/protocol/src/agent_path.rs",
             "codex/codex-rs/protocol/src/capabilities.rs",
-            "codex/codex-rs/protocol/src/permissions.rs",
+            "codex/codex-rs/protocol/src/agent_path.rs",
             "codex/codex-rs/core/src/agents_md_tests.rs",
-            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/protocol/src/permissions.rs",
             "codex/codex-rs/cli/src/lib.rs",
-            "clap/clap_complete/src/aot/generator/utils.rs"
+            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/cli/src/debug_sandbox/pid_tracker.rs"
           ]
         },
         {
@@ -3330,13 +3330,13 @@
             "anyhow/src/lib.rs",
             "anyhow/README.md",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
-            "codex/codex-rs/protocol/src/agent_path.rs",
             "codex/codex-rs/protocol/src/capabilities.rs",
-            "codex/codex-rs/protocol/src/permissions.rs",
+            "codex/codex-rs/protocol/src/agent_path.rs",
             "codex/codex-rs/core/src/agents_md_tests.rs",
-            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/protocol/src/permissions.rs",
             "codex/codex-rs/cli/src/lib.rs",
-            "clap/clap_complete/src/aot/generator/utils.rs"
+            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/cli/src/debug_sandbox/pid_tracker.rs"
           ]
         },
         {
@@ -3354,8 +3354,8 @@
             "anyhow/src/kind.rs",
             "anyhow/src/ensure.rs",
             "anyhow/src/ptr.rs",
-            "clap/clap_builder/src/derive.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/src/_features.rs",
             "clap/clap_builder/src/error/format.rs"
           ]
         },
@@ -3368,13 +3368,13 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/error/context.rs",
-            "clap/src/_concepts.rs",
             "codex/codex-rs/protocol/src/config_types.rs",
+            "clap/src/_concepts.rs",
             "clap/clap_complete/src/aot/shells/zsh.rs",
             "codex/codex-rs/protocol/src/mcp.rs",
             "codex/codex-rs/config/src/config_toml.rs",
-            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/clap_complete/src/env/shells.rs"
           ]
@@ -3389,14 +3389,14 @@
           "top": [
             "clap/clap_builder/src/builder/command.rs",
             "clap/src/_cookbook/mod.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_derive/src/item.rs",
             "clap/clap_complete/src/aot/generator/utils.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/builder/app_settings.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "codex/codex-rs/tui/src/exec_cell/render.rs",
             "codex/codex-rs/tui/src/wrapping.rs",
-            "codex/codex-rs/tui/src/exec_cell/render.rs"
+            "clap/clap_complete/src/engine/complete.rs"
           ]
         },
         {
@@ -3408,15 +3408,15 @@
           "route": null,
           "top": [
             "clap/clap_complete/src/env/shells.rs",
+            "clap/src/_faq.rs",
             "clap/clap_builder/src/derive.rs",
             "clap/clap_lex/src/lib.rs",
-            "clap/src/_faq.rs",
             "clap/clap_builder/src/builder/command.rs",
-            "clap/src/_concepts.rs",
-            "clap/clap_builder/src/builder/arg_group.rs",
             "clap/clap_builder/src/builder/mod.rs",
             "clap/clap_builder/src/builder/arg_settings.rs",
-            "codex/codex-rs/apply-patch/src/parser.rs"
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/src/_concepts.rs",
+            "clap/CONTRIBUTING.md"
           ]
         },
         {
@@ -3431,9 +3431,9 @@
             "anyhow/README.md",
             "codex/codex-rs/cli/src/state_db_recovery.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_lex/src/lib.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
             "clap/clap_builder/src/output/textwrap/mod.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/clap_lex/src/lib.rs",
             "clap/clap_builder/src/output/help_template.rs",
             "clap/CONTRIBUTING.md",
             "clap/clap_derive/src/utils/ty.rs"
@@ -3448,15 +3448,15 @@
           "route": null,
           "top": [
             "clap/clap_lex/src/lib.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/builder/arg_group.rs",
             "clap/clap_builder/src/parser/matches/value_source.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/builder/arg.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/lib.rs",
-            "clap/clap_builder/src/parser/mod.rs"
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/lib.rs"
           ]
         },
         {
@@ -3470,13 +3470,13 @@
             "clap/clap_complete/src/aot/generator/utils.rs",
             "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/parser/parser.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_derive/src/item.rs",
-            "clap/clap_builder/src/builder/command.rs",
             "codex/codex-rs/tui/src/exec_cell/render.rs",
+            "clap/clap_builder/src/builder/command.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/exec/src/cli.rs",
             "clap/src/_cookbook/mod.rs",
-            "clap/src/_features.rs"
+            "clap/clap_builder/src/builder/resettable.rs"
           ]
         },
         {
@@ -3489,13 +3489,13 @@
           "top": [
             "codex/codex-rs/apply-patch/src/invocation.rs",
             "codex/codex-rs/apply-patch/src/lib.rs",
+            "codex/codex-rs/tui/src/app.rs",
             "clap/clap_derive/src/lib.rs",
             "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/tui/src/app.rs",
-            "codex/codex-rs/apply-patch/src/parser.rs",
-            "clap/clap_builder/src/builder/command.rs",
             "codex/codex-rs/core/src/config/mod.rs",
             "clap/src/_derive/_tutorial.rs",
+            "codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+            "codex/codex-rs/apply-patch/src/parser.rs",
             "codex/codex-rs/apply-patch/src/seek_sequence.rs"
           ]
         },
@@ -3512,10 +3512,10 @@
             "codex/codex-rs/cli/src/main.rs",
             "clap/clap_derive/src/lib.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/engine/candidate.rs",
             "clap/src/_concepts.rs",
-            "clap/clap_complete/src/aot/shells/shell.rs",
-            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_complete/src/env/mod.rs",
             "codex/codex-rs/tui/src/app/background_requests.rs"
           ]
         },
@@ -3533,27 +3533,27 @@
             "clap/clap_builder/src/macros.rs",
             "anyhow/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
+            "clap/CHANGELOG.md",
             "clap/examples/tutorial_derive/04_01_enum.rs",
             "clap/clap_builder/src/derive.rs",
-            "clap/CHANGELOG.md",
             "clap/clap_builder/src/builder/styled_str.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.5,
           "id": "rel-09",
           "category": "relational",
           "route": null,
           "top": [
             "codex/codex-rs/codex-mcp/src/runtime.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/codex-mcp/src/catalog.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/config/src/mcp_edit.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
+            "codex/codex-rs/codex-mcp/src/catalog.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/resources.rs",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
             "codex/codex-rs/core/src/session/mcp.rs"
@@ -3571,44 +3571,44 @@
             "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/protocol/src/auth.rs",
             "codex/docs/authentication.md",
+            "codex/codex-rs/core/src/client.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
             "codex/codex-rs/cli/src/doctor.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/core/src/client.rs",
-            "codex/codex-rs/tui/src/wrapping.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs"
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
+            "codex/codex-rs/core/src/session/session.rs",
+            "codex/codex-rs/tui/src/wrapping.rs"
           ]
         }
       ]
     },
     {
       "arm": "graph-vector",
-      "R@5": 0.7296,
-      "R@10": 0.8333,
-      "MRR": 0.6369,
-      "p50_ms": 2.3,
-      "p95_ms": 2.6,
+      "R@5": 0.8,
+      "R@10": 0.8667,
+      "MRR": 0.6865,
+      "p50_ms": 1.9,
+      "p95_ms": 2.5,
       "routes": null,
       "by_category": {
         "direct-lexical": {
           "n": 12,
           "R@10": 1.0,
-          "MRR": 0.875
+          "MRR": 0.9375
         },
         "homonym": {
           "n": 11,
           "R@10": 0.9091,
-          "MRR": 0.6372
+          "MRR": 0.6576
         },
         "relational": {
           "n": 10,
           "R@10": 0.75,
-          "MRR": 0.57
+          "MRR": 0.4576
         },
         "semantic": {
           "n": 12,
-          "R@10": 0.6667,
-          "MRR": 0.4544
+          "R@10": 0.7917,
+          "MRR": 0.6528
         }
       },
       "per_query": [
@@ -3622,14 +3622,14 @@
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
-            "anyhow/src/macros.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "clap/clap_builder/src/builder/debug_asserts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/app/tests.rs",
-            "codex/codex-rs/tui/src/tui.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
+            "codex/codex-rs/protocol/src/request_user_input.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "anyhow/src/context.rs"
+            "codex/codex-rs/config/src/mcp_requirements.rs",
+            "clap/examples/find.rs"
           ]
         },
         {
@@ -3641,35 +3641,35 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/pkce.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
-            "clap/clap_derive/src/item.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/examples/typed-derive/custom.rs"
+            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/aot/mod.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "lex-03",
           "category": "direct-lexical",
           "route": null,
           "top": [
-            "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/parser/arg_matcher.rs",
-            "clap/clap_derive/src/lib.rs",
             "anyhow/src/kind.rs",
-            "clap/clap_builder/src/builder/arg_group.rs",
-            "clap/clap_derive/src/attr.rs",
             "anyhow/src/ptr.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/builder/arg.rs",
-            "clap/clap_lex/src/lib.rs"
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_builder/src/util/id.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_derive/src/attr.rs"
           ]
         },
         {
@@ -3683,13 +3683,13 @@
             "clap/clap_builder/src/builder/value_parser.rs",
             "clap/examples/typed-derive/custom.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/parser/matches/value_source.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "clap/clap_derive/src/dummies.rs",
             "clap/clap_builder/src/builder/arg_predicate.rs",
-            "clap/clap_builder/src/parser/parser.rs"
+            "clap/examples/typed-derive/fn_parser.rs",
+            "clap/examples/typed-derive/builtin.rs",
+            "clap/clap_builder/src/builder/possible_value.rs",
+            "clap/clap_builder/src/parser/validator.rs",
+            "clap/clap_builder/src/builder/range.rs"
           ]
         },
         {
@@ -3702,34 +3702,34 @@
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "clap/clap_lex/src/lib.rs",
             "codex/codex-rs/tui/src/bottom_pane/mod.rs",
-            "clap/clap_builder/src/builder/command.rs",
-            "clap/examples/typed-derive/custom.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
             "codex/codex-rs/config/src/config_toml.rs",
-            "clap/src/_concepts.rs"
+            "clap/clap_builder/src/derive.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "clap/src/lib.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "lex-06",
           "category": "direct-lexical",
           "route": null,
           "top": [
-            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/core/src/thread_manager.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
-            "codex/codex-rs/core/src/context_manager/history.rs",
-            "codex/codex-rs/tui/src/app/tests.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
+            "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs",
             "codex/codex-rs/tui/src/app/session_lifecycle.rs",
-            "codex/codex-rs/tui/src/app.rs",
-            "codex/codex-rs/codex-mcp/src/runtime.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs"
+            "codex/codex-rs/config/src/thread_config.rs",
+            "codex/codex-rs/tui/src/resume_picker.rs",
+            "codex/codex-rs/config/src/thread_config/remote.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs"
           ]
         },
         {
@@ -3741,15 +3741,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/builder/styled_str.rs",
-            "clap/examples/typed-derive/custom.rs",
             "anyhow/src/ptr.rs",
-            "clap/clap_derive/src/item.rs",
-            "anyhow/src/kind.rs",
-            "clap/clap_derive/src/utils/error.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "anyhow/src/lib.rs",
             "clap/clap_builder/src/builder/styling.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs"
+            "anyhow/src/kind.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_lex/src/ext.rs",
+            "clap/clap_builder/src/builder/os_str.rs",
+            "clap/clap_builder/src/builder/str.rs",
+            "anyhow/src/wrapper.rs",
+            "clap/examples/typed-derive/fn_parser.rs"
           ]
         },
         {
@@ -3761,35 +3761,35 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/token_data.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/login/src/token_data_tests.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token.rs",
+            "codex/codex-rs/login/src/lib.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token_tests.rs",
+            "codex/codex-rs/login/src/auth/access_token_tests.rs",
+            "codex/codex-rs/login/src/auth/access_token.rs",
             "codex/codex-rs/config/src/hook_config.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "codex/codex-rs/protocol/src/auth.rs",
-            "clap/clap_derive/src/utils/error.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
-            "clap/clap_derive/src/attr.rs",
-            "codex/codex-rs/cli/src/doctor/output/detail.rs",
-            "codex/codex-rs/protocol/src/config_types.rs"
+            "codex/codex-rs/login/src/auth_env_telemetry.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 0.25,
           "id": "lex-09",
           "category": "direct-lexical",
           "route": null,
           "top": [
             "clap/clap_derive/src/derives/value_enum.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs",
-            "clap/clap_builder/src/error/context.rs",
-            "clap/clap_complete/src/aot/mod.rs",
             "clap/examples/find.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_derive/src/attr.rs",
-            "clap/examples/typed-derive/custom.rs"
+            "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "anyhow/src/backtrace.rs",
+            "codex/codex-rs/protocol/src/account.rs",
+            "clap/examples/typed-derive/foreign_crate.rs",
+            "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs",
+            "clap/examples/typed-derive/builtin.rs"
           ]
         },
         {
@@ -3801,15 +3801,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "anyhow/src/macros.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_derive/src/item.rs",
-            "anyhow/src/context.rs",
-            "clap/clap_complete/src/engine/candidate.rs"
+            "anyhow/README.md",
+            "codex/docs/CLA.md",
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "clap/examples/tutorial_derive/01_quick.rs",
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/context.rs"
           ]
         },
         {
@@ -3821,15 +3821,15 @@
           "route": null,
           "top": [
             "anyhow/src/macros.rs",
+            "clap/clap_derive/src/macros.rs",
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/macros.rs",
-            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/macros.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
             "clap/clap_derive/src/derives/args.rs",
             "clap/clap_derive/src/attr.rs",
-            "clap/clap_builder/src/builder/action.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/aot/mod.rs"
+            "clap/clap_derive/src/utils/spanned.rs",
+            "clap/clap_builder/src/util/escape.rs"
           ]
         },
         {
@@ -3844,12 +3844,12 @@
             "codex/codex-rs/tui/src/keymap.rs",
             "codex/codex-rs/tui/src/keymap_setup/actions.rs",
             "codex/codex-rs/tui/src/keymap_setup.rs",
-            "clap/clap_builder/src/macros.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
+            "codex/codex-rs/config/src/schema.rs",
             "codex/codex-rs/config/src/tui_keymap.rs",
-            "codex/codex-rs/codex-mcp/src/codex_apps.rs"
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "codex/codex-rs/protocol/src/mcp_approval_meta.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs"
           ]
         },
         {
@@ -3862,14 +3862,14 @@
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
             "clap/clap_complete/src/engine/candidate.rs",
-            "clap/clap_derive/src/item.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "clap/clap_builder/src/builder/action.rs",
-            "clap/clap_builder/src/parser/parser.rs",
             "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_builder/src/builder/possible_value.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/examples/find.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs",
             "clap/clap_builder/src/builder/range.rs",
-            "clap/clap_builder/src/builder/arg_group.rs"
+            "clap/clap_builder/src/parser/matches/matched_arg.rs"
           ]
         },
         {
@@ -3880,21 +3880,21 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "clap/clap_builder/src/error/context.rs",
-            "clap/src/_concepts.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "clap/clap_builder/src/error/format.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_derive/src/item.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/tui/src/ide_context/ipc.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs",
             "codex/codex-rs/protocol/src/error.rs",
-            "clap/clap_derive/src/utils/error.rs",
-            "codex/codex-rs/tui/src/tui.rs"
+            "clap/src/_concepts.rs",
+            "codex/codex-rs/config/src/merge.rs"
           ]
         },
         {
-          "r5": 0.3333333333333333,
-          "r10": 0.3333333333333333,
+          "r5": 0.6666666666666666,
+          "r10": 1.0,
           "mrr": 0.5,
           "id": "sem-03",
           "category": "semantic",
@@ -3902,74 +3902,74 @@
           "top": [
             "codex/codex-rs/tui/src/wrapping.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
-            "clap/clap_builder/src/macros.rs",
+            "clap/clap_builder/src/output/textwrap/wrap_algorithms.rs",
+            "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/output/help_template.rs",
+            "clap/clap_builder/src/builder/styled_str.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "clap/clap_builder/src/output/mod.rs",
             "clap/clap_builder/src/error/format.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/tui/src/tui.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_complete/src/env/shells.rs",
-            "clap/clap_builder/src/output/help.rs"
+            "codex/codex-rs/tui/src/exec_cell/render.rs"
           ]
         },
         {
-          "r5": 0.5,
-          "r10": 0.5,
+          "r5": 1.0,
+          "r10": 1.0,
           "mrr": 1.0,
           "id": "sem-04",
           "category": "semantic",
           "route": null,
           "top": [
             "codex/codex-rs/apply-patch/src/parser.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "codex/codex-rs/tui/src/tui.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_derive/src/item.rs",
             "codex/codex-rs/apply-patch/src/lib.rs",
-            "clap/clap_builder/src/parser/parser.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "codex/codex-rs/protocol/src/review_format.rs",
+            "codex/codex-rs/apply-patch/src/streaming_parser.rs",
+            "codex/codex-rs/tui/src/tui.rs",
             "codex/codex-rs/config/src/hook_config.rs",
-            "clap/clap_complete/src/env/shells.rs"
+            "clap/clap_builder/src/parser/parser.rs",
+            "clap/clap_complete/src/engine/complete.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "codex/codex-rs/apply-patch/src/invocation.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-05",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/login/src/device_code_auth.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_builder/src/parser/parser.rs",
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
             "codex/codex-rs/tui/src/app.rs",
-            "codex/codex-rs/core/src/session/handlers.rs"
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "codex/codex-rs/core/src/tools/network_approval.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/tui/src/app/pending_interactive_replay.rs",
+            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "codex/codex-rs/core/src/guardian/review.rs"
           ]
         },
         {
-          "r5": 0.0,
+          "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.16666666666666666,
+          "mrr": 0.3333333333333333,
           "id": "sem-06",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
+            "codex/codex-rs/tui/src/app/event_dispatch.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/arg0/src/lib.rs",
             "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/tui/src/app_server_session.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/tui/src/tui.rs",
-            "clap/clap_builder/src/builder/action.rs",
-            "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/protocol/src/config_types.rs"
+            "codex/codex-rs/core/src/session/turn.rs",
+            "codex/codex-rs/core/src/session/session.rs",
+            "codex/codex-rs/protocol/src/config_types.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/protocol/src/approvals.rs"
           ]
         },
         {
@@ -3982,34 +3982,34 @@
           "top": [
             "clap/src/_concepts.rs",
             "clap/clap_lex/src/lib.rs",
+            "codex/codex-rs/core/src/exec_policy.rs",
             "clap/clap_builder/src/derive.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
+            "clap/clap_builder/src/builder/arg.rs",
             "clap/clap_builder/src/builder/command.rs",
-            "clap/clap_derive/src/lib.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "clap/clap_builder/src/error/mod.rs",
-            "codex/codex-rs/protocol/src/approvals.rs"
+            "clap/src/lib.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/protocol/src/config_types.rs"
           ]
         },
         {
-          "r5": 0.0,
+          "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.14285714285714285,
+          "mrr": 1.0,
           "id": "sem-08",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
-            "clap/src/_concepts.rs",
-            "clap/clap_builder/src/derive.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/tui.rs",
             "codex/codex-rs/tui/src/diff_render.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+            "clap/clap_builder/src/util/color.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs"
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "codex/codex-rs/tui/src/exec_cell/render.rs",
+            "clap/src/_concepts.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "codex/codex-rs/tui/src/pager_overlay.rs"
           ]
         },
         {
@@ -4022,54 +4022,54 @@
           "top": [
             "clap/clap_builder/src/error/context.rs",
             "anyhow/src/error.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/config/src/diagnostics.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_builder/src/error/format.rs",
             "codex/codex-rs/cli/src/doctor/output/detail.rs",
-            "codex/codex-rs/protocol/src/error.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_builder/src/lib.rs"
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "clap/clap_builder/src/builder/debug_asserts.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/output/fmt.rs",
+            "codex/codex-rs/protocol/src/exec_output_tests.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-10",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/fish.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
-            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/zsh.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/aot/generator/mod.rs"
+            "clap/clap_complete/src/aot/shells/bash.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/aot/shells/elvish.rs"
           ]
         },
         {
-          "r5": 0.0,
-          "r10": 0.6666666666666666,
-          "mrr": 0.14285714285714285,
+          "r5": 0.3333333333333333,
+          "r10": 1.0,
+          "mrr": 0.5,
           "id": "sem-11",
           "category": "semantic",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/tui/src/tui.rs",
+            "codex/codex-rs/tui/src/keymap_setup.rs",
             "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/tui/src/tui.rs",
             "codex/codex-rs/tui/src/lib.rs",
             "codex/codex-rs/tui/src/keymap.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "codex/codex-rs/tui/src/keymap_setup.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs"
+            "clap/src/_tutorial.rs",
+            "codex/codex-rs/config/src/tui_keymap.rs",
+            "codex/codex-rs/tui/src/resume_picker.rs"
           ]
         },
         {
@@ -4080,36 +4080,36 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
-            "clap/src/_concepts.rs",
             "codex/codex-rs/core/src/exec_policy.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
+            "codex/codex-rs/core/src/guardian/review.rs",
+            "codex/codex-rs/config/src/shell_environment_policy.rs",
             "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
-            "codex/codex-rs/tui/src/lib.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/tui/src/app.rs",
-            "codex/codex-rs/core/src/config/permissions.rs"
+            "codex/codex-rs/config/src/requirements_layers/stack.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/lib.rs"
           ]
         },
         {
-          "r5": 0.0,
+          "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.14285714285714285,
+          "mrr": 0.2,
           "id": "hom-01",
           "category": "homonym",
           "route": null,
           "top": [
             "anyhow/README.md",
             "anyhow/src/lib.rs",
-            "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_builder/src/lib.rs",
+            "anyhow/src/macros.rs",
             "anyhow/src/error.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/error/format.rs",
-            "clap/clap_builder/src/error/context.rs"
+            "clap/examples/typed-derive/foreign_crate.rs"
           ]
         },
         {
@@ -4120,16 +4120,16 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/lib.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "clap/clap_derive/src/utils/ty.rs",
             "clap/clap_derive/src/utils/error.rs",
             "clap/clap_derive/src/dummies.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_builder/src/util/mod.rs"
           ]
         },
         {
@@ -4141,15 +4141,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/protocol/src/error.rs",
-            "clap/clap_builder/src/lib.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
-            "codex/codex-rs/protocol/src/mcp.rs",
             "codex/codex-rs/protocol/src/error_tests.rs",
-            "codex/codex-rs/protocol/src/exec_output_tests.rs",
-            "codex/codex-rs/login/src/test_support.rs",
-            "codex/codex-rs/exec/src/exec_events.rs",
+            "codex/codex-rs/protocol/src/protocol.rs",
+            "codex/codex-rs/codex-mcp/src/auth_elicitation.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/required.rs"
+            "codex/codex-rs/login/src/test_support.rs",
+            "codex/codex-rs/protocol/src/mcp.rs",
+            "codex/codex-rs/login/src/auth/error.rs",
+            "codex/codex-rs/protocol/src/exec_output_tests.rs",
+            "codex/codex-rs/exec/src/exec_events.rs"
           ]
         },
         {
@@ -4163,33 +4163,33 @@
             "clap/README.md",
             "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/parser/parser.rs",
-            "clap/clap_derive/src/lib.rs",
+            "clap/clap_builder/src/output/help.rs",
+            "clap/examples/demo.rs",
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/output/mod.rs",
             "clap/clap_derive/src/dummies.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_lex/src/lib.rs",
-            "clap/clap_builder/src/error/context.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/parser/matches/mod.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.5,
           "id": "hom-05",
           "category": "homonym",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/app/tests.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/README.md",
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/protocol/src/auth.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
-            "codex/codex-rs/core/src/config/permissions.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
             "codex/codex-rs/cli/src/doctor/runtime.rs",
-            "codex/codex-rs/cli/src/doctor.rs"
+            "codex/codex-rs/core/src/config/permissions.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/codex-mcp/src/lib.rs",
+            "codex/codex-rs/login/src/auth/util.rs"
           ]
         },
         {
@@ -4203,33 +4203,33 @@
             "anyhow/README.md",
             "anyhow/src/macros.rs",
             "anyhow/src/lib.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "anyhow/src/error.rs",
-            "clap/README.md",
+            "codex/codex-rs/tui/src/app/tests.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "codex/codex-rs/tui/src/app/tests.rs"
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "anyhow/src/error.rs",
+            "clap/clap_builder/src/util/any_value.rs",
+            "codex/codex-rs/protocol/src/auth.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.2,
           "id": "hom-07",
           "category": "homonym",
           "route": null,
           "top": [
+            "clap/clap_derive/src/macros.rs",
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
+            "clap/clap_derive/src/derives/into_app.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_derive/src/macros.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_derive/src/dummies.rs",
             "clap/clap_derive/src/derives/args.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_derive/src/item.rs",
-            "clap/clap_complete/src/lib.rs"
+            "clap/clap_complete/src/macros.rs",
+            "clap/src/_derive/_tutorial.rs",
+            "clap/clap_derive/src/derives/value_enum.rs",
+            "clap/clap_derive/src/derives/subcommand.rs"
           ]
         },
         {
@@ -4240,36 +4240,36 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_builder/src/output/help.rs",
             "clap/clap_builder/src/macros.rs",
-            "clap/clap_lex/src/lib.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_derive/src/utils/error.rs",
-            "clap/README.md",
-            "clap/clap_derive/src/dummies.rs",
             "clap/clap_derive/src/derives/into_app.rs",
-            "clap/clap_builder/src/error/context.rs"
+            "clap/clap_derive/src/derives/mod.rs",
+            "clap/clap_complete/src/engine/complete.rs",
+            "clap/examples/repl.rs",
+            "clap/clap_complete/src/engine/mod.rs",
+            "clap/clap_derive/src/derives/subcommand.rs",
+            "clap/clap_derive/src/derives/parser.rs",
+            "clap/clap_builder/src/parser/features/mod.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.2,
+          "mrr": 0.3333333333333333,
           "id": "hom-09",
           "category": "homonym",
           "route": null,
           "top": [
             "anyhow/src/macros.rs",
             "anyhow/README.md",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "anyhow/src/lib.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_derive/src/item.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
             "codex/codex-rs/config/src/permissions_toml.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs"
+            "clap/clap_builder/src/util/any_value.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/config/src/loader/layer_io.rs",
+            "codex/codex-rs/config/src/hook_config.rs",
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "codex/codex-rs/config/src/requirements_layers/stack.rs"
           ]
         },
         {
@@ -4281,15 +4281,15 @@
           "route": null,
           "top": [
             "anyhow/src/context.rs",
-            "clap/clap_builder/src/derive.rs",
-            "anyhow/README.md",
             "anyhow/src/lib.rs",
+            "anyhow/README.md",
             "anyhow/src/macros.rs",
+            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "clap/clap_derive/src/item.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "clap/clap_builder/src/error/context.rs"
+            "anyhow/src/error.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/protocol/src/items.rs"
           ]
         },
         {
@@ -4301,55 +4301,55 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/error/context.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_derive/src/lib.rs",
             "clap/clap_builder/src/error/format.rs",
-            "clap/clap_builder/src/builder/action.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/builder/action.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "clap/clap_builder/src/builder/range.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "clap/clap_builder/src/builder/value_hint.rs"
+            "clap/clap_builder/src/parser/matches/value_source.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "rel-01",
           "category": "relational",
           "route": null,
           "top": [
-            "codex/codex-rs/cli/src/main.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/tui/src/tui.rs",
             "codex/codex-rs/protocol/src/parse_command.rs",
-            "codex/codex-rs/exec/src/cli.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/cli/src/bin/logs_client.rs",
             "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/protocol/src/error.rs"
+            "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "codex/codex-rs/config/src/config_layer_source.rs",
+            "codex/codex-rs/exec/src/cli.rs"
           ]
         },
         {
           "r5": 0.5,
           "r10": 0.5,
-          "mrr": 1.0,
+          "mrr": 0.3333333333333333,
           "id": "rel-02",
           "category": "relational",
           "route": null,
           "top": [
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
-            "clap/README.md",
             "codex/codex-rs/protocol/src/parse_command.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "codex/codex-rs/login/src/auth/util.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/README.md",
+            "codex/codex-rs/codex-mcp/src/lib.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/codex-mcp/src/codex_apps.rs"
+            "codex/codex-rs/arg0/src/lib.rs"
           ]
         },
         {
@@ -4360,56 +4360,56 @@
           "category": "relational",
           "route": null,
           "top": [
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/cli/src/state_db_recovery.rs",
             "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/cli/src/main.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/login/src/auth/util.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
             "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/cli/src/state_db_recovery.rs",
-            "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs"
+            "codex/codex-rs/login/src/auth/error.rs",
+            "codex/codex-rs/arg0/src/lib.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "rel-04",
           "category": "relational",
           "route": null,
           "top": [
-            "clap/clap_lex/src/lib.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/builder/arg.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/README.md",
+            "clap/clap_lex/src/lib.rs",
+            "clap/clap_builder/src/parser/error.rs",
             "clap/clap_builder/src/builder/command.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/README.md",
+            "clap/clap_builder/src/error/kind.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/macros.rs"
           ]
         },
         {
           "r5": 0.0,
           "r10": 1.0,
-          "mrr": 0.16666666666666666,
+          "mrr": 0.14285714285714285,
           "id": "rel-05",
           "category": "relational",
           "route": null,
           "top": [
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/core/src/exec_policy.rs",
             "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/core/src/session/handlers.rs"
+            "codex/codex-rs/protocol/src/shell_environment.rs",
+            "codex/codex-rs/protocol/src/approvals.rs"
           ]
         },
         {
@@ -4421,10 +4421,10 @@
           "route": null,
           "top": [
             "codex/codex-rs/apply-patch/src/lib.rs",
+            "codex/codex-rs/core/src/config/edit_tests.rs",
+            "codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
             "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/codex-mcp/src/auth_elicitation.rs",
-            "codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
-            "codex/codex-rs/core/src/config/edit_tests.rs",
             "codex/codex-rs/apply-patch/src/streaming_parser.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
             "codex/codex-rs/apply-patch/src/parser.rs",
@@ -4433,43 +4433,43 @@
           ]
         },
         {
-          "r5": 1.0,
+          "r5": 0.0,
           "r10": 1.0,
-          "mrr": 0.2,
+          "mrr": 0.1,
           "id": "rel-07",
           "category": "relational",
           "route": null,
           "top": [
-            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_complete/src/aot/shells/bash.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/README.md",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
-            "clap/clap_builder/src/builder/command.rs",
-            "clap/clap_builder/src/parser/error.rs"
+            "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/clap_complete/src/env/mod.rs",
+            "clap/clap_complete/src/aot/shells/mod.rs",
+            "clap/clap_complete/src/lib.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 1.0,
           "id": "rel-08",
           "category": "relational",
           "route": null,
           "top": [
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
             "clap/clap_derive/src/macros.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/clap_builder/src/derive.rs",
             "clap/clap_derive/src/derives/args.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_derive/src/utils/error.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "clap/src/_derive/mod.rs",
+            "clap/src/_derive/_tutorial.rs",
             "clap/examples/tutorial_derive/04_01_enum.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_derive/src/derives/parser.rs"
           ]
         },
         {
@@ -4481,15 +4481,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
             "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
-            "codex/codex-rs/cli/src/main.rs",
-            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "codex/codex-rs/protocol/src/mcp.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
             "codex/codex-rs/codex-mcp/src/runtime.rs",
-            "codex/codex-rs/config/src/mcp_types.rs"
+            "codex/codex-rs/codex-mcp/src/server.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/core/src/session/mcp.rs",
+            "codex/codex-rs/codex-mcp/src/catalog.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "codex/codex-rs/config/src/mcp_edit.rs"
           ]
         },
         {
@@ -4501,47 +4501,47 @@
           "route": null,
           "top": [
             "codex/codex-rs/protocol/src/auth.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/config/src/types.rs",
             "codex/codex-rs/login/src/auth/manager.rs",
             "codex/codex-rs/login/src/auth/revoke.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/login/src/auth/access_token.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token.rs",
             "codex/codex-rs/login/src/device_code_auth.rs",
-            "codex/codex-rs/codex-mcp/src/elicitation.rs"
+            "codex/codex-rs/login/src/auth/auth_headers.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token_tests.rs",
+            "codex/codex-rs/login/src/auth/bedrock_api_key.rs"
           ]
         }
       ]
     },
     {
       "arm": "graph-hybrid",
-      "R@5": 0.8148,
-      "R@10": 0.837,
-      "MRR": 0.6933,
-      "p50_ms": 4.9,
-      "p95_ms": 8.0,
+      "R@5": 0.7926,
+      "R@10": 0.8444,
+      "MRR": 0.71,
+      "p50_ms": 4.4,
+      "p95_ms": 6.7,
       "routes": null,
       "by_category": {
         "direct-lexical": {
           "n": 12,
           "R@10": 1.0,
-          "MRR": 1.0
+          "MRR": 0.9583
         },
         "homonym": {
           "n": 11,
           "R@10": 0.9091,
-          "MRR": 0.6621
+          "MRR": 0.7152
         },
         "relational": {
           "n": 10,
           "R@10": 0.65,
-          "MRR": 0.5083
+          "MRR": 0.4917
         },
         "semantic": {
           "n": 12,
-          "R@10": 0.7639,
-          "MRR": 0.5694
+          "R@10": 0.7917,
+          "MRR": 0.6389
         }
       },
       "per_query": [
@@ -4554,15 +4554,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
             "clap/clap_builder/src/builder/debug_asserts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/app/tests.rs",
             "clap/clap_complete/src/engine/candidate.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs"
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
           ]
         },
         {
@@ -4574,15 +4574,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/pkce.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/examples/typed-derive/custom.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
             "clap/clap_derive/src/item.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/powershell.rs"
+            "clap/clap_complete/src/aot/mod.rs"
           ]
         },
         {
@@ -4597,12 +4597,12 @@
             "anyhow/src/kind.rs",
             "anyhow/src/ptr.rs",
             "clap/clap_complete/src/engine/custom.rs",
-            "clap/clap_derive/src/attr.rs",
-            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_builder/src/util/id.rs",
             "clap/clap_builder/src/builder/arg_group.rs",
-            "clap/clap_derive/src/lib.rs",
             "clap/clap_builder/src/mkeymap.rs",
-            "clap/clap_builder/src/util/id.rs"
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs"
           ]
         },
         {
@@ -4622,7 +4622,7 @@
             "clap/examples/typed-derive/fn_parser.rs",
             "clap/examples/typed-derive/builtin.rs",
             "clap/clap_builder/src/builder/possible_value.rs",
-            "clap/clap_builder/src/error/kind.rs"
+            "clap/clap_builder/src/parser/validator.rs"
           ]
         },
         {
@@ -4634,15 +4634,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
             "codex/codex-rs/tui/src/bottom_pane/mod.rs",
             "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/config/src/config_toml.rs",
-            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "clap/clap_builder/src/builder/command.rs"
+            "clap/examples/typed-derive/custom.rs",
+            "clap/src/lib.rs"
           ]
         },
         {
@@ -4654,15 +4654,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/core/src/thread_manager.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/tui/src/app/thread_routing.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
-            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
-            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
+            "codex/codex-rs/config/src/thread_config.rs",
             "codex/codex-rs/tui/src/resume_picker.rs",
-            "codex/codex-rs/core/src/context_manager/history.rs",
-            "codex/codex-rs/config/src/thread_config/remote.rs"
+            "codex/codex-rs/config/src/thread_config/remote.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs"
           ]
         },
         {
@@ -4676,13 +4676,13 @@
             "clap/clap_builder/src/builder/styled_str.rs",
             "clap/clap_builder/src/output/textwrap/mod.rs",
             "anyhow/src/ptr.rs",
+            "clap/clap_builder/src/builder/styling.rs",
             "anyhow/src/kind.rs",
             "clap/examples/typed-derive/custom.rs",
-            "clap/clap_builder/src/builder/styling.rs",
-            "clap/clap_derive/src/utils/error.rs",
             "clap/clap_lex/src/ext.rs",
-            "clap/clap_derive/src/item.rs",
-            "clap/examples/typed-derive/fn_parser.rs"
+            "clap/clap_builder/src/builder/os_str.rs",
+            "clap/clap_builder/src/builder/str.rs",
+            "anyhow/src/wrapper.rs"
           ]
         },
         {
@@ -4696,33 +4696,33 @@
             "codex/codex-rs/login/src/token_data.rs",
             "codex/codex-rs/login/src/token_data_tests.rs",
             "codex/codex-rs/login/src/auth/personal_access_token.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
             "codex/codex-rs/login/src/lib.rs",
             "codex/codex-rs/login/src/auth/personal_access_token_tests.rs",
             "codex/codex-rs/login/src/auth/access_token_tests.rs",
             "codex/codex-rs/login/src/auth/access_token.rs",
-            "codex/codex-rs/login/src/auth/revoke.rs",
-            "codex/codex-rs/protocol/src/auth.rs"
+            "codex/codex-rs/config/src/hook_config.rs",
+            "codex/codex-rs/login/src/auth_env_telemetry.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "lex-09",
           "category": "direct-lexical",
           "route": null,
           "top": [
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_derive/src/derives/value_enum.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/examples/find.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_derive/src/attr.rs",
-            "codex/codex-rs/protocol/src/account.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/examples/find.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "codex/codex-rs/protocol/src/account.rs",
+            "anyhow/src/backtrace.rs",
             "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs"
+            "clap/clap_complete/src/lib.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs"
           ]
         },
         {
@@ -4734,15 +4734,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "codex/codex-rs/protocol/src/parse_command.rs",
+            "anyhow/README.md",
             "codex/docs/CLA.md",
+            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/examples/tutorial_derive/01_quick.rs",
-            "anyhow/src/context.rs",
-            "clap/clap_complete/src/aot/mod.rs"
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/context.rs"
           ]
         },
         {
@@ -4754,15 +4754,15 @@
           "route": null,
           "top": [
             "anyhow/src/macros.rs",
-            "clap/clap_builder/src/derive.rs",
             "clap/clap_derive/src/macros.rs",
+            "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_derive/src/attr.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_derive/src/utils/spanned.rs",
+            "clap/clap_builder/src/util/escape.rs"
           ]
         },
         {
@@ -4777,12 +4777,12 @@
             "codex/codex-rs/tui/src/keymap.rs",
             "codex/codex-rs/tui/src/keymap_setup/actions.rs",
             "codex/codex-rs/tui/src/keymap_setup.rs",
-            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
-            "codex/codex-rs/config/src/tui_keymap.rs",
-            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
             "codex/codex-rs/config/src/schema.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/protocol/src/mcp_approval_meta.rs"
+            "codex/codex-rs/config/src/tui_keymap.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "codex/codex-rs/protocol/src/mcp_approval_meta.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs"
           ]
         },
         {
@@ -4797,12 +4797,12 @@
             "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_builder/src/mkeymap.rs",
             "clap/clap_builder/src/builder/possible_value.rs",
-            "clap/clap_derive/src/item.rs",
             "clap/clap_builder/src/builder/range.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_derive/src/item.rs",
             "clap/examples/find.rs",
-            "clap/clap_builder/src/parser/parser.rs"
+            "clap/clap_derive/src/dummies.rs",
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs"
           ]
         },
         {
@@ -4813,21 +4813,21 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "codex/codex-rs/core/src/environment_selection.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/cli/src/state_db_recovery.rs",
-            "codex/codex-rs/core/src/agent/control_tests.rs",
-            "codex/codex-rs/core/src/environment_selection.rs",
-            "codex/codex-rs/core/src/context_manager/history.rs",
-            "clap/src/_concepts.rs",
-            "codex/codex-rs/protocol/src/error.rs"
+            "codex/codex-rs/config/src/shell_environment_policy.rs",
+            "codex/codex-rs/tui/src/ide_context/ipc.rs",
+            "codex/codex-rs/config/src/merge.rs"
           ]
         },
         {
           "r5": 0.3333333333333333,
-          "r10": 0.6666666666666666,
+          "r10": 1.0,
           "mrr": 0.5,
           "id": "sem-03",
           "category": "semantic",
@@ -4838,11 +4838,11 @@
             "clap/clap_builder/src/builder/styled_str.rs",
             "codex/codex-rs/tui/src/exec_cell/render.rs",
             "clap/clap_builder/src/output/help.rs",
-            "clap/clap_builder/src/error/format.rs",
             "clap/clap_builder/src/output/help_template.rs",
-            "clap/clap_builder/src/output/textwrap/mod.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs"
+            "clap/clap_builder/src/output/textwrap/wrap_algorithms.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/output/mod.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs"
           ]
         },
         {
@@ -4856,13 +4856,13 @@
             "codex/codex-rs/apply-patch/src/parser.rs",
             "codex/codex-rs/apply-patch/src/lib.rs",
             "codex/codex-rs/protocol/src/review_format.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "codex/codex-rs/apply-patch/src/streaming_parser.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/parser/parser.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
             "clap/clap_complete/src/env/shells.rs",
             "codex/codex-rs/tui/src/tui.rs",
-            "codex/codex-rs/config/src/hook_config.rs"
+            "codex/codex-rs/protocol/src/openai_models.rs"
           ]
         },
         {
@@ -4874,15 +4874,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/device_code_auth.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/app.rs",
             "codex/codex-rs/tui/src/app_server_session.rs",
             "codex/codex-rs/tui/src/app/background_requests.rs",
             "clap/clap_builder/src/parser/parser.rs",
             "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/core/src/tools/network_approval.rs"
+            "codex/codex-rs/core/src/tools/network_approval.rs",
+            "codex/codex-rs/protocol/src/user_input.rs"
           ]
         },
         {
@@ -4894,15 +4894,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
             "codex/codex-rs/tui/src/app/event_dispatch.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/core/src/session/session.rs",
             "codex/codex-rs/protocol/src/config_types.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs"
+            "codex/codex-rs/core/src/thread_manager.rs"
           ]
         },
         {
@@ -4917,8 +4917,8 @@
             "clap/clap_lex/src/lib.rs",
             "codex/codex-rs/protocol/src/approvals.rs",
             "clap/clap_builder/src/derive.rs",
-            "clap/clap_builder/src/builder/command.rs",
             "codex/codex-rs/core/src/exec_policy.rs",
+            "clap/clap_builder/src/builder/command.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/src/lib.rs",
             "clap/clap_builder/src/builder/arg.rs",
@@ -4928,21 +4928,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-08",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/diff_render.rs",
-            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
+            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
             "clap/clap_builder/src/util/color.rs",
-            "codex/codex-rs/tui/src/tui.rs",
-            "codex/codex-rs/tui/src/exec_cell/render.rs"
+            "codex/codex-rs/tui/src/markdown_render.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/tui/src/exec_cell/render.rs",
+            "codex/codex-rs/tui/src/insert_history.rs"
           ]
         },
         {
@@ -4954,35 +4954,35 @@
           "route": null,
           "top": [
             "anyhow/src/error.rs",
-            "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/output/fmt.rs",
-            "clap/clap_builder/src/error/context.rs",
+            "clap/clap_builder/src/error/mod.rs",
             "codex/codex-rs/config/src/diagnostics.rs",
+            "clap/clap_builder/src/error/context.rs",
             "codex/codex-rs/tui/src/exec_cell/render.rs",
             "clap/clap_builder/src/builder/arg_group.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/cli/src/doctor/output.rs",
             "codex/codex-rs/cli/src/doctor/output/detail.rs",
-            "clap/clap_builder/src/lib.rs"
+            "codex/codex-rs/exec/src/event_processor.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-10",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/fish.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/mod.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_complete/src/aot/shells/zsh.rs",
             "clap/clap_complete/src/aot/shells/bash.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/engine/complete.rs"
+            "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/lib.rs"
           ]
         },
         {
@@ -4999,30 +4999,30 @@
             "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/lib.rs",
             "codex/codex-rs/tui/src/keymap.rs",
-            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/keymap_setup/actions.rs",
             "codex/codex-rs/config/src/tui_keymap.rs",
-            "codex/codex-rs/tui/src/bottom_pane/mod.rs"
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "clap/src/_concepts.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 0.3333333333333333,
           "id": "sem-12",
           "category": "semantic",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
             "codex/codex-rs/core/src/guardian/review.rs",
             "codex/codex-rs/core/src/exec_policy.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
             "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/lib.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/protocol/src/models.rs",
             "codex/codex-rs/config/src/shell_environment_policy.rs",
-            "codex/codex-rs/protocol/src/models.rs"
+            "codex/codex-rs/tui/src/app_server_session.rs"
           ]
         },
         {
@@ -5033,8 +5033,8 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "anyhow/README.md",
             "anyhow/src/lib.rs",
+            "anyhow/README.md",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/error.rs",
             "anyhow/src/error.rs",
@@ -5056,13 +5056,13 @@
             "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/error/context.rs",
             "clap/clap_derive/src/utils/error.rs",
             "clap/clap_builder/src/parser/error.rs",
+            "clap/clap_derive/src/utils/mod.rs",
             "clap/clap_derive/src/utils/ty.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "clap/clap_derive/src/utils/mod.rs"
+            "clap/clap_derive/src/dummies.rs"
           ]
         },
         {
@@ -5078,11 +5078,11 @@
             "codex/codex-rs/protocol/src/protocol.rs",
             "codex/codex-rs/codex-mcp/src/auth_elicitation.rs",
             "codex/codex-rs/protocol/src/mcp.rs",
-            "codex/codex-rs/protocol/src/exec_output_tests.rs",
             "codex/codex-rs/login/src/auth/util.rs",
+            "codex/codex-rs/protocol/src/exec_output_tests.rs",
             "codex/codex-rs/login/src/test_support.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/login/src/auth/error.rs"
+            "codex/codex-rs/login/src/auth/error.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs"
           ]
         },
         {
@@ -5095,14 +5095,14 @@
           "top": [
             "clap/README.md",
             "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_builder/src/parser/parser.rs",
             "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "clap/examples/demo.rs",
             "clap/clap_derive/src/lib.rs",
             "clap/clap_builder/src/lib.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/attr.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "clap/clap_builder/src/error/context.rs"
+            "clap/clap_builder/src/output/mod.rs",
+            "clap/clap_builder/src/util/color.rs"
           ]
         },
         {
@@ -5115,14 +5115,14 @@
           "top": [
             "codex/README.md",
             "codex/codex-rs/cli/src/doctor.rs",
-            "codex/codex-rs/cli/src/main.rs",
-            "codex/codex-rs/tui/src/app/tests.rs",
+            "codex/docs/license.md",
             "codex/codex-rs/cli/src/doctor/runtime.rs",
+            "codex/codex-rs/tui/src/app/tests.rs",
+            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/protocol/src/auth.rs",
             "codex/codex-rs/core/src/config/permissions.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
-            "codex/docs/license.md",
-            "codex/codex-rs/codex-mcp/src/codex_apps.rs"
+            "codex/codex-rs/cli/src/doctor/updates.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs"
           ]
         },
         {
@@ -5139,16 +5139,16 @@
             "clap/README.md",
             "anyhow/src/error.rs",
             "anyhow/src/context.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/README.md",
             "codex/codex-rs/tui/src/app/tests.rs",
-            "codex/README.md"
+            "clap/clap_builder/src/parser/features/suggestions.rs"
           ]
         },
         {
-          "r5": 1.0,
+          "r5": 0.0,
           "r10": 1.0,
-          "mrr": 0.25,
+          "mrr": 0.16666666666666666,
           "id": "hom-07",
           "category": "homonym",
           "route": null,
@@ -5156,13 +5156,13 @@
             "clap/clap_derive/src/macros.rs",
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/lib.rs",
             "clap/clap_derive/src/derives/into_app.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/macros.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/src/_derive/_tutorial.rs",
             "clap/clap_derive/src/derives/value_enum.rs",
-            "clap/examples/tutorial_derive/04_01_enum.rs",
-            "clap/clap_derive/src/dummies.rs"
+            "clap/examples/tutorial_derive/04_01_enum.rs"
           ]
         },
         {
@@ -5173,16 +5173,16 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/derives/into_app.rs",
             "clap/clap_derive/src/derives/mod.rs",
-            "clap/clap_lex/src/lib.rs",
-            "clap/README.md",
-            "clap/clap_derive/src/derives/parser.rs",
+            "clap/clap_complete/src/engine/complete.rs",
+            "clap/examples/repl.rs",
+            "clap/clap_complete/src/engine/mod.rs",
             "clap/clap_derive/src/derives/subcommand.rs",
-            "clap/clap_derive/src/utils/error.rs"
+            "clap/clap_derive/src/derives/parser.rs",
+            "clap/clap_builder/src/parser/features/mod.rs"
           ]
         },
         {
@@ -5195,33 +5195,33 @@
           "top": [
             "anyhow/README.md",
             "anyhow/src/lib.rs",
-            "anyhow/src/macros.rs",
             "codex/codex-rs/protocol/src/permissions.rs",
-            "codex/codex-rs/config/src/permissions_toml.rs",
             "codex/codex-rs/core/src/agents_md_tests.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/config/src/permissions_toml.rs",
+            "codex/codex-rs/cli/src/lib.rs",
+            "clap/clap_builder/src/util/any_value.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
-            "codex/codex-rs/cli/src/lib.rs"
+            "codex/codex-rs/config/src/loader/layer_io.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 1.0,
           "id": "hom-10",
           "category": "homonym",
           "route": null,
           "top": [
+            "anyhow/src/context.rs",
             "anyhow/src/lib.rs",
             "anyhow/README.md",
-            "anyhow/src/context.rs",
             "clap/clap_builder/src/derive.rs",
             "anyhow/src/macros.rs",
             "anyhow/src/error.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/core/src/context_manager/history.rs",
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "anyhow/src/ensure.rs",
             "anyhow/src/kind.rs"
           ]
         },
@@ -5234,35 +5234,35 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/error/context.rs",
-            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/builder/range.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/builder/action.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/lib.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_derive/src/lib.rs"
+            "clap/clap_complete/src/engine/complete.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "clap/clap_builder/src/parser/error.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 0.3333333333333333,
           "id": "rel-01",
           "category": "relational",
           "route": null,
           "top": [
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/arg0/src/lib.rs",
             "codex/codex-rs/protocol/src/protocol.rs",
             "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/cli/src/bin/logs_client.rs",
-            "codex/codex-rs/cli/src/lib.rs"
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "codex/codex-rs/config/src/config_layer_source.rs"
           ]
         },
         {
@@ -5277,12 +5277,12 @@
             "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/README.md",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/codex-mcp/src/lib.rs"
+            "codex/codex-rs/codex-mcp/src/lib.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/arg0/src/lib.rs"
           ]
         },
         {
@@ -5295,14 +5295,14 @@
           "top": [
             "codex/codex-rs/cli/src/state_db_recovery.rs",
             "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
             "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/protocol/src/error.rs",
             "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/protocol/src/exec_output_tests.rs"
+            "codex/codex-rs/cli/src/doctor.rs"
           ]
         },
         {
@@ -5316,12 +5316,12 @@
             "clap/clap_lex/src/lib.rs",
             "clap/clap_builder/src/builder/arg.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs",
             "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/error/kind.rs",
             "clap/README.md",
-            "clap/clap_builder/src/parser/mod.rs",
             "clap/clap_builder/src/builder/command.rs"
           ]
         },
@@ -5333,16 +5333,16 @@
           "category": "relational",
           "route": null,
           "top": [
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/core/src/exec_policy.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/arg0/src/lib.rs",
             "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/core/src/exec_policy_tests.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/protocol/src/protocol.rs"
+            "codex/codex-rs/protocol/src/shell_environment.rs"
           ]
         },
         {
@@ -5355,14 +5355,14 @@
           "top": [
             "codex/codex-rs/apply-patch/src/lib.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/core/src/tools/handlers/multi_agents_spec.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/apply-patch/src/main.rs",
+            "codex/codex-rs/core/src/config/edit_tests.rs",
             "codex/codex-rs/apply-patch/src/parser.rs",
             "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/core/src/config/edit_tests.rs",
             "codex/codex-rs/core/src/agent/control/spawn.rs",
-            "codex/codex-rs/apply-patch/src/streaming_parser.rs"
+            "codex/codex-rs/protocol/src/protocol.rs"
           ]
         },
         {
@@ -5374,15 +5374,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/bash.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/powershell.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
-            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_complete/src/env/mod.rs",
-            "clap/clap_complete/src/aot/generator/mod.rs"
+            "clap/clap_complete/src/engine/candidate.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_derive/src/lib.rs"
           ]
         },
         {
@@ -5394,15 +5394,15 @@
           "route": null,
           "top": [
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/macros.rs",
-            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/src/_derive/mod.rs",
+            "clap/clap_builder/src/derive.rs",
             "clap/examples/tutorial_derive/04_01_enum.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/clap_derive/src/derives/into_app.rs",
-            "clap/clap_derive/src/derives/parser.rs"
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/CHANGELOG.md",
+            "clap/src/_derive/_tutorial.rs"
           ]
         },
         {
@@ -5414,15 +5414,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/codex-mcp/src/runtime.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/codex-mcp/src/catalog.rs",
-            "codex/codex-rs/core/src/session/mcp.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/config/src/mcp_edit.rs",
+            "codex/codex-rs/core/src/session/mcp.rs",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs"
+            "codex/codex-rs/codex-mcp/src/server.rs"
           ]
         },
         {
@@ -5438,22 +5438,22 @@
             "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
             "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/login/src/device_code_auth.rs",
             "codex/codex-rs/login/src/auth/access_token.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/login/src/auth/personal_access_token.rs",
-            "codex/codex-rs/core/src/client.rs"
+            "codex/codex-rs/login/src/device_code_auth.rs",
+            "codex/codex-rs/login/src/auth/auth_headers.rs"
           ]
         }
       ]
     },
     {
       "arm": "tri-keyword",
-      "R@5": 0.7,
+      "R@5": 0.6926,
       "R@10": 0.7963,
-      "MRR": 0.4823,
-      "p50_ms": 6.0,
-      "p95_ms": 12.4,
+      "MRR": 0.4843,
+      "p50_ms": 6.1,
+      "p95_ms": 11.9,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -5464,7 +5464,7 @@
         "homonym": {
           "n": 11,
           "R@10": 0.8485,
-          "MRR": 0.3745
+          "MRR": 0.4237
         },
         "relational": {
           "n": 10,
@@ -5474,7 +5474,7 @@
         "semantic": {
           "n": 12,
           "R@10": 0.7083,
-          "MRR": 0.4889
+          "MRR": 0.4514
         }
       },
       "per_query": [
@@ -5718,16 +5718,16 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/protocol/src/config_types.rs",
-            "codex/codex-rs/core/src/exec_policy_tests.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs",
             "anyhow/src/lib.rs",
-            "codex/codex-rs/config/src/state_tests.rs",
-            "codex/docs/install.md",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/arg0/src/lib.rs",
             "anyhow/README.md",
-            "codex/codex-rs/tui/src/lib.rs"
+            "codex/codex-rs/protocol/src/config_types.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/core/src/exec_policy_tests.rs",
+            "anyhow/src/fmt.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs",
+            "anyhow/src/ensure.rs"
           ]
         },
         {
@@ -5833,21 +5833,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "sem-08",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/diff_render.rs",
-            "codex/codex-rs/tui/src/custom_terminal.rs",
             "clap/src/_cookbook/mod.rs",
+            "codex/codex-rs/tui/src/diff_render.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_builder/src/output/fmt.rs",
+            "codex/codex-rs/tui/src/custom_terminal.rs",
+            "clap/clap_complete/src/env/mod.rs",
             "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
-            "codex/codex-rs/tui/src/lib.rs",
-            "codex/codex-rs/tui/src/streaming/controller.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/keymap_setup/actions.rs"
+            "clap/src/_features.rs"
           ]
         },
         {
@@ -5873,21 +5873,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.2,
+          "mrr": 0.25,
           "id": "sem-10",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/lib.rs",
+            "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/fish.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_complete/src/env/shells.rs",
+            "clap/clap_complete/src/lib.rs",
             "clap/clap_complete/src/aot/shells/mod.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
-            "codex/codex-rs/cli/src/main.rs"
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_complete/src/aot/shells/elvish.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs"
           ]
         },
         {
@@ -5951,23 +5951,23 @@
           ]
         },
         {
-          "r5": 0.3333333333333333,
+          "r5": 0.0,
           "r10": 0.3333333333333333,
-          "mrr": 0.25,
+          "mrr": 0.125,
           "id": "hom-02",
           "category": "homonym",
           "route": null,
           "top": [
+            "codex/codex-rs/cli/src/bin/logs_client.rs",
             "clap/clap_derive/src/derives/args.rs",
+            "codex/codex-rs/tui/src/lib.rs",
             "clap/src/_derive/_tutorial.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
             "clap/src/_tutorial.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "anyhow/src/lib.rs",
-            "clap/clap_derive/src/derives/subcommand.rs",
-            "clap/clap_derive/src/derives/value_enum.rs",
-            "clap/clap_complete/src/aot/shells/zsh.rs",
-            "clap/clap_derive/src/derives/into_app.rs",
-            "clap/src/bin/stdio-fixture.rs"
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "anyhow/src/lib.rs"
           ]
         },
         {
@@ -6013,21 +6013,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 1.0,
           "id": "hom-05",
           "category": "homonym",
           "route": null,
           "top": [
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_builder/src/lib.rs",
             "codex/README.md",
-            "clap/src/lib.rs",
+            "clap/clap_complete/src/lib.rs",
             "codex/docs/license.md",
-            "clap/clap_derive/src/lib.rs",
             "codex/codex-rs/cli/src/doctor/git.rs",
-            "clap/README.md",
-            "clap/CONTRIBUTING.md",
-            "clap/clap_builder/src/output/textwrap/core.rs"
+            "codex/codex-rs/core/src/turn_metadata_tests.rs",
+            "codex/codex-rs/apply-patch/src/parser.rs",
+            "clap/clap_builder/src/lib.rs",
+            "codex/docs/install.md",
+            "clap/src/lib.rs",
+            "codex/codex-rs/exec/src/cli.rs"
           ]
         },
         {
@@ -6355,21 +6355,21 @@
     {
       "arm": "tri-vector",
       "R@5": 0.7741,
-      "R@10": 0.8444,
-      "MRR": 0.5994,
-      "p50_ms": 4.1,
-      "p95_ms": 4.3,
+      "R@10": 0.8222,
+      "MRR": 0.5933,
+      "p50_ms": 4.5,
+      "p95_ms": 4.9,
       "routes": null,
       "by_category": {
         "direct-lexical": {
           "n": 12,
-          "R@10": 1.0,
-          "MRR": 0.6021
+          "R@10": 0.9167,
+          "MRR": 0.6056
         },
         "homonym": {
           "n": 11,
           "R@10": 0.9091,
-          "MRR": 0.7182
+          "MRR": 0.6773
         },
         "relational": {
           "n": 10,
@@ -6379,7 +6379,7 @@
         "semantic": {
           "n": 12,
           "R@10": 0.7917,
-          "MRR": 0.575
+          "MRR": 0.5861
         }
       },
       "per_query": [
@@ -6415,12 +6415,12 @@
             "codex/codex-rs/login/src/pkce.rs",
             "clap/clap_derive/src/derives/parser.rs",
             "codex/codex-rs/protocol/src/auth.rs",
-            "clap/clap_derive/src/derives/mod.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/clap_derive/src/attr.rs",
             "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/derives/subcommand.rs",
-            "clap/clap_derive/src/derives/args.rs"
+            "clap/clap_derive/src/derives/mod.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/examples/typed-derive/builtin.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs"
           ]
         },
         {
@@ -6486,21 +6486,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 0.5,
           "id": "lex-06",
           "category": "direct-lexical",
           "route": null,
           "top": [
             "codex/codex-rs/core/src/thread_manager_tests.rs",
-            "codex/codex-rs/tui/src/app/thread_routing.rs",
             "codex/codex-rs/core/src/thread_manager.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/core/src/agent/control/spawn.rs",
             "codex/codex-rs/tui/src/app.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
-            "codex/codex-rs/tui/src/app_event.rs",
-            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
-            "codex/codex-rs/core/src/agent/control_tests.rs"
+            "codex/codex-rs/core/src/config/mod.rs",
+            "codex/codex-rs/config/src/thread_config.rs"
           ]
         },
         {
@@ -6565,22 +6565,22 @@
         },
         {
           "r5": 0.0,
-          "r10": 1.0,
-          "mrr": 0.125,
+          "r10": 0.0,
+          "mrr": 0.0,
           "id": "lex-10",
           "category": "direct-lexical",
           "route": null,
           "top": [
             "clap/CHANGELOG.md",
-            "clap/clap_complete/src/aot/shells/zsh.rs",
             "codex/codex-rs/config/src/loader/macos.rs",
-            "clap/clap_builder/src/parser/parser.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "clap/CONTRIBUTING.md",
             "codex/codex-rs/tui/src/bottom_pane/footer.rs",
-            "clap/clap_builder/src/parser/features/suggestions.rs",
             "anyhow/README.md",
-            "clap/clap_builder/src/output/textwrap/core.rs"
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "codex/codex-rs/protocol/src/exec_output.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "codex/codex-rs/core/src/context_manager/history_tests.rs",
+            "clap/CONTRIBUTING.md"
           ]
         },
         {
@@ -6651,16 +6651,16 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_builder/src/error/context.rs",
             "codex/codex-rs/exec/src/lib_tests.rs",
-            "clap/examples/typed-derive/foreign_crate.rs",
             "codex/codex-rs/cli/src/doctor/output/detail.rs",
-            "clap/clap_derive/src/lib.rs",
             "codex/codex-rs/cli/src/main.rs",
-            "clap/CHANGELOG.md",
             "codex/codex-rs/core/src/environment_selection.rs",
-            "clap/examples/typed-derive/custom.rs",
-            "clap/clap_derive/src/item.rs"
+            "codex/codex-rs/core/src/compact_remote_v2.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "codex/codex-rs/codex-mcp/src/tool_catalog_cache.rs",
+            "clap/examples/typed-derive/foreign_crate.rs",
+            "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/clap_derive/src/lib.rs"
           ]
         },
         {
@@ -6695,12 +6695,12 @@
             "codex/codex-rs/apply-patch/src/streaming_parser.rs",
             "codex/codex-rs/apply-patch/src/lib.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/apply-patch/src/main.rs",
             "codex/codex-rs/cli/src/bin/logs_client.rs",
+            "codex/codex-rs/apply-patch/src/seek_sequence.rs",
             "codex/codex-rs/core/src/mcp_tool_call_tests.rs",
-            "codex/codex-rs/protocol/src/review_format.rs",
-            "codex/codex-rs/config/src/merge.rs",
-            "codex/codex-rs/core/src/context_manager/history.rs",
-            "codex/codex-rs/tui/src/diff_render.rs"
+            "codex/codex-rs/apply-patch/src/standalone_executable.rs",
+            "codex/codex-rs/protocol/src/review_format.rs"
           ]
         },
         {
@@ -6734,33 +6734,33 @@
             "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
             "anyhow/src/kind.rs",
             "codex/codex-rs/tui/src/app/event_dispatch.rs",
-            "codex/codex-rs/core/src/codex_delegate.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs",
-            "codex/codex-rs/core/src/tasks/mod.rs",
             "codex/codex-rs/tui/src/keymap.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
             "codex/codex-rs/tui/src/app/session_lifecycle.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs"
+            "codex/codex-rs/core/src/codex_delegate.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "codex/codex-rs/core/src/tasks/mod.rs"
           ]
         },
         {
           "r5": 0.5,
           "r10": 0.5,
-          "mrr": 0.2,
+          "mrr": 0.3333333333333333,
           "id": "sem-07",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/src/_concepts.rs",
-            "clap/clap_builder/src/builder/mod.rs",
-            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_lex/src/lib.rs",
-            "clap/clap_builder/src/error/context.rs",
-            "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/builder/mod.rs",
+            "clap/examples/tutorial_builder/05_01_assert.rs",
             "codex/codex-rs/login/src/token_data_tests.rs",
-            "clap/clap_builder/src/error/kind.rs",
-            "clap/examples/tutorial_builder/05_01_assert.rs"
+            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/examples/tutorial_builder/04_01_possible.rs",
+            "codex/codex-rs/exec/src/cli.rs"
           ]
         },
         {
@@ -6813,14 +6813,14 @@
           "top": [
             "clap/clap_complete/src/aot/shells/fish.rs",
             "clap/clap_complete/src/aot/shells/mod.rs",
-            "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
-            "clap/clap_complete/src/env/shells.rs",
+            "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_complete/src/aot/shells/zsh.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/engine/candidate.rs"
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_complete/src/aot/shells/bash.rs"
           ]
         },
         {
@@ -6866,21 +6866,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.2,
+          "mrr": 0.25,
           "id": "hom-01",
           "category": "homonym",
           "route": null,
           "top": [
             "anyhow/src/lib.rs",
-            "anyhow/README.md",
-            "clap/clap_builder/src/parser/error.rs",
             "anyhow/src/kind.rs",
+            "clap/clap_builder/src/parser/error.rs",
             "anyhow/src/error.rs",
+            "anyhow/README.md",
             "anyhow/src/nightly.rs",
             "anyhow/src/macros.rs",
             "anyhow/src/context.rs",
             "anyhow/src/fmt.rs",
-            "clap/clap_builder/src/error/format.rs"
+            "anyhow/src/ensure.rs"
           ]
         },
         {
@@ -6910,15 +6910,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/login/src/test_support.rs",
             "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/login/src/test_support.rs",
             "codex/codex-rs/protocol/src/error_tests.rs",
             "codex/codex-rs/protocol/src/protocol.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
+            "codex/codex-rs/protocol/src/mcp.rs",
             "codex/codex-rs/core/src/session/turn_context.rs",
-            "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/core/src/tasks/mod.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
-            "codex/codex-rs/core/src/codex_delegate.rs"
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "codex/codex-rs/config/src/types.rs"
           ]
         },
         {
@@ -6944,13 +6944,13 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "hom-05",
           "category": "homonym",
           "route": null,
           "top": [
-            "codex/README.md",
             "codex/codex-rs/protocol/src/auth.rs",
+            "codex/README.md",
             "codex/codex-rs/cli/src/doctor.rs",
             "codex/codex-rs/config/src/config_toml.rs",
             "codex/codex-rs/core/src/thread_manager.rs",
@@ -7069,14 +7069,13 @@
           "top": [
             "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "clap/clap_builder/src/lib.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/parser/error.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_builder/src/builder/action.rs",
-            "clap/clap_builder/src/parser/parser.rs"
+            "clap/clap_complete/src/lib.rs"
           ]
         },
         {
@@ -7089,14 +7088,14 @@
           "top": [
             "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/cli/src/lib.rs",
-            "codex/codex-rs/config/src/config_toml.rs",
-            "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/tui/src/chatwidget.rs",
-            "codex/codex-rs/exec/src/main_tests.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/exec/src/lib.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/config/src/lib.rs"
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/cli/src/plugin_cmd.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/cli/src/login.rs",
+            "codex/codex-rs/cli/src/marketplace_cmd.rs"
           ]
         },
         {
@@ -7286,8 +7285,8 @@
       "R@5": 0.7889,
       "R@10": 0.8667,
       "MRR": 0.6239,
-      "p50_ms": 13.4,
-      "p95_ms": 23.3,
+      "p50_ms": 12.7,
+      "p95_ms": 19.8,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -7420,14 +7419,14 @@
           "top": [
             "codex/codex-rs/core/src/thread_manager.rs",
             "codex/codex-rs/core/src/thread_manager_tests.rs",
-            "codex/codex-rs/tui/src/app/thread_routing.rs",
-            "codex/codex-rs/protocol/src/thread_id.rs",
-            "codex/codex-rs/tui/src/app.rs",
             "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
             "codex/codex-rs/core/src/agent/control/spawn.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
-            "codex/codex-rs/tui/src/app_event.rs",
-            "codex/codex-rs/tui/src/app/session_lifecycle.rs"
+            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
+            "codex/codex-rs/tui/src/app.rs",
+            "codex/codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+            "codex/codex-rs/core/src/config/mod.rs"
           ]
         },
         {
@@ -7441,13 +7440,13 @@
             "clap/clap_builder/src/builder/styled_str.rs",
             "clap/clap_builder/src/error/format.rs",
             "clap/clap_builder/src/output/usage.rs",
-            "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_builder/src/builder/styling.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_builder/src/output/textwrap/mod.rs",
             "clap/clap_builder/src/output/help.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "codex/codex-rs/tui/src/markdown_render.rs",
-            "clap/clap_derive/src/utils/doc_comments.rs"
+            "clap/clap_builder/src/output/fmt.rs",
+            "codex/codex-rs/tui/src/markdown_render.rs"
           ]
         },
         {
@@ -7501,13 +7500,13 @@
             "clap/CHANGELOG.md",
             "clap/clap_builder/src/parser/parser.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "clap/clap_complete/src/aot/shells/zsh.rs",
             "codex/codex-rs/config/src/loader/macos.rs",
-            "clap/CONTRIBUTING.md",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "clap/clap_builder/src/output/textwrap/core.rs",
             "codex/codex-rs/tui/src/bottom_pane/footer.rs",
-            "clap/src/_derive/_tutorial.rs"
+            "anyhow/README.md",
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "codex/codex-rs/protocol/src/exec_output.rs",
+            "codex/codex-rs/core/src/context_manager/history_tests.rs"
           ]
         },
         {
@@ -8015,14 +8014,14 @@
           "top": [
             "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/cli/src/lib.rs",
-            "codex/codex-rs/config/src/config_toml.rs",
-            "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/tui/src/chatwidget.rs",
-            "codex/codex-rs/exec/src/lib.rs",
-            "codex/codex-rs/exec/src/main_tests.rs",
-            "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/protocol/src/parse_command.rs"
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/cli/src/plugin_cmd.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/cli/src/login.rs",
+            "codex/codex-rs/cli/src/doctor/runtime.rs"
           ]
         },
         {
@@ -8209,32 +8208,32 @@
     },
     {
       "arm": "plan-hybrid",
-      "R@5": 0.8111,
+      "R@5": 0.7889,
       "R@10": 0.8889,
-      "MRR": 0.7143,
-      "p50_ms": 15.2,
-      "p95_ms": 24.4,
+      "MRR": 0.7247,
+      "p50_ms": 15.5,
+      "p95_ms": 24.7,
       "routes": null,
       "by_category": {
         "direct-lexical": {
           "n": 12,
           "R@10": 1.0,
-          "MRR": 1.0
+          "MRR": 0.9583
         },
         "homonym": {
           "n": 11,
           "R@10": 1.0,
-          "MRR": 0.6667
+          "MRR": 0.7242
         },
         "relational": {
           "n": 10,
           "R@10": 0.75,
-          "MRR": 0.5976
+          "MRR": 0.5476
         },
         "semantic": {
           "n": 12,
           "R@10": 0.7917,
-          "MRR": 0.5694
+          "MRR": 0.6389
         }
       },
       "per_query": [
@@ -8247,15 +8246,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
             "clap/clap_builder/src/builder/debug_asserts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/app/tests.rs",
             "clap/clap_complete/src/engine/candidate.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "codex/codex-rs/config/src/mcp_requirements.rs"
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
           ]
         },
         {
@@ -8267,15 +8266,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/pkce.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/examples/typed-derive/custom.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
             "clap/clap_derive/src/item.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/powershell.rs"
+            "clap/clap_complete/src/aot/mod.rs"
           ]
         },
         {
@@ -8290,12 +8289,12 @@
             "anyhow/src/kind.rs",
             "anyhow/src/ptr.rs",
             "clap/clap_complete/src/engine/custom.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/clap_builder/src/builder/arg_group.rs",
-            "clap/clap_builder/src/util/id.rs",
             "clap/clap_builder/src/parser/matches/arg_matches.rs",
-            "clap/clap_derive/src/attr.rs",
-            "codex/codex-rs/config/src/hook_config.rs"
+            "clap/clap_builder/src/util/id.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/mkeymap.rs"
           ]
         },
         {
@@ -8327,14 +8326,14 @@
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
             "codex/codex-rs/tui/src/bottom_pane/mod.rs",
             "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/config/src/config_toml.rs",
-            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_builder/src/derive.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "clap/examples/typed-derive/custom.rs",
             "codex/codex-rs/tui/src/lib.rs"
           ]
         },
@@ -8347,12 +8346,12 @@
           "route": null,
           "top": [
             "codex/codex-rs/core/src/thread_manager.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/tui/src/app/thread_routing.rs",
-            "codex/codex-rs/config/src/thread_config.rs",
-            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
-            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
+            "codex/codex-rs/config/src/thread_config.rs",
             "codex/codex-rs/tui/src/resume_picker.rs",
             "codex/codex-rs/config/src/thread_config/remote.rs",
             "anyhow/src/lib.rs"
@@ -8369,9 +8368,9 @@
             "clap/clap_builder/src/builder/styled_str.rs",
             "clap/clap_builder/src/output/textwrap/mod.rs",
             "anyhow/src/ptr.rs",
+            "clap/clap_builder/src/builder/styling.rs",
             "anyhow/src/kind.rs",
             "clap/examples/typed-derive/custom.rs",
-            "clap/clap_builder/src/builder/styling.rs",
             "clap/clap_lex/src/ext.rs",
             "clap/clap_builder/src/builder/os_str.rs",
             "clap/clap_builder/src/builder/str.rs",
@@ -8389,33 +8388,33 @@
             "codex/codex-rs/login/src/token_data.rs",
             "codex/codex-rs/login/src/token_data_tests.rs",
             "codex/codex-rs/login/src/auth/personal_access_token.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
             "codex/codex-rs/login/src/lib.rs",
             "codex/codex-rs/login/src/auth/personal_access_token_tests.rs",
-            "codex/codex-rs/login/src/auth/access_token.rs",
             "codex/codex-rs/login/src/auth/access_token_tests.rs",
-            "codex/codex-rs/login/src/auth/revoke.rs",
-            "codex/codex-rs/login/src/auth_env_telemetry.rs"
+            "codex/codex-rs/login/src/auth/access_token.rs",
+            "codex/codex-rs/config/src/hook_config.rs",
+            "codex/codex-rs/login/src/auth_env_telemetry.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "lex-09",
           "category": "direct-lexical",
           "route": null,
           "top": [
-            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_derive/src/derives/value_enum.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/examples/find.rs",
-            "clap/clap_complete/src/lib.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "codex/codex-rs/cli/src/exec_server_telemetry.rs",
-            "clap/clap_derive/src/attr.rs",
+            "clap/examples/find.rs",
+            "clap/clap_complete/src/aot/mod.rs",
             "codex/codex-rs/protocol/src/account.rs",
+            "anyhow/src/backtrace.rs",
             "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs",
-            "clap/examples/typed-derive/custom.rs"
+            "clap/clap_complete/src/lib.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs"
           ]
         },
         {
@@ -8427,15 +8426,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "clap/clap_derive/src/dummies.rs",
-            "codex/codex-rs/protocol/src/parse_command.rs",
+            "anyhow/README.md",
             "codex/docs/CLA.md",
-            "anyhow/src/context.rs",
+            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/examples/tutorial_derive/01_quick.rs",
-            "clap/clap_complete/src/aot/mod.rs"
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/context.rs"
           ]
         },
         {
@@ -8470,12 +8469,12 @@
             "codex/codex-rs/tui/src/keymap.rs",
             "codex/codex-rs/tui/src/keymap_setup/actions.rs",
             "codex/codex-rs/tui/src/keymap_setup.rs",
+            "codex/codex-rs/config/src/schema.rs",
             "codex/codex-rs/config/src/tui_keymap.rs",
             "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "codex/codex-rs/protocol/src/mcp_approval_meta.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "codex/codex-rs/config/src/schema.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
-            "codex/codex-rs/protocol/src/mcp_approval_meta.rs"
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs"
           ]
         },
         {
@@ -8506,16 +8505,16 @@
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "codex/codex-rs/core/src/environment_selection.rs",
             "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/exec/src/event_processor.rs",
-            "codex/codex-rs/cli/src/state_db_recovery.rs",
-            "codex/codex-rs/core/src/agent/control_tests.rs",
-            "codex/codex-rs/core/src/environment_selection.rs",
-            "codex/codex-rs/core/src/context_manager/history.rs",
             "codex/codex-rs/config/src/shell_environment_policy.rs",
-            "codex/codex-rs/tui/src/ide_context/ipc.rs"
+            "codex/codex-rs/tui/src/ide_context/ipc.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs"
           ]
         },
         {
@@ -8549,8 +8548,8 @@
             "codex/codex-rs/apply-patch/src/parser.rs",
             "codex/codex-rs/apply-patch/src/lib.rs",
             "codex/codex-rs/protocol/src/review_format.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "codex/codex-rs/apply-patch/src/streaming_parser.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "codex/codex-rs/apply-patch/src/invocation.rs",
             "clap/clap_complete/src/env/shells.rs",
             "codex/codex-rs/tui/src/tui.rs",
@@ -8567,8 +8566,8 @@
           "route": null,
           "top": [
             "codex/codex-rs/login/src/device_code_auth.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/app.rs",
             "codex/codex-rs/tui/src/app_server_session.rs",
             "clap/clap_builder/src/parser/parser.rs",
@@ -8587,15 +8586,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
-            "codex/codex-rs/tui/src/app_server_session.rs",
             "codex/codex-rs/tui/src/app/event_dispatch.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs",
             "codex/codex-rs/core/src/session/turn.rs",
+            "codex/codex-rs/core/src/session/session.rs",
             "codex/codex-rs/protocol/src/config_types.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs"
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/core/src/thread_manager.rs"
           ]
         },
         {
@@ -8611,30 +8610,30 @@
             "codex/codex-rs/protocol/src/approvals.rs",
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/builder/command.rs",
-            "clap/clap_builder/src/error/mod.rs",
             "codex/codex-rs/core/src/exec_policy.rs",
+            "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/builder/arg.rs",
             "clap/clap_builder/src/builder/arg_group.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs"
+            "clap/src/lib.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-08",
           "category": "semantic",
           "route": null,
           "top": [
-            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/diff_render.rs",
-            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
+            "clap/src/_concepts.rs",
             "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/markdown_render.rs",
-            "clap/clap_builder/src/util/color.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/tui/src/insert_history.rs",
+            "clap/clap_builder/src/util/color.rs",
             "codex/codex-rs/tui/src/lib.rs"
           ]
         },
@@ -8647,35 +8646,35 @@
           "route": null,
           "top": [
             "anyhow/src/error.rs",
-            "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/output/fmt.rs",
+            "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/error/context.rs",
             "codex/codex-rs/tui/src/exec_cell/render.rs",
+            "codex/codex-rs/config/src/diagnostics.rs",
             "clap/clap_builder/src/builder/arg_group.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/cli/src/doctor/output.rs",
             "codex/codex-rs/cli/src/doctor/output/detail.rs",
-            "clap/clap_builder/src/lib.rs",
-            "codex/codex-rs/config/src/diagnostics.rs"
+            "codex/codex-rs/exec/src/event_processor.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "sem-10",
           "category": "semantic",
           "route": null,
           "top": [
-            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/fish.rs",
+            "clap/clap_complete/src/env/shells.rs",
             "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/mod.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_complete/src/engine/candidate.rs",
             "clap/clap_complete/src/aot/shells/zsh.rs",
             "clap/clap_complete/src/aot/shells/bash.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/aot/shells/powershell.rs"
+            "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/lib.rs"
           ]
         },
         {
@@ -8701,14 +8700,14 @@
         {
           "r5": 0.5,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 0.3333333333333333,
           "id": "sem-12",
           "category": "semantic",
           "route": null,
           "top": [
             "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
-            "codex/codex-rs/core/src/exec_policy.rs",
             "codex/codex-rs/core/src/guardian/review.rs",
+            "codex/codex-rs/core/src/exec_policy.rs",
             "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "clap/src/_concepts.rs",
             "codex/codex-rs/protocol/src/approvals.rs",
@@ -8726,8 +8725,8 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "anyhow/README.md",
             "anyhow/src/lib.rs",
+            "anyhow/README.md",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/error.rs",
             "anyhow/src/error.rs",
@@ -8749,13 +8748,13 @@
             "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
             "clap/clap_builder/src/error/mod.rs",
-            "clap/clap_builder/src/error/context.rs",
             "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/error/context.rs",
             "clap/clap_derive/src/utils/error.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_derive/src/utils/mod.rs",
             "clap/clap_derive/src/utils/ty.rs",
-            "clap/clap_derive/src/utils/mod.rs"
+            "clap/clap_derive/src/dummies.rs"
           ]
         },
         {
@@ -8770,12 +8769,12 @@
             "codex/codex-rs/protocol/src/error_tests.rs",
             "codex/codex-rs/protocol/src/protocol.rs",
             "codex/codex-rs/codex-mcp/src/auth_elicitation.rs",
-            "codex/codex-rs/cli/src/lib.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/cli/src/main.rs",
-            "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/exec/src/event_processor_with_human_output.rs",
             "anyhow/src/lib.rs",
-            "anyhow/README.md"
+            "anyhow/README.md",
+            "anyhow/src/error.rs"
           ]
         },
         {
@@ -8788,14 +8787,14 @@
           "top": [
             "clap/README.md",
             "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_builder/src/parser/parser.rs",
             "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "clap/examples/demo.rs",
             "clap/clap_derive/src/lib.rs",
             "clap/clap_builder/src/lib.rs",
-            "clap/clap_builder/src/macros.rs",
+            "clap/clap_builder/src/util/color.rs",
             "clap/src/lib.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_complete/src/engine/mod.rs"
+            "clap/clap_complete/src/lib.rs"
           ]
         },
         {
@@ -8807,6 +8806,7 @@
           "route": null,
           "top": [
             "codex/README.md",
+            "codex/docs/license.md",
             "codex/codex-rs/tui/src/app/tests.rs",
             "codex/codex-rs/protocol/src/auth.rs",
             "codex/codex-rs/cli/src/doctor.rs",
@@ -8814,8 +8814,7 @@
             "clap/README.md",
             "clap/clap_complete/src/lib.rs",
             "clap/clap_builder/src/lib.rs",
-            "anyhow/src/lib.rs",
-            "anyhow/README.md"
+            "anyhow/src/lib.rs"
           ]
         },
         {
@@ -8832,16 +8831,16 @@
             "clap/README.md",
             "anyhow/src/error.rs",
             "anyhow/src/context.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/tui/src/app/tests.rs",
             "codex/README.md",
-            "clap/clap_builder/src/parser/features/suggestions.rs"
+            "codex/codex-rs/tui/src/app/tests.rs",
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "codex/codex-rs/protocol/src/user_input.rs"
           ]
         },
         {
-          "r5": 1.0,
+          "r5": 0.0,
           "r10": 1.0,
-          "mrr": 0.2,
+          "mrr": 0.16666666666666666,
           "id": "hom-07",
           "category": "homonym",
           "route": null,
@@ -8850,11 +8849,11 @@
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/clap_derive/src/lib.rs",
             "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_derive/src/lib.rs",
             "clap/clap_derive/src/derives/args.rs",
-            "clap/clap_derive/src/derives/value_enum.rs",
             "clap/src/_derive/_tutorial.rs",
+            "clap/clap_derive/src/derives/value_enum.rs",
             "clap/clap_derive/src/dummies.rs"
           ]
         },
@@ -8866,15 +8865,15 @@
           "category": "homonym",
           "route": null,
           "top": [
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/derives/into_app.rs",
             "clap/clap_derive/src/derives/mod.rs",
-            "clap/clap_lex/src/lib.rs",
-            "clap/README.md",
-            "clap/clap_derive/src/derives/parser.rs",
+            "clap/clap_complete/src/engine/complete.rs",
+            "clap/examples/repl.rs",
+            "clap/clap_complete/src/engine/mod.rs",
             "clap/clap_derive/src/derives/subcommand.rs",
+            "clap/clap_derive/src/derives/parser.rs",
             "clap/src/lib.rs"
           ]
         },
@@ -8888,27 +8887,27 @@
           "top": [
             "anyhow/README.md",
             "anyhow/src/lib.rs",
-            "anyhow/src/macros.rs",
             "codex/codex-rs/protocol/src/permissions.rs",
             "codex/codex-rs/core/src/agents_md_tests.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "anyhow/src/macros.rs",
             "codex/codex-rs/config/src/permissions_toml.rs",
-            "codex/codex-rs/protocol/src/user_input.rs",
-            "codex/codex-rs/config/src/hook_config.rs",
-            "codex/codex-rs/cli/src/lib.rs"
+            "codex/codex-rs/cli/src/lib.rs",
+            "clap/clap_builder/src/util/any_value.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/config/src/loader/layer_io.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.3333333333333333,
+          "mrr": 1.0,
           "id": "hom-10",
           "category": "homonym",
           "route": null,
           "top": [
+            "anyhow/src/context.rs",
             "anyhow/src/lib.rs",
             "anyhow/README.md",
-            "anyhow/src/context.rs",
             "clap/clap_builder/src/derive.rs",
             "anyhow/src/macros.rs",
             "anyhow/src/error.rs",
@@ -8927,35 +8926,35 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/error/context.rs",
-            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/error/kind.rs",
             "clap/clap_builder/src/builder/range.rs",
             "clap/clap_builder/src/error/mod.rs",
             "clap/clap_builder/src/lib.rs",
             "clap/clap_builder/src/builder/action.rs",
+            "clap/clap_derive/src/utils/mod.rs",
             "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs"
+            "clap/clap_builder/src/parser/error.rs"
           ]
         },
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "rel-01",
           "category": "relational",
           "route": null,
           "top": [
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
             "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/cli/src/bin/logs_client.rs",
             "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/cli/src/bin/logs_client.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
-            "codex/codex-rs/cli/src/lib.rs"
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "codex/codex-rs/config/src/config_layer_source.rs",
+            "codex/codex-rs/exec/src/cli.rs"
           ]
         },
         {
@@ -8970,12 +8969,12 @@
             "codex/codex-rs/protocol/src/parse_command.rs",
             "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/README.md",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/codex-mcp/src/lib.rs"
+            "codex/codex-rs/codex-mcp/src/lib.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/arg0/src/lib.rs"
           ]
         },
         {
@@ -8987,15 +8986,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/config/src/types.rs",
             "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/protocol/src/error_tests.rs",
             "codex/codex-rs/login/src/auth/util.rs",
             "codex/codex-rs/cli/src/doctor.rs",
             "codex/codex-rs/exec/src/main.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/protocol/src/exec_output_tests.rs"
+            "codex/codex-rs/login/src/auth/error.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs"
           ]
         },
         {
@@ -9009,12 +9008,12 @@
             "clap/clap_lex/src/lib.rs",
             "clap/clap_builder/src/builder/arg.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs",
             "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/error/kind.rs",
             "clap/README.md",
-            "clap/clap_builder/src/parser/mod.rs",
             "clap/clap_builder/src/builder/range.rs"
           ]
         },
@@ -9030,12 +9029,12 @@
             "codex/codex-rs/exec/src/cli.rs",
             "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "clap/src/lib.rs"
+            "codex/codex-rs/protocol/src/shell_environment.rs",
+            "codex/codex-rs/protocol/src/approvals.rs"
           ]
         },
         {
@@ -9052,10 +9051,10 @@
             "codex/codex-rs/apply-patch/src/invocation.rs",
             "codex/codex-rs/apply-patch/src/parser.rs",
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/apply-patch/src/standalone_executable.rs",
+            "codex/codex-rs/apply-patch/src/main.rs",
             "anyhow/src/lib.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/login/src/auth/bedrock_api_key_tests.rs",
-            "codex/codex-rs/login/src/auth/agent_identity.rs"
+            "anyhow/README.md"
           ]
         },
         {
@@ -9067,15 +9066,15 @@
           "route": null,
           "top": [
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/bash.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
-            "clap/clap_derive/src/lib.rs"
+            "clap/clap_lex/src/lib.rs"
           ]
         },
         {
@@ -9087,15 +9086,15 @@
           "route": null,
           "top": [
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "clap/clap_builder/src/macros.rs",
             "clap/clap_derive/src/macros.rs",
-            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/src/_derive/mod.rs",
+            "clap/clap_builder/src/derive.rs",
             "clap/examples/tutorial_derive/04_01_enum.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/src/_derive/_tutorial.rs",
-            "clap/CHANGELOG.md"
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/CHANGELOG.md",
+            "clap/src/_derive/_tutorial.rs"
           ]
         },
         {
@@ -9107,15 +9106,15 @@
           "route": null,
           "top": [
             "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/codex-mcp/src/runtime.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/codex-mcp/src/catalog.rs",
-            "codex/codex-rs/core/src/session/mcp.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/config/src/mcp_edit.rs",
+            "codex/codex-rs/core/src/session/mcp.rs",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs"
+            "codex/codex-rs/codex-mcp/src/server.rs"
           ]
         },
         {
@@ -9127,12 +9126,12 @@
           "route": null,
           "top": [
             "codex/codex-rs/protocol/src/auth.rs",
-            "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/login/src/auth/manager.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
             "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/login/src/auth/access_token.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/login/src/auth/auth_tests.rs",
             "anyhow/src/lib.rs",
             "anyhow/README.md"
@@ -9145,11 +9144,11 @@
       "R@5": 0.7926,
       "R@10": 0.8593,
       "MRR": 0.7039,
-      "p50_ms": 12.0,
-      "p95_ms": 18.0,
+      "p50_ms": 11.3,
+      "p95_ms": 15.7,
       "routes": {
-        "graph": 4,
-        "index": 51
+        "graph": 5,
+        "index": 50
       },
       "by_category": {
         "direct-lexical": {
@@ -9183,15 +9182,15 @@
           "route": "graph",
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
             "clap/clap_builder/src/builder/debug_asserts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/app/tests.rs",
             "clap/clap_complete/src/engine/candidate.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs"
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
           ]
         },
         {
@@ -9203,15 +9202,15 @@
           "route": "graph",
           "top": [
             "codex/codex-rs/login/src/pkce.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/examples/typed-derive/custom.rs",
-            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
             "clap/clap_derive/src/item.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/powershell.rs"
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/aot/mod.rs"
           ]
         },
         {
@@ -9220,18 +9219,18 @@
           "mrr": 1.0,
           "id": "lex-03",
           "category": "direct-lexical",
-          "route": "index",
+          "route": "graph",
           "top": [
             "clap/clap_builder/src/parser/arg_matcher.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/src/_derive/mod.rs",
-            "clap/clap_derive/src/derives/args.rs",
-            "clap/examples/derive_ref/flatten_hand_args.rs",
-            "clap/examples/derive_ref/augment_args.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/CHANGELOG.md",
-            "clap/src/_concepts.rs",
-            "clap/src/_faq.rs"
+            "anyhow/src/kind.rs",
+            "anyhow/src/ptr.rs",
+            "clap/clap_complete/src/engine/custom.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_builder/src/util/id.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs"
           ]
         },
         {
@@ -9270,8 +9269,8 @@
             "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "clap/clap_builder/src/derive.rs",
-            "codex/codex-rs/config/src/config_toml.rs"
+            "codex/codex-rs/config/src/config_toml.rs",
+            "clap/clap_builder/src/derive.rs"
           ]
         },
         {
@@ -9350,8 +9349,8 @@
             "codex/codex-rs/tui/src/app_event.rs",
             "clap/clap_builder/src/parser/matches/value_source.rs",
             "clap/clap_complete/src/aot/mod.rs",
-            "clap/examples/find.rs",
-            "clap/clap_complete/src/lib.rs"
+            "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/examples/find.rs"
           ]
         },
         {
@@ -9363,15 +9362,15 @@
           "route": "graph",
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "codex/codex-rs/protocol/src/parse_command.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "anyhow/README.md",
             "codex/docs/CLA.md",
+            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/examples/tutorial_derive/01_quick.rs",
-            "anyhow/src/context.rs",
-            "clap/clap_complete/src/aot/mod.rs"
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/context.rs"
           ]
         },
         {
@@ -9387,11 +9386,11 @@
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_derive/src/attr.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_derive/src/utils/spanned.rs",
+            "clap/clap_builder/src/util/escape.rs"
           ]
         },
         {
@@ -9750,7 +9749,7 @@
             "codex/codex-rs/cli/src/doctor/runtime.rs",
             "anyhow/README.md",
             "codex/codex-rs/exec/src/lib.rs",
-            "codex/codex-rs/cli/src/main.rs",
+            "codex/docs/license.md",
             "codex/codex-rs/tui/src/app/tests.rs"
           ]
         },
@@ -9810,8 +9809,8 @@
             "clap/clap_derive/src/derives/into_app.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_complete/src/engine/complete.rs"
+            "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/macros.rs"
           ]
         },
         {
@@ -9829,9 +9828,9 @@
             "codex/codex-rs/login/src/auth/bedrock_api_key_tests.rs",
             "codex/codex-rs/exec/src/event_processor_with_human_output_tests.rs",
             "codex/codex-rs/config/src/requirements_layers/stack.rs",
-            "anyhow/src/macros.rs",
             "codex/codex-rs/protocol/src/permissions.rs",
-            "codex/codex-rs/config/src/permissions_toml.rs"
+            "codex/codex-rs/core/src/agents_md_tests.rs",
+            "anyhow/src/macros.rs"
           ]
         },
         {
@@ -10080,12 +10079,12 @@
       "arm": "router-full",
       "R@5": 0.8148,
       "R@10": 0.8815,
-      "MRR": 0.7545,
-      "p50_ms": 11.6,
-      "p95_ms": 23.3,
+      "MRR": 0.7434,
+      "p50_ms": 13.0,
+      "p95_ms": 22.7,
       "routes": {
-        "graph": 4,
-        "index": 43,
+        "graph": 5,
+        "index": 42,
         "plan": 8
       },
       "by_category": {
@@ -10102,7 +10101,7 @@
         "relational": {
           "n": 10,
           "R@10": 0.75,
-          "MRR": 0.5726
+          "MRR": 0.5226
         },
         "semantic": {
           "n": 12,
@@ -10120,15 +10119,15 @@
           "route": "graph",
           "top": [
             "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
             "anyhow/src/macros.rs",
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "codex/codex-rs/core/src/session/turn.rs",
             "clap/clap_builder/src/builder/debug_asserts.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/app/tests.rs",
             "clap/clap_complete/src/engine/candidate.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
-            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
-            "codex/codex-rs/tui/src/app/background_requests.rs"
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
           ]
         },
         {
@@ -10140,15 +10139,15 @@
           "route": "graph",
           "top": [
             "codex/codex-rs/login/src/pkce.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/examples/typed-derive/custom.rs",
+            "clap/clap_complete/src/aot/shells/powershell.rs",
             "clap/clap_derive/src/item.rs",
             "clap/clap_derive/src/lib.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/powershell.rs"
+            "clap/clap_complete/src/aot/mod.rs"
           ]
         },
         {
@@ -10157,18 +10156,18 @@
           "mrr": 1.0,
           "id": "lex-03",
           "category": "direct-lexical",
-          "route": "index",
+          "route": "graph",
           "top": [
             "clap/clap_builder/src/parser/arg_matcher.rs",
-            "clap/clap_builder/src/derive.rs",
-            "clap/src/_derive/mod.rs",
-            "clap/clap_derive/src/derives/args.rs",
-            "clap/examples/derive_ref/flatten_hand_args.rs",
-            "clap/examples/derive_ref/augment_args.rs",
-            "clap/clap_derive/src/lib.rs",
-            "clap/CHANGELOG.md",
-            "clap/src/_concepts.rs",
-            "clap/src/_faq.rs"
+            "anyhow/src/kind.rs",
+            "anyhow/src/ptr.rs",
+            "clap/clap_complete/src/engine/custom.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_builder/src/util/id.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs"
           ]
         },
         {
@@ -10207,8 +10206,8 @@
             "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
             "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
             "codex/codex-rs/tui/src/chatwidget.rs",
-            "clap/clap_builder/src/derive.rs",
-            "codex/codex-rs/config/src/config_toml.rs"
+            "codex/codex-rs/config/src/config_toml.rs",
+            "clap/clap_builder/src/derive.rs"
           ]
         },
         {
@@ -10287,8 +10286,8 @@
             "codex/codex-rs/tui/src/app_event.rs",
             "clap/clap_builder/src/parser/matches/value_source.rs",
             "clap/clap_complete/src/aot/mod.rs",
-            "clap/examples/find.rs",
-            "clap/clap_complete/src/lib.rs"
+            "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/examples/find.rs"
           ]
         },
         {
@@ -10300,15 +10299,15 @@
           "route": "graph",
           "top": [
             "clap/clap_builder/src/parser/features/suggestions.rs",
-            "anyhow/README.md",
-            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/clap_derive/src/utils/doc_comments.rs",
-            "codex/codex-rs/protocol/src/parse_command.rs",
-            "clap/clap_derive/src/dummies.rs",
+            "anyhow/README.md",
             "codex/docs/CLA.md",
+            "codex/codex-rs/protocol/src/user_input.rs",
             "clap/examples/tutorial_derive/01_quick.rs",
-            "anyhow/src/context.rs",
-            "clap/clap_complete/src/aot/mod.rs"
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/context.rs"
           ]
         },
         {
@@ -10324,11 +10323,11 @@
             "clap/clap_builder/src/derive.rs",
             "clap/clap_builder/src/macros.rs",
             "clap/clap_complete/src/macros.rs",
-            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_derive/src/derives/args.rs",
             "clap/clap_derive/src/attr.rs",
-            "clap/clap_complete/src/lib.rs",
-            "clap/clap_builder/src/builder/action.rs"
+            "clap/clap_derive/src/utils/spanned.rs",
+            "clap/clap_builder/src/util/escape.rs"
           ]
         },
         {
@@ -10460,15 +10459,15 @@
           "route": "plan",
           "top": [
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/core/src/session/handlers.rs",
-            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
             "codex/codex-rs/tui/src/app/event_dispatch.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
             "codex/codex-rs/tui/src/app_server_session.rs",
-            "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/core/src/session/turn.rs",
+            "codex/codex-rs/core/src/session/session.rs",
             "codex/codex-rs/protocol/src/config_types.rs",
-            "codex/codex-rs/protocol/src/approvals.rs",
-            "codex/codex-rs/protocol/src/openai_models.rs"
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "codex/codex-rs/core/src/thread_manager.rs"
           ]
         },
         {
@@ -10687,7 +10686,7 @@
             "codex/codex-rs/cli/src/doctor/runtime.rs",
             "anyhow/README.md",
             "codex/codex-rs/exec/src/lib.rs",
-            "codex/codex-rs/cli/src/main.rs",
+            "codex/docs/license.md",
             "codex/codex-rs/tui/src/app/tests.rs"
           ]
         },
@@ -10747,8 +10746,8 @@
             "clap/clap_derive/src/derives/into_app.rs",
             "clap/clap_builder/src/output/textwrap/core.rs",
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/macros.rs",
-            "clap/clap_builder/src/output/help.rs"
+            "clap/clap_builder/src/output/help.rs",
+            "clap/clap_builder/src/macros.rs"
           ]
         },
         {
@@ -10766,9 +10765,9 @@
             "codex/codex-rs/login/src/auth/bedrock_api_key_tests.rs",
             "codex/codex-rs/exec/src/event_processor_with_human_output_tests.rs",
             "codex/codex-rs/config/src/requirements_layers/stack.rs",
-            "anyhow/src/macros.rs",
             "codex/codex-rs/protocol/src/permissions.rs",
-            "codex/codex-rs/config/src/permissions_toml.rs"
+            "codex/codex-rs/core/src/agents_md_tests.rs",
+            "anyhow/src/macros.rs"
           ]
         },
         {
@@ -10814,21 +10813,21 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 1.0,
+          "mrr": 0.5,
           "id": "rel-01",
           "category": "relational",
           "route": "plan",
           "top": [
-            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
             "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/cli/src/bin/logs_client.rs",
             "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/exec/src/cli.rs",
-            "codex/codex-rs/cli/src/bin/logs_client.rs",
-            "codex/codex-rs/protocol/src/protocol.rs",
-            "codex/codex-rs/cli/src/lib.rs"
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "codex/codex-rs/config/src/config_layer_source.rs",
+            "codex/codex-rs/exec/src/cli.rs"
           ]
         },
         {
@@ -10843,12 +10842,12 @@
             "codex/codex-rs/protocol/src/parse_command.rs",
             "codex/codex-rs/cli/src/main.rs",
             "codex/codex-rs/codex-mcp/src/codex_apps.rs",
-            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
             "codex/README.md",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/codex-mcp/src/lib.rs"
+            "codex/codex-rs/codex-mcp/src/lib.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/arg0/src/lib.rs"
           ]
         },
         {
@@ -10860,15 +10859,15 @@
           "route": "plan",
           "top": [
             "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/config/src/types.rs",
             "codex/codex-rs/exec/src/event_processor.rs",
             "codex/codex-rs/protocol/src/error.rs",
-            "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/protocol/src/error_tests.rs",
             "codex/codex-rs/login/src/auth/util.rs",
-            "codex/codex-rs/exec/src/main.rs",
             "codex/codex-rs/cli/src/doctor.rs",
-            "codex/codex-rs/arg0/src/lib.rs",
-            "codex/codex-rs/protocol/src/exec_output_tests.rs"
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/login/src/auth/error.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs"
           ]
         },
         {
@@ -10882,12 +10881,12 @@
             "clap/clap_lex/src/lib.rs",
             "clap/clap_builder/src/builder/arg.rs",
             "clap/clap_builder/src/parser/error.rs",
-            "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_builder/src/parser/matches/value_source.rs",
             "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
             "clap/clap_builder/src/error/kind.rs",
             "clap/README.md",
-            "clap/clap_builder/src/parser/mod.rs",
             "clap/clap_builder/src/builder/range.rs"
           ]
         },
@@ -10940,15 +10939,15 @@
           "route": "plan",
           "top": [
             "clap/clap_builder/src/builder/value_hint.rs",
-            "clap/clap_complete/src/engine/complete.rs",
-            "clap/clap_complete/src/aot/mod.rs",
-            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/bash.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
             "clap/clap_complete/src/aot/shells/powershell.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/engine/complete.rs",
             "clap/clap_complete/src/lib.rs",
             "clap/clap_complete/src/env/mod.rs",
             "clap/clap_complete/src/aot/generator/mod.rs",
-            "clap/clap_derive/src/lib.rs"
+            "clap/clap_lex/src/lib.rs"
           ]
         },
         {
@@ -10980,15 +10979,15 @@
           "route": "plan",
           "top": [
             "codex/codex-rs/codex-mcp/src/connection_manager.rs",
-            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/codex-mcp/src/runtime.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
             "codex/codex-rs/cli/src/mcp_cmd.rs",
-            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/codex-mcp/src/catalog.rs",
-            "codex/codex-rs/core/src/session/mcp.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
             "codex/codex-rs/config/src/mcp_edit.rs",
+            "codex/codex-rs/core/src/session/mcp.rs",
             "codex/codex-rs/codex-mcp/src/plugin_config.rs",
-            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs"
+            "codex/codex-rs/codex-mcp/src/server.rs"
           ]
         },
         {
@@ -11000,15 +10999,15 @@
           "route": "plan",
           "top": [
             "codex/codex-rs/protocol/src/auth.rs",
-            "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/login/src/auth/manager.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs",
             "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
             "codex/codex-rs/config/src/types.rs",
-            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "codex/codex-rs/login/src/auth/access_token.rs",
-            "codex/codex-rs/login/src/auth/auth_tests.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
             "anyhow/src/lib.rs",
-            "anyhow/README.md"
+            "anyhow/README.md",
+            "anyhow/src/error.rs"
           ]
         }
       ]

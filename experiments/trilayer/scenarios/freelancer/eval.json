@@ -1467,7 +1467,7 @@
       "arm": "plan-hybrid",
       "R@5": 0.9804,
       "R@10": 0.9804,
-      "MRR": 0.9265,
+      "MRR": 0.9314,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -1488,7 +1488,7 @@
         "semantic": {
           "n": 5,
           "R@10": 1.0,
-          "MRR": 0.85
+          "MRR": 0.8667
         }
       },
       "per_query": [
@@ -1555,19 +1555,19 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.25,
+          "mrr": 0.3333333333333333,
           "id": "sem-01",
           "category": "semantic",
           "top": [
             "bluesky/brief.md",
             "bluesky/contract.md",
-            "bluesky/invoice-2026-06.md",
             "bluesky/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
             "copper/brief.md",
             "acme/contract.md",
             "ops/pipeline.md",
             "acme/invoice-2026-06.md",
-            "acme/brief.md",
+            "copper/contract.md",
             "ops/rates.md"
           ],
           "route": null
@@ -1581,8 +1581,8 @@
           "top": [
             "copper/meeting-notes.md",
             "acme/brief.md",
-            "ops/pipeline.md",
             "copper/brief.md",
+            "ops/pipeline.md",
             "bluesky/brief.md",
             "acme/invoice-2026-06.md",
             "bluesky/contract.md",
@@ -1607,7 +1607,7 @@
             "bluesky/contract.md",
             "acme/meeting-notes.md",
             "acme/contract.md",
-            "acme/brief.md",
+            "copper/meeting-notes.md",
             "ops/rates.md"
           ],
           "route": null
@@ -1627,8 +1627,8 @@
             "copper/invoice-2026-06.md",
             "acme/meeting-notes.md",
             "bluesky/contract.md",
-            "acme/invoice-2026-06.md",
-            "copper/brief.md"
+            "copper/brief.md",
+            "copper/meeting-notes.md"
           ],
           "route": null
         },
@@ -1644,11 +1644,11 @@
             "bluesky/contract.md",
             "acme/contract.md",
             "acme/meeting-notes.md",
-            "acme/invoice-2026-06.md",
             "bluesky/invoice-2026-06.md",
             "copper/meeting-notes.md",
-            "ops/pipeline.md",
-            "ops/rates.md"
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md"
           ],
           "route": null
         },
@@ -1682,13 +1682,13 @@
             "bluesky/contract.md",
             "bluesky/invoice-2026-06.md",
             "bluesky/brief.md",
-            "acme/contract.md",
             "bluesky/meeting-notes.md",
+            "acme/contract.md",
             "copper/contract.md",
             "acme/invoice-2026-06.md",
             "copper/invoice-2026-06.md",
             "ops/pipeline.md",
-            "acme/brief.md"
+            "ops/rates.md"
           ],
           "route": null
         },
@@ -1722,8 +1722,8 @@
             "bluesky/invoice-2026-06.md",
             "bluesky/contract.md",
             "bluesky/brief.md",
-            "acme/invoice-2026-06.md",
             "copper/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
             "bluesky/meeting-notes.md",
             "ops/rates.md",
             "copper/contract.md",
@@ -1760,8 +1760,8 @@
           "category": "relational",
           "top": [
             "acme/meeting-notes.md",
-            "bluesky/brief.md",
             "ops/rates.md",
+            "bluesky/brief.md",
             "bluesky/contract.md",
             "acme/invoice-2026-06.md",
             "ops/pipeline.md",
@@ -1783,11 +1783,11 @@
             "acme/invoice-2026-06.md",
             "copper/invoice-2026-06.md",
             "bluesky/contract.md",
-            "acme/contract.md",
             "bluesky/meeting-notes.md",
+            "acme/contract.md",
             "bluesky/brief.md",
-            "ops/pipeline.md",
             "ops/rates.md",
+            "ops/pipeline.md",
             "acme/brief.md"
           ],
           "route": null
@@ -1804,11 +1804,11 @@
             "bluesky/invoice-2026-06.md",
             "copper/invoice-2026-06.md",
             "bluesky/contract.md",
-            "copper/brief.md",
             "copper/meeting-notes.md",
+            "copper/brief.md",
             "acme/contract.md",
-            "bluesky/brief.md",
-            "ops/pipeline.md"
+            "ops/pipeline.md",
+            "bluesky/brief.md"
           ],
           "route": null
         },
@@ -2328,9 +2328,9 @@
           "top": [
             "copper/meeting-notes.md",
             "acme/brief.md",
+            "copper/brief.md",
             "ops/pipeline.md",
             "bluesky/brief.md",
-            "copper/brief.md",
             "acme/invoice-2026-06.md",
             "bluesky/contract.md",
             "acme/contract.md",
@@ -2369,13 +2369,13 @@
             "copper/contract.md",
             "acme/contract.md",
             "ops/rates.md",
-            "bluesky/brief.md",
             "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
             "copper/invoice-2026-06.md",
             "acme/meeting-notes.md",
-            "bluesky/contract.md",
-            "acme/invoice-2026-06.md",
-            "copper/brief.md"
+            "copper/meeting-notes.md",
+            "copper/brief.md",
+            "acme/brief.md"
           ],
           "route": "plan"
         },
@@ -2507,8 +2507,8 @@
           "category": "relational",
           "top": [
             "acme/meeting-notes.md",
-            "bluesky/brief.md",
             "ops/rates.md",
+            "bluesky/brief.md",
             "bluesky/contract.md",
             "acme/invoice-2026-06.md",
             "ops/pipeline.md",
@@ -2530,11 +2530,11 @@
             "acme/invoice-2026-06.md",
             "copper/invoice-2026-06.md",
             "bluesky/contract.md",
-            "acme/contract.md",
             "bluesky/meeting-notes.md",
+            "acme/contract.md",
             "bluesky/brief.md",
-            "ops/pipeline.md",
             "ops/rates.md",
+            "ops/pipeline.md",
             "acme/brief.md"
           ],
           "route": "plan"
@@ -2549,13 +2549,13 @@
             "ops/rates.md",
             "acme/invoice-2026-06.md",
             "bluesky/invoice-2026-06.md",
-            "bluesky/contract.md",
             "copper/invoice-2026-06.md",
-            "copper/brief.md",
+            "bluesky/contract.md",
             "copper/meeting-notes.md",
+            "copper/brief.md",
             "acme/contract.md",
-            "bluesky/brief.md",
-            "ops/pipeline.md"
+            "ops/pipeline.md",
+            "bluesky/brief.md"
           ],
           "route": "plan"
         },

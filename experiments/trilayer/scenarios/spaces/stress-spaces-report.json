@@ -1,0 +1,52 @@
+[
+  {
+    "case": "create-list",
+    "verdict": "PASS",
+    "evidence": "spaces=['alpha', 'beta'], default implicit"
+  },
+  {
+    "case": "dup-create",
+    "verdict": "PASS",
+    "evidence": "second create rejected"
+  },
+  {
+    "case": "name-attacks",
+    "verdict": "PASS",
+    "evidence": "all 13 rejected, disk clean"
+  },
+  {
+    "case": "tri-layer-isolation",
+    "verdict": "PASS",
+    "evidence": "graph+index rows visible only in their own space; default clean"
+  },
+  {
+    "case": "relation-isolation",
+    "verdict": "PASS",
+    "evidence": "cross-space edge rejected: to_entity not found in beta"
+  },
+  {
+    "case": "read-set-validation",
+    "verdict": "PASS",
+    "evidence": "5 malformed read sets rejected"
+  },
+  {
+    "case": "layered-determinism",
+    "verdict": "PASS",
+    "evidence": "4/4 identical, rank-0 order=['alpha', 'beta'], fusion=rank_interleave"
+  },
+  {
+    "case": "supersede-in-space",
+    "verdict": "PASS",
+    "evidence": "current=Postgres only, as-of-1500=MySQL, invisible from alpha"
+  },
+  {
+    "case": "layered-retrieve",
+    "verdict": "PASS",
+    "evidence": "per-space traces=['gamma', 'alpha'], 4 labeled rows"
+  },
+  {
+    "case": "persistence",
+    "verdict": "PASS",
+    "evidence": "4 spaces stable across restart, fact recallable"
+  }
+]

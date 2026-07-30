@@ -7,7 +7,7 @@
   {
     "case": "supersession-chain",
     "verdict": "PASS",
-    "note": "terminal successor first: c=0 b=2 a=1, a superseded_by=policy-c"
+    "note": "terminal successor first: c=0 b=3 a=1, a superseded_by=policy-c"
   },
   {
     "case": "supersession-cycle",
@@ -22,7 +22,7 @@
   {
     "case": "duplicate-flood",
     "verdict": "PASS",
-    "note": "distinct fact survives dupes: ['other-fact', 'dupe-target', 'dupe-target']"
+    "note": "distinct fact survives dupes: ['other-fact', 'other-fact', 'dupe-target']"
   },
   {
     "case": "fat-entity",
@@ -67,7 +67,7 @@
   {
     "case": "latency",
     "verdict": "PASS",
-    "note": "p50=1ms p95=2ms n=24"
+    "note": "p50=0ms p95=3ms n=24"
   },
   {
     "case": "empty-successor",

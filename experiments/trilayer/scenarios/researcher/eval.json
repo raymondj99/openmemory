@@ -1704,7 +1704,7 @@
       "arm": "plan-hybrid",
       "R@5": 0.7833,
       "R@10": 0.825,
-      "MRR": 0.6655,
+      "MRR": 0.7155,
       "routes": null,
       "by_category": {
         "direct-lexical": {
@@ -1715,12 +1715,12 @@
         "homonym": {
           "n": 5,
           "R@10": 1.0,
-          "MRR": 0.9
+          "MRR": 1.0
         },
         "relational": {
           "n": 5,
           "R@10": 0.8,
-          "MRR": 0.5667
+          "MRR": 0.6667
         },
         "semantic": {
           "n": 6,
@@ -1838,10 +1838,10 @@
           "top": [
             "promptlib/meeting-notes.md",
             "promptlib/design/optimizers.md",
-            "promptlib/design/compiler.md",
             "multiparse/proposal.md",
-            "multiparse/models/tagger-architecture.md",
+            "promptlib/design/compiler.md",
             "evalbench/metrics/calibration.md",
+            "multiparse/models/tagger-architecture.md",
             "promptlib/tutorials/rag-pipeline.md",
             "evalbench/tasks/multilingual-qa.md",
             "evalbench/infra/run-harness.md",
@@ -1877,9 +1877,9 @@
           "category": "semantic",
           "top": [
             "evalbench/infra/run-harness.md",
-            "promptlib/design/compiler.md",
             "evalbench/metrics/calibration.md",
             "evalbench/proposal.md",
+            "promptlib/design/compiler.md",
             "promptlib/meeting-notes.md",
             "multiparse/proposal.md",
             "multiparse/data/treebanks.md",
@@ -1901,8 +1901,8 @@
             "evalbench/infra/run-harness.md",
             "evalbench/proposal.md",
             "evalbench/meeting-notes.md",
-            "multiparse/proposal.md",
             "promptlib/design/optimizers.md",
+            "multiparse/proposal.md",
             "evalbench/metrics/calibration.md",
             "promptlib/proposal.md",
             "evalbench/results.md"
@@ -1917,14 +1917,14 @@
           "category": "semantic",
           "top": [
             "evalbench/proposal.md",
-            "evalbench/infra/run-harness.md",
             "evalbench/meeting-notes.md",
+            "evalbench/infra/run-harness.md",
             "evalbench/metrics/calibration.md",
             "promptlib/design/compiler.md",
             "promptlib/meeting-notes.md",
             "multiparse/data/treebanks.md",
-            "multiparse/meeting-notes.md",
             "promptlib/results.md",
+            "multiparse/meeting-notes.md",
             "multiparse/models/tagger-architecture.md"
           ],
           "route": null
@@ -1952,20 +1952,20 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "hom-02",
           "category": "homonym",
           "top": [
-            "evalbench/meeting-notes.md",
             "multiparse/meeting-notes.md",
+            "evalbench/meeting-notes.md",
             "promptlib/meeting-notes.md",
             "multiparse/proposal.md",
-            "evalbench/proposal.md",
             "multiparse/data/treebanks.md",
+            "evalbench/proposal.md",
             "multiparse/models/tagger-architecture.md",
             "evalbench/tasks/multilingual-qa.md",
             "promptlib/design/compiler.md",
-            "evalbench/results.md"
+            "promptlib/design/optimizers.md"
           ],
           "route": null
         },
@@ -1979,11 +1979,11 @@
             "promptlib/results.md",
             "promptlib/proposal.md",
             "promptlib/meeting-notes.md",
-            "promptlib/design/compiler.md",
             "promptlib/tutorials/rag-pipeline.md",
-            "evalbench/infra/run-harness.md",
+            "promptlib/design/compiler.md",
             "evalbench/results.md",
             "promptlib/design/optimizers.md",
+            "evalbench/infra/run-harness.md",
             "multiparse/results.md",
             "multiparse/proposal.md"
           ],
@@ -2001,8 +2001,8 @@
             "multiparse/results.md",
             "evalbench/proposal.md",
             "multiparse/models/tagger-architecture.md",
-            "promptlib/proposal.md",
             "multiparse/error-analysis.md",
+            "promptlib/proposal.md",
             "multiparse/data/treebanks.md",
             "evalbench/tasks/multilingual-qa.md",
             "evalbench/results.md"
@@ -2019,12 +2019,12 @@
             "evalbench/results.md",
             "evalbench/proposal.md",
             "promptlib/design/optimizers.md",
-            "promptlib/meeting-notes.md",
             "multiparse/results.md",
+            "promptlib/meeting-notes.md",
             "evalbench/metrics/calibration.md",
-            "promptlib/design/compiler.md",
             "promptlib/results.md",
-            "evalbench/infra/run-harness.md",
+            "promptlib/design/compiler.md",
+            "multiparse/meeting-notes.md",
             "multiparse/proposal.md"
           ],
           "route": null
@@ -2042,8 +2042,8 @@
             "multiparse/models/tagger-architecture.md",
             "promptlib/tutorials/rag-pipeline.md",
             "evalbench/proposal.md",
-            "promptlib/design/compiler.md",
             "promptlib/proposal.md",
+            "promptlib/design/compiler.md",
             "multiparse/meeting-notes.md",
             "promptlib/results.md"
           ],
@@ -2072,18 +2072,18 @@
         {
           "r5": 1.0,
           "r10": 1.0,
-          "mrr": 0.5,
+          "mrr": 1.0,
           "id": "rel-03",
           "category": "relational",
           "top": [
-            "promptlib/design/compiler.md",
             "multiparse/error-analysis.md",
+            "promptlib/design/compiler.md",
             "multiparse/models/tagger-architecture.md",
             "evalbench/infra/run-harness.md",
             "promptlib/design/optimizers.md",
-            "evalbench/metrics/calibration.md",
-            "promptlib/proposal.md",
             "multiparse/results.md",
+            "promptlib/proposal.md",
+            "evalbench/metrics/calibration.md",
             "evalbench/proposal.md",
             "promptlib/tutorials/rag-pipeline.md"
           ],
@@ -2118,9 +2118,9 @@
           "top": [
             "multiparse/proposal.md",
             "promptlib/meeting-notes.md",
+            "multiparse/results.md",
             "evalbench/infra/run-harness.md",
             "promptlib/design/compiler.md",
-            "multiparse/results.md",
             "promptlib/tutorials/rag-pipeline.md",
             "multiparse/meeting-notes.md",
             "evalbench/tasks/multilingual-qa.md",
@@ -2137,7 +2137,8 @@
       "R@10": 1.0,
       "MRR": 0.86,
       "routes": {
-        "index": 24
+        "index": 22,
+        "graph": 2
       },
       "by_category": {
         "direct-lexical": {
@@ -2431,16 +2432,16 @@
           "top": [
             "multiparse/proposal.md",
             "multiparse/meeting-notes.md",
-            "evalbench/proposal.md",
             "multiparse/results.md",
-            "evalbench/results.md",
-            "evalbench/tasks/multilingual-qa.md",
+            "evalbench/proposal.md",
             "multiparse/models/tagger-architecture.md",
             "multiparse/error-analysis.md",
+            "promptlib/proposal.md",
             "multiparse/data/treebanks.md",
-            "promptlib/proposal.md"
+            "evalbench/tasks/multilingual-qa.md",
+            "promptlib/meeting-notes.md"
           ],
-          "route": "index"
+          "route": "graph"
         },
         {
           "r5": 1.0,
@@ -2570,8 +2571,9 @@
       "R@10": 0.95,
       "MRR": 0.8017,
       "routes": {
-        "index": 18,
-        "plan": 6
+        "index": 16,
+        "plan": 6,
+        "graph": 2
       },
       "by_category": {
         "direct-lexical": {
@@ -2705,10 +2707,10 @@
           "top": [
             "promptlib/meeting-notes.md",
             "promptlib/design/optimizers.md",
-            "promptlib/design/compiler.md",
             "multiparse/proposal.md",
-            "multiparse/models/tagger-architecture.md",
+            "promptlib/design/compiler.md",
             "evalbench/metrics/calibration.md",
+            "multiparse/models/tagger-architecture.md",
             "promptlib/tutorials/rag-pipeline.md",
             "evalbench/tasks/multilingual-qa.md",
             "evalbench/infra/run-harness.md",
@@ -2784,15 +2786,15 @@
           "category": "semantic",
           "top": [
             "evalbench/proposal.md",
-            "evalbench/infra/run-harness.md",
             "evalbench/meeting-notes.md",
+            "evalbench/infra/run-harness.md",
             "evalbench/metrics/calibration.md",
             "promptlib/design/compiler.md",
             "promptlib/meeting-notes.md",
-            "multiparse/meeting-notes.md",
             "multiparse/data/treebanks.md",
-            "multiparse/models/tagger-architecture.md",
-            "multiparse/proposal.md"
+            "promptlib/results.md",
+            "multiparse/meeting-notes.md",
+            "multiparse/models/tagger-architecture.md"
           ],
           "route": "plan"
         },
@@ -2865,16 +2867,16 @@
           "top": [
             "multiparse/proposal.md",
             "multiparse/meeting-notes.md",
-            "evalbench/proposal.md",
             "multiparse/results.md",
-            "evalbench/results.md",
-            "evalbench/tasks/multilingual-qa.md",
+            "evalbench/proposal.md",
             "multiparse/models/tagger-architecture.md",
             "multiparse/error-analysis.md",
+            "promptlib/proposal.md",
             "multiparse/data/treebanks.md",
-            "promptlib/proposal.md"
+            "evalbench/tasks/multilingual-qa.md",
+            "promptlib/meeting-notes.md"
           ],
-          "route": "index"
+          "route": "graph"
         },
         {
           "r5": 1.0,
@@ -2909,9 +2911,9 @@
             "multiparse/models/tagger-architecture.md",
             "promptlib/tutorials/rag-pipeline.md",
             "evalbench/proposal.md",
+            "promptlib/proposal.md",
             "promptlib/design/compiler.md",
             "multiparse/meeting-notes.md",
-            "promptlib/proposal.md",
             "promptlib/results.md"
           ],
           "route": "plan"
@@ -2928,9 +2930,9 @@
             "evalbench/proposal.md",
             "evalbench/infra/run-harness.md",
             "promptlib/design/optimizers.md",
-            "multiparse/proposal.md",
             "promptlib/results.md",
-            "multiparse/models/tagger-architecture.md",
+            "multiparse/proposal.md",
+            "evalbench/tasks/multilingual-qa.md",
             "promptlib/proposal.md",
             "evalbench/results.md"
           ],
@@ -2985,9 +2987,9 @@
           "top": [
             "multiparse/proposal.md",
             "promptlib/meeting-notes.md",
+            "multiparse/results.md",
             "evalbench/infra/run-harness.md",
             "promptlib/design/compiler.md",
-            "multiparse/results.md",
             "promptlib/tutorials/rag-pipeline.md",
             "multiparse/meeting-notes.md",
             "evalbench/tasks/multilingual-qa.md",

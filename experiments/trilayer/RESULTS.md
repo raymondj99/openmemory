@@ -490,3 +490,95 @@ observed_at; a first-class supersede operation that stamps
 `valid_until` in place, writes the edge, and records provenance in
 one transaction is the production shape plan/16's changeset
 machinery already anticipates.
+
+## V10: memory spaces in production (2026-07-30)
+
+The plan/16 memory-space design landed in production: managed spaces
+under `<profile>/spaces/<name>/`, each owning a complete tri-layer
+store (graph + free-text index + typed relations), a durable
+`space.toml` manifest whose immutable space ID is also bound into
+every member database, per-space shared lifetime locks, a bounded
+lazy `SpaceManager` (8 open spaces, idle eviction), the
+`openmemory_space` tool + `openmemory space` CLI, a `space` parameter
+on every memory/index tool (write target is exactly one space;
+omitted = personal-global default), and a `read_spaces` ordered read
+set (max 4) on recall/retrieve fused by deterministic rank
+interleaving — never by comparing scores across spaces (the plan/16
+measured invariant: raw-score fusion gave one space 0.0% of fused
+positions across 839 queries).
+
+Everything below ran through the release binary over real MCP stdio.
+
+### Regression: the shared-store arms are unchanged or better
+
+12-arm eval_v2 rerun on the original one-graph codex/clap/anyhow
+store (55 queries), new build vs the b8a0c2d7-era receipt:
+
+| arm | before MRR | after MRR |
+|---|---|---|
+| index-hybrid | 0.689 | 0.689 |
+| graph-hybrid | 0.693 | 0.710 |
+| plan-hybrid  | 0.714 | 0.725 |
+| router-full  | 0.754 | 0.743 |
+
+Index arms byte-identical; graph arms improved slightly (the store
+carried months of accumulated access counts that the ranking-hygiene
+change no longer reads); router-full within noise. No regression.
+
+### F-T15-23: space routing beats the shared store when the caller
+### knows the project; blind interleave trades rank for coverage
+
+The same 517 files / 1,979 chunks ingested again, this time one repo
+per space (`codex`, `clap`, `anyhow`), same glosses and in-repo
+relations. Same 55 queries:
+
+| arm | R@5 | R@10 | MRR | p50 |
+|---|---|---|---|---|
+| spaces-routed (caller names the repo's space) | 0.841 | 0.926 | **0.757** | 9.0ms |
+| best shared-store arm (router-full) | 0.815 | 0.881 | 0.743 | 13.0ms |
+| spaces-layered (blind 3-space interleave) | 0.656 | 0.756 | 0.499 | 21.5ms |
+
+The realistic agent posture — you know which project you are working
+in — beats every shared-store arm on every metric: isolation removes
+the other repos' 2/3 of the candidate pool before ranking starts.
+Blind rank interleaving is the coverage tool, not the precision tool:
+rank 1 in the right space can sit at fused rank 3 behind two wrong-
+space rows by construction, so MRR pays (0.499) while R@10 stays
+serviceable (0.756). This is the measured shape of the "route, don't
+fuse" law one level up: choosing the right SPACE is routing; the
+interleave is the fallback when nobody can.
+
+Isolation check: `seek_sequence` (codex-only identifier) from the
+clap space returned zero codex rows.
+
+### Space stress suite: 10/10 PASS
+
+`scripts/stress_spaces.py`, fresh profile: create/list round trip,
+duplicate create rejected, 13 hostile names all rejected with a clean
+spaces directory (traversal, separators, case, reserved `default`,
+65-char, dot/dotdot), tri-layer physical isolation (same entity name
++ same URI in two spaces never cross), cross-space relations rejected
+typed, 5 malformed read sets rejected (bound 4, duplicates, unknown
+space, empty, space+read_spaces exclusivity), layered determinism 4/4
+byte-identical with rank-0 order = read-set order, supersession +
+as_of pinning inside a space (current=Postgres, as-of=MySQL,
+invisible from the sibling space), per-space pipeline traces on
+layered retrieve, and space identity stable across server restart.
+
+The original 16-case retrieve stress suite also reran 16/16 PASS on
+the new build, and the four V3/V4 scenario corpora (researcher,
+student, novelist, freelancer) plus teamwiki validity
+(graph/pinned-history current=1.00 history=1.00) reproduced their
+receipts.
+
+### V10 caveats
+
+The spaces-routed arm gives the caller the repo oracle (first path
+segment of the relevant file); that is the intended usage contract
+("the agent is the first classifier," now applied to space choice),
+not a blind result. Layered fusion is deliberately naive (pure rank
+interleave, provisional policy per plan/16 05); a calibrated
+cross-space confidence signal is future work gated on plan/18 T3
+held-out evidence. Cross-space relations are rejected rather than
+modeled; codex's dependency on clap is recorded inside the codex
+space against stub entities.

@@ -1,0 +1,1736 @@
+{
+  "n_queries": 55,
+  "isolated": true,
+  "arms": {
+    "spaces-layered": {
+      "arm": "spaces-layered",
+      "R@5": 0.6556,
+      "R@10": 0.7556,
+      "MRR": 0.4989,
+      "p50_ms": 21.5,
+      "p95_ms": 30.7,
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "clap/clap_complete/src/env/shells.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "anyhow/src/context.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
+            "clap/clap_builder/src/builder/debug_asserts.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/tui/src/app/tests.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/login/src/pkce.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "clap/clap_builder/src/macros.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/tui/src/ide_context/ipc.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/protocol/src/memory_citation.rs",
+            "clap/clap_builder/src/parser/arg_matcher.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/auth.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "clap/clap_complete/src/engine/custom.rs",
+            "anyhow/src/wrapper.rs",
+            "codex/codex-rs/config/src/hook_config.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-04",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/exec/src/event_processor.rs",
+            "clap/clap_builder/src/builder/value_parser.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/exec/src/event_processor_with_human_output.rs",
+            "clap/clap_derive/src/lib.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "codex/codex-rs/codex-mcp/src/plugin_config.rs",
+            "clap/clap_derive/src/dummies.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-05",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/clap_builder/src/derive.rs",
+            "anyhow/src/context.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "clap/src/lib.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-06",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/core/src/thread_manager.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "clap/clap_builder/src/macros.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-07",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "clap/clap_builder/src/builder/styled_str.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/tui/src/wrapping.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/config/src/profile_toml.rs",
+            "clap/clap_builder/src/builder/styling.rs",
+            "anyhow/src/wrapper.rs",
+            "codex/codex-rs/protocol/src/user_input.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-08",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/login/src/token_data.rs",
+            "clap/clap_derive/src/utils/spanned.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/login/src/token_data_tests.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/chain.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token.rs",
+            "clap/clap_derive/src/attr.rs",
+            "anyhow/src/fmt.rs",
+            "codex/codex-rs/login/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "lex-09",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/cli/src/exec_server_telemetry.rs",
+            "clap/clap_derive/src/derives/value_enum.rs",
+            "anyhow/src/backtrace.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "anyhow/src/chain.rs",
+            "codex/codex-rs/config/src/thread_config/proto/codex.thread_config.v1.rs",
+            "clap/examples/find.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/protocol/src/account.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-10",
+          "category": "direct-lexical",
+          "top": [
+            "codex/docs/CLA.md",
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/protocol/src/user_input.rs",
+            "clap/clap_derive/src/utils/doc_comments.rs",
+            "anyhow/src/context.rs",
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "clap/examples/tutorial_derive/01_quick.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/tui/src/history_cell/tests.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-11",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_derive/src/macros.rs",
+            "anyhow/src/macros.rs",
+            "codex/docs/CLA.md",
+            "clap/clap_builder/src/derive.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
+            "clap/clap_builder/src/macros.rs",
+            "anyhow/src/ensure.rs",
+            "codex/codex-rs/exec/src/exec_events.rs",
+            "clap/clap_complete/src/macros.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-12",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/tui/src/keymap.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/tui/src/keymap_setup/actions.rs",
+            "clap/clap_builder/src/util/flat_map.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/tui/src/keymap_setup.rs",
+            "clap/clap_builder/src/macros.rs",
+            "codex/codex-rs/config/src/schema.rs",
+            "clap/README.md"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/codex-mcp/src/tools.rs",
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/protocol/src/account.rs",
+            "clap/examples/find.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/config/src/strict_config.rs",
+            "clap/clap_builder/src/builder/value_hint.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/exec/src/lib_tests.rs",
+            "clap/examples/typed-derive/foreign_crate.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/core/src/compact_remote_v2.rs",
+            "clap/examples/typed-derive/builtin.rs",
+            "codex/codex-rs/core/src/environment_selection.rs",
+            "clap/clap_derive/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 0.3333333333333333,
+          "r10": 0.6666666666666666,
+          "mrr": 0.5,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/insert_history.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/tui/src/wrapping.rs",
+            "clap/clap_builder/src/builder/styled_str.rs",
+            "anyhow/src/error.rs",
+            "clap/clap_builder/src/output/textwrap/wrap_algorithms.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/tui/src/markdown_render.rs"
+          ]
+        },
+        {
+          "r5": 0.5,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/apply-patch/src/parser.rs",
+            "clap/clap_builder/src/derive.rs",
+            "anyhow/src/context.rs",
+            "codex/codex-rs/apply-patch/src/lib.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/apply-patch/src/streaming_parser.rs",
+            "clap/src/_derive/mod.rs",
+            "anyhow/README.md",
+            "clap/examples/tutorial_builder/04_04_custom.rs",
+            "anyhow/src/ensure.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/login/src/device_code_auth.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "anyhow/README.md",
+            "clap/CONTRIBUTING.md",
+            "anyhow/src/macros.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "clap/clap_complete/src/engine/custom.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/core/src/tools/network_approval.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "sem-06",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/app/event_dispatch.rs",
+            "clap/src/_concepts.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "anyhow/src/lib.rs",
+            "clap/clap_builder/src/builder/arg.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "clap/clap_complete/src/aot/shells/zsh.rs"
+          ]
+        },
+        {
+          "r5": 0.5,
+          "r10": 0.5,
+          "mrr": 0.2,
+          "id": "sem-07",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/tui.rs",
+            "clap/src/_concepts.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "clap/clap_lex/src/lib.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/login/src/token_data_tests.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/core/src/realtime_conversation.rs",
+            "clap/clap_builder/src/builder/value_hint.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-08",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/diff_render.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "anyhow/src/macros.rs",
+            "clap/clap_builder/src/util/color.rs",
+            "anyhow/src/kind.rs",
+            "clap/clap_builder/src/output/fmt.rs",
+            "anyhow/src/lib.rs",
+            "clap/src/_concepts.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+            "clap/clap_builder/src/builder/styled_str.rs"
+          ]
+        },
+        {
+          "r5": 0.5,
+          "r10": 0.5,
+          "mrr": 0.3333333333333333,
+          "id": "sem-09",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/streaming/controller.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "anyhow/src/fmt.rs",
+            "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/apply-patch/src/lib.rs",
+            "clap/examples/tutorial_derive/02_app_settings.rs",
+            "codex/codex-rs/config/src/diagnostics.rs",
+            "clap/clap_builder/src/error/mod.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "sem-10",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/clap_complete/src/aot/shells/fish.rs",
+            "anyhow/src/lib.rs",
+            "clap/clap_complete/src/env/mod.rs",
+            "anyhow/src/context.rs",
+            "codex/codex-rs/config/src/merge.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation_tests.rs",
+            "anyhow/src/ptr.rs",
+            "codex/codex-rs/apply-patch/src/invocation.rs"
+          ]
+        },
+        {
+          "r5": 0.3333333333333333,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "sem-11",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/config/src/tui_keymap.rs",
+            "clap/src/_cookbook/mod.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "clap/clap_builder/src/builder/styling.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/core/src/config/edit.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/tui/src/keymap_setup.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "sem-12",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "clap/src/_concepts.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/core/src/tools/runtimes/unified_exec.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "clap/clap_complete/src/aot/shells/fish.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.1,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/protocol/src/error.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/core/src/session/turn_context.rs",
+            "clap/clap_builder/src/builder/ext.rs",
+            "anyhow/src/error.rs"
+          ]
+        },
+        {
+          "r5": 0.3333333333333333,
+          "r10": 0.6666666666666666,
+          "mrr": 0.5,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/config/src/loader/macos.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/config/src/lib.rs",
+            "clap/clap_builder/src/lib.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "anyhow/src/kind.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/protocol/src/error.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "anyhow/src/lib.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "clap/clap_builder/src/builder/action.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_builder/src/lib.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/README.md",
+            "clap/clap_derive/src/lib.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/clap_complete/src/lib.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "anyhow/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "codex/README.md",
+            "clap/clap_builder/src/lib.rs",
+            "anyhow/README.md",
+            "clap/README.md",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "clap/src/lib.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
+            "clap/clap_complete/src/lib.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "clap/CONTRIBUTING.md"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "hom-06",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/src/lib.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "clap/clap_complete/src/lib.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "clap/clap_builder/src/lib.rs",
+            "codex/codex-rs/tui/src/pager_overlay.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "anyhow/src/kind.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-07",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/clap_derive/src/lib.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/backtrace.rs",
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "hom-08",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/tui/src/app.rs",
+            "clap/clap_complete/src/lib.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "clap/clap_builder/src/lib.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_complete/src/aot/generator/utils.rs",
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/clap_derive/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "hom-09",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/exec/src/event_processor_with_human_output_tests.rs",
+            "clap/examples/tutorial_derive/03_04_subcommands_alt.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/login/src/auth/bedrock_api_key_tests.rs",
+            "clap/clap_builder/src/builder/arg.rs",
+            "codex/codex-rs/protocol/src/permissions.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/config/src/requirements_layers/stack.rs",
+            "clap/src/_faq.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "hom-10",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/core/src/context_manager/history_tests.rs",
+            "clap/clap_builder/src/derive.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/protocol/src/protocol.rs",
+            "anyhow/src/kind.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/exec/src/event_processor_with_human_output_tests.rs",
+            "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "clap/clap_builder/src/error/mod.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-11",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "anyhow/src/context.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
+            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
+            "clap/clap_builder/src/error/format.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "anyhow/src/lib.rs",
+            "clap/CHANGELOG.md",
+            "anyhow/README.md",
+            "codex/codex-rs/cli/src/lib.rs",
+            "clap/src/_derive/_tutorial.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/config/src/config_toml.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/exec/src/main.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "clap/clap_lex/src/lib.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/exec/src/cli.rs",
+            "anyhow/src/ensure.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "clap/README.md"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.125,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/cli/src/state_db_recovery.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/tui/src/lib.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/arg0/src/lib.rs",
+            "anyhow/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "clap/clap_lex/src/lib.rs",
+            "anyhow/src/macros.rs",
+            "clap/clap_builder/src/builder/arg.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/exec/src/cli.rs",
+            "clap/clap_builder/src/builder/arg_predicate.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "rel-05",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/exec/src/main_tests.rs",
+            "clap/clap_complete/src/aot/generator/utils.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/src/_derive/_tutorial.rs",
+            "anyhow/src/lib.rs",
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "anyhow/src/kind.rs",
+            "codex/codex-rs/exec/src/cli_tests.rs",
+            "clap/src/_concepts.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-06",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/apply-patch/src/lib.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+            "clap/examples/tutorial_derive/04_04_custom.rs",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/core/src/codex_delegate.rs",
+            "clap/clap_builder/src/builder/app_settings.rs",
+            "anyhow/README.md",
+            "codex/codex-rs/apply-patch/src/invocation.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "rel-07",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "anyhow/src/macros.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "anyhow/README.md",
+            "anyhow/src/lib.rs",
+            "codex/codex-rs/cli/src/app_cmd.rs",
+            "clap/clap_complete/src/aot/shells/bash.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "anyhow/src/ensure.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-08",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
+            "clap/clap_derive/src/utils/doc_comments.rs",
+            "anyhow/src/macros.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "clap/clap_derive/src/lib.rs",
+            "codex/codex-rs/tui/src/markdown_render.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/clap_derive/src/derives/into_app.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.125,
+          "id": "rel-09",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/codex-mcp/src/runtime.rs",
+            "clap/CONTRIBUTING.md",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
+            "anyhow/README.md",
+            "clap/examples/tutorial_builder/04_03_relations.rs",
+            "anyhow/src/error.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager.rs",
+            "anyhow/src/macros.rs",
+            "clap/src/_cookbook/multicall_hostname.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "rel-10",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/login/src/auth/revoke.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "anyhow/src/ensure.rs",
+            "codex/codex-rs/protocol/src/auth.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "codex/codex-rs/login/src/auth/manager.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "anyhow/src/nightly.rs",
+            "codex/codex-rs/tui/src/app_event.rs"
+          ]
+        }
+      ]
+    },
+    "spaces-routed": {
+      "arm": "spaces-routed",
+      "R@5": 0.8407,
+      "R@10": 0.9259,
+      "MRR": 0.757,
+      "p50_ms": 9.0,
+      "p95_ms": 23.5,
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/apply-patch/src/seek_sequence.rs",
+            "codex/codex-rs/core/src/session/turn.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer/history_search.rs",
+            "codex/codex-rs/tui/src/app/tests.rs",
+            "codex/codex-rs/protocol/src/request_user_input.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
+            "codex/codex-rs/config/src/mcp_requirements.rs",
+            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/protocol/src/request_permissions.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/login/src/pkce.rs",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs",
+            "codex/codex-rs/tui/src/ide_context/ipc.rs",
+            "codex/codex-rs/login/src/device_code_auth.rs",
+            "codex/codex-rs/exec/src/event_processor_with_human_output.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/config/src/shell_environment_policy.rs",
+            "codex/codex-rs/exec/src/event_processor.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_builder/src/parser/arg_matcher.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_complete/src/engine/custom.rs",
+            "clap/clap_builder/src/util/id.rs",
+            "clap/clap_builder/src/builder/arg_group.rs",
+            "clap/clap_builder/src/parser/matches/matched_arg.rs",
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_builder/src/derive.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-04",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_builder/src/builder/value_parser.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/examples/typed-derive/fn_parser.rs",
+            "clap/examples/typed-derive/builtin.rs",
+            "clap/clap_builder/src/builder/possible_value.rs",
+            "clap/clap_builder/src/parser/validator.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-05",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer_history.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/codex-mcp/src/codex_apps.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager/startup.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-06",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/core/src/thread_manager.rs",
+            "codex/codex-rs/tui/src/app/thread_routing.rs",
+            "codex/codex-rs/core/src/session/handlers.rs",
+            "codex/codex-rs/core/src/thread_manager_tests.rs",
+            "codex/codex-rs/protocol/src/thread_id.rs",
+            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
+            "codex/codex-rs/config/src/thread_config.rs",
+            "codex/codex-rs/tui/src/resume_picker.rs",
+            "codex/codex-rs/config/src/thread_config/remote.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-07",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_builder/src/builder/styled_str.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "clap/clap_builder/src/builder/styling.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "clap/clap_lex/src/ext.rs",
+            "clap/clap_builder/src/builder/os_str.rs",
+            "clap/clap_builder/src/builder/str.rs",
+            "clap/examples/typed-derive/fn_parser.rs",
+            "clap/clap_derive/src/utils/error.rs",
+            "clap/clap_derive/src/item.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-08",
+          "category": "direct-lexical",
+          "top": [
+            "codex/codex-rs/login/src/token_data.rs",
+            "codex/codex-rs/login/src/token_data_tests.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token.rs",
+            "codex/codex-rs/login/src/lib.rs",
+            "codex/codex-rs/login/src/auth/personal_access_token_tests.rs",
+            "codex/codex-rs/login/src/auth/access_token_tests.rs",
+            "codex/codex-rs/login/src/auth/access_token.rs",
+            "codex/codex-rs/config/src/hook_config.rs",
+            "codex/codex-rs/login/src/auth_env_telemetry.rs",
+            "codex/codex-rs/login/src/auth/revoke.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "lex-09",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_derive/src/derives/value_enum.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/examples/find.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/lib.rs",
+            "clap/examples/typed-derive/foreign_crate.rs",
+            "clap/clap_derive/src/attr.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/examples/typed-derive/custom.rs",
+            "clap/examples/tutorial_builder/04_01_enum.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-10",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "clap/clap_derive/src/utils/doc_comments.rs",
+            "clap/examples/tutorial_derive/01_quick.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/examples/tutorial_derive/03_04_subcommands.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
+            "clap/examples/tutorial_derive/04_03_relations.rs",
+            "clap/examples/tutorial_derive/03_04_subcommands_alt.rs",
+            "clap/clap_complete/src/env/shells.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-11",
+          "category": "direct-lexical",
+          "top": [
+            "anyhow/src/macros.rs",
+            "anyhow/src/lib.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/error.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/ptr.rs",
+            "anyhow/README.md",
+            "anyhow/src/chain.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/fmt.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-12",
+          "category": "direct-lexical",
+          "top": [
+            "clap/clap_builder/src/mkeymap.rs",
+            "clap/clap_builder/src/util/flat_map.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/README.md",
+            "clap/clap_builder/src/util/mod.rs",
+            "clap/clap_builder/src/parser/parser.rs",
+            "clap/clap_builder/src/output/mod.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/CONTRIBUTING.md",
+            "clap/clap_complete/src/engine/candidate.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "clap/clap_builder/src/parser/features/suggestions.rs",
+            "clap/examples/find.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/parser/matches/arg_matches.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/CHANGELOG.md",
+            "clap/clap_builder/src/error/kind.rs",
+            "clap/clap_builder/src/error/context.rs",
+            "clap/clap_complete/src/engine/candidate.rs",
+            "clap/clap_builder/src/builder/possible_value.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "anyhow/README.md",
+            "anyhow/src/lib.rs",
+            "anyhow/src/backtrace.rs",
+            "anyhow/src/error.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/kind.rs",
+            "anyhow/src/fmt.rs",
+            "anyhow/src/macros.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "clap/clap_builder/src/builder/styled_str.rs",
+            "clap/clap_builder/src/output/textwrap/wrap_algorithms.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_builder/src/output/mod.rs",
+            "clap/clap_builder/src/output/help_template.rs",
+            "clap/clap_builder/src/output/help.rs",
+            "clap/CHANGELOG.md",
+            "clap/clap_complete/src/aot/shells/fish.rs",
+            "clap/clap_builder/src/builder/styling.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/apply-patch/src/parser.rs",
+            "codex/codex-rs/apply-patch/src/lib.rs",
+            "codex/codex-rs/apply-patch/src/streaming_parser.rs",
+            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/cli/src/bin/logs_client.rs",
+            "codex/codex-rs/protocol/src/review_format.rs",
+            "codex/codex-rs/tui/src/diff_render.rs",
+            "codex/codex-rs/core/src/context_manager/history.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/login/src/device_code_auth.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/core/src/tools/network_approval.rs",
+            "codex/codex-rs/login/src/device_code_auth_tests.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs",
+            "codex/codex-rs/tui/src/app/pending_interactive_replay.rs",
+            "codex/codex-rs/tui/src/app_event.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/tui/src/app/background_requests.rs",
+            "codex/codex-rs/tui/src/bottom_pane/app_link_view.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.16666666666666666,
+          "id": "sem-06",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/app/event_dispatch.rs",
+            "codex/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+            "codex/codex-rs/tui/src/keymap.rs",
+            "codex/codex-rs/core/src/codex_delegate.rs",
+            "codex/codex-rs/protocol/src/openai_models.rs",
+            "codex/codex-rs/arg0/src/lib.rs",
+            "codex/codex-rs/core/src/tasks/mod.rs",
+            "codex/codex-rs/protocol/src/protocol.rs",
+            "codex/codex-rs/tui/src/app/session_lifecycle.rs",
+            "codex/codex-rs/exec/src/exec_events.rs"
+          ]
+        },
+        {
+          "r5": 0.5,
+          "r10": 0.5,
+          "mrr": 0.5,
+          "id": "sem-07",
+          "category": "semantic",
+          "top": [
+            "clap/src/_concepts.rs",
+            "clap/clap_lex/src/lib.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/builder/mod.rs",
+            "clap/clap_derive/src/utils/doc_comments.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "clap/clap_derive/src/utils/spanned.rs",
+            "clap/clap_derive/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-08",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/tui/src/diff_render.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+            "codex/codex-rs/tui/src/tui.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/tui/src/custom_terminal.rs",
+            "codex/codex-rs/cli/src/doctor/output.rs",
+            "codex/codex-rs/tui/src/bottom_pane/mod.rs",
+            "codex/codex-rs/tui/src/markdown_render.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-09",
+          "category": "semantic",
+          "top": [
+            "anyhow/src/fmt.rs",
+            "anyhow/src/lib.rs",
+            "anyhow/src/chain.rs",
+            "anyhow/src/error.rs",
+            "anyhow/README.md",
+            "anyhow/src/context.rs",
+            "anyhow/src/kind.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/macros.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-10",
+          "category": "semantic",
+          "top": [
+            "clap/clap_complete/src/aot/shells/fish.rs",
+            "clap/clap_complete/src/env/mod.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "clap/clap_complete/src/aot/shells/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_complete/src/env/shells.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_complete/src/aot/shells/zsh.rs",
+            "clap/clap_complete/src/lib.rs"
+          ]
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "sem-11",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/config/src/tui_keymap.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs",
+            "codex/codex-rs/core/src/config/edit.rs",
+            "codex/codex-rs/tui/src/keymap_setup.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/tui/src/tui.rs",
+            "codex/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+            "codex/codex-rs/tui/src/bottom_pane/footer.rs",
+            "codex/codex-rs/tui/src/custom_terminal.rs",
+            "codex/codex-rs/cli/src/doctor.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.14285714285714285,
+          "id": "sem-12",
+          "category": "semantic",
+          "top": [
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/core/src/tools/runtimes/unified_exec.rs",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/core/src/tools/runtimes/shell/unix_escalation_tests.rs",
+            "codex/codex-rs/core/src/guardian/review.rs",
+            "codex/codex-rs/protocol/src/approvals.rs",
+            "codex/codex-rs/core/src/exec_policy.rs",
+            "codex/codex-rs/cli/src/lib.rs",
+            "codex/codex-rs/config/src/state_tests.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "anyhow/src/lib.rs",
+            "anyhow/README.md",
+            "anyhow/src/error.rs",
+            "anyhow/src/kind.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/fmt.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/chain.rs"
+          ]
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "clap/clap_builder/src/error/mod.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "clap/src/_faq.rs",
+            "clap/examples/tutorial_derive/04_04_custom.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "codex/codex-rs/protocol/src/error.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/protocol/src/error_tests.rs",
+            "codex/codex-rs/protocol/src/protocol.rs",
+            "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/core/src/unified_exec/process_manager.rs",
+            "codex/codex-rs/core/src/tasks/mod.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/core/src/codex_delegate.rs",
+            "codex/codex-rs/tui/src/app_server_session.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "clap/clap_builder/src/lib.rs",
+            "clap/README.md",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_complete/src/lib.rs",
+            "clap/src/_faq.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/output/textwrap/mod.rs",
+            "clap/examples/demo.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "clap/clap_builder/src/error/mod.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "codex/README.md",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/cli/src/doctor.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/cli/src/doctor/runtime.rs",
+            "codex/codex-rs/protocol/src/auth.rs",
+            "codex/codex-rs/core/src/thread_manager.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "codex/codex-rs/cli/src/desktop_app/windows.rs",
+            "codex/codex-rs/login/src/auth/error.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-06",
+          "category": "homonym",
+          "top": [
+            "anyhow/README.md",
+            "anyhow/src/kind.rs",
+            "anyhow/src/lib.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/error.rs",
+            "anyhow/src/chain.rs",
+            "anyhow/src/backtrace.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/wrapper.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-07",
+          "category": "homonym",
+          "top": [
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/clap_derive/src/dummies.rs",
+            "clap/src/_faq.rs",
+            "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_complete/src/macros.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_derive/src/derives/parser.rs",
+            "clap/clap_derive/src/item.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "hom-08",
+          "category": "homonym",
+          "top": [
+            "clap/clap_complete/src/lib.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_complete/src/aot/generator/utils.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/src/_faq.rs",
+            "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/output/textwrap/core.rs",
+            "clap/clap_builder/src/builder/arg.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-09",
+          "category": "homonym",
+          "top": [
+            "anyhow/src/lib.rs",
+            "anyhow/README.md",
+            "anyhow/src/error.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/kind.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/backtrace.rs",
+            "anyhow/src/wrapper.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/context.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.25,
+          "id": "hom-10",
+          "category": "homonym",
+          "top": [
+            "anyhow/README.md",
+            "anyhow/src/kind.rs",
+            "anyhow/src/lib.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/error.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/backtrace.rs",
+            "anyhow/src/chain.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-11",
+          "category": "homonym",
+          "top": [
+            "clap/clap_builder/src/error/context.rs",
+            "clap/clap_builder/src/error/mod.rs",
+            "clap/clap_builder/src/error/format.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_builder/src/builder/styling.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_derive/src/derives/args.rs",
+            "clap/clap_builder/src/parser/parser.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/cli/src/lib.rs",
+            "codex/codex-rs/cli/src/mcp_cmd.rs",
+            "codex/codex-rs/config/src/config_toml.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/exec/src/cli.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/protocol/src/parse_command.rs",
+            "codex/codex-rs/cli/src/doctor.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.5,
+          "mrr": 0.14285714285714285,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_lex/src/lib.rs",
+            "clap/README.md",
+            "clap/src/_tutorial.rs",
+            "clap/src/_concepts.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/src/lib.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/error/kind.rs",
+            "clap/examples/tutorial_builder/04_01_possible.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "anyhow/README.md",
+            "anyhow/src/error.rs",
+            "anyhow/src/lib.rs",
+            "anyhow/src/kind.rs",
+            "anyhow/src/ensure.rs",
+            "anyhow/src/macros.rs",
+            "anyhow/src/fmt.rs",
+            "anyhow/src/nightly.rs",
+            "anyhow/src/context.rs",
+            "anyhow/src/wrapper.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "clap/clap_lex/src/lib.rs",
+            "clap/clap_builder/src/builder/arg.rs",
+            "clap/clap_builder/src/builder/arg_predicate.rs",
+            "clap/clap_builder/src/parser/error.rs",
+            "clap/clap_builder/src/parser/matches/value_source.rs",
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_builder/src/parser/mod.rs",
+            "clap/clap_builder/src/builder/command.rs",
+            "clap/src/_faq.rs",
+            "clap/clap_builder/src/builder/arg_group.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.25,
+          "id": "rel-05",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/exec/src/main_tests.rs",
+            "codex/codex-rs/cli/src/main.rs",
+            "codex/codex-rs/exec/src/cli_tests.rs",
+            "codex/codex-rs/exec/src/cli.rs",
+            "codex/codex-rs/core/src/exec_policy.rs",
+            "codex/codex-rs/cli/src/lib.rs",
+            "codex/codex-rs/exec/src/lib.rs",
+            "codex/codex-rs/exec/src/main.rs",
+            "codex/codex-rs/tui/src/chatwidget.rs",
+            "codex/codex-rs/tui/src/exec_cell/render.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-06",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/apply-patch/src/lib.rs",
+            "codex/codex-rs/core/src/tools/handlers/multi_agents_tests.rs",
+            "codex/codex-rs/core/src/codex_delegate.rs",
+            "codex/codex-rs/apply-patch/src/invocation.rs",
+            "codex/codex-rs/core/src/tools/spec_plan.rs",
+            "codex/codex-rs/core/src/agent/control_tests.rs",
+            "codex/codex-rs/tui/src/bottom_pane/approval_overlay.rs",
+            "codex/codex-rs/protocol/src/items.rs",
+            "codex/codex-rs/core/src/thread_manager.rs",
+            "codex/codex-rs/core/src/session/session.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.1111111111111111,
+          "id": "rel-07",
+          "category": "relational",
+          "top": [
+            "clap/clap_builder/src/builder/value_hint.rs",
+            "clap/clap_complete/src/aot/shells/bash.rs",
+            "clap/clap_complete/src/aot/mod.rs",
+            "clap/clap_complete/src/aot/shells/shell.rs",
+            "clap/clap_complete/src/aot/generator/mod.rs",
+            "clap/clap_complete/src/aot/generator/utils.rs",
+            "clap/clap_complete/src/aot/shells/elvish.rs",
+            "clap/clap_complete/src/env/mod.rs",
+            "clap/clap_complete/src/lib.rs",
+            "clap/clap_complete/src/env/shells.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-08",
+          "category": "relational",
+          "top": [
+            "clap/clap_derive/src/utils/doc_comments.rs",
+            "clap/clap_derive/src/utils/mod.rs",
+            "clap/clap_derive/src/lib.rs",
+            "clap/clap_derive/src/item.rs",
+            "clap/clap_derive/src/derives/into_app.rs",
+            "clap/clap_builder/src/macros.rs",
+            "clap/clap_builder/src/derive.rs",
+            "clap/clap_builder/src/lib.rs",
+            "clap/clap_complete/src/macros.rs",
+            "clap/src/_faq.rs"
+          ]
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-09",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/codex-mcp/src/runtime.rs",
+            "codex/codex-rs/codex-mcp/src/mcp/mod.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager.rs",
+            "codex/codex-rs/codex-mcp/src/rmcp_client.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs",
+            "codex/codex-rs/core/src/session/mcp.rs",
+            "codex/codex-rs/codex-mcp/src/binding.rs",
+            "codex/codex-rs/codex-mcp/src/connection_manager/required.rs",
+            "codex/codex-rs/config/src/mcp_edit_tests.rs",
+            "codex/codex-rs/codex-mcp/src/catalog.rs"
+          ]
+        },
+        {
+          "r5": 0.0,
+          "r10": 0.0,
+          "mrr": 0.0,
+          "id": "rel-10",
+          "category": "relational",
+          "top": [
+            "codex/codex-rs/login/src/auth/revoke.rs",
+            "codex/codex-rs/protocol/src/auth.rs",
+            "codex/codex-rs/login/src/auth/manager.rs",
+            "codex/codex-rs/config/src/types.rs",
+            "codex/codex-rs/tui/src/app_event.rs",
+            "codex/codex-rs/login/src/auth/auth_tests.rs",
+            "codex/codex-rs/login/src/auth/external_bearer.rs",
+            "codex/codex-rs/login/src/auth/storage_tests.rs",
+            "codex/codex-rs/config/src/mcp_types.rs",
+            "codex/codex-rs/tui/src/onboarding/auth.rs"
+          ]
+        }
+      ]
+    }
+  }
+}
