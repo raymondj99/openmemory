@@ -426,3 +426,67 @@ magnitude. The history-bypass cue list is same-author and in-sample
 assumes one-hop supersession; chains (A superseded by B superseded
 by C) need transitive resolution to the newest valid fact, untested
 here.
+
+# V6 — valid_at plumbed through the product surfaces, teamwiki re-run
+
+Production change (openmemory-graph + openmemory-mcp, CHANGELOG
+under Unreleased): `openmemory_remember`'s detailed observation shape
+accepts `valid_from`/`valid_until` (inverted windows rejected),
+`openmemory_recall` accepts `valid_at` and returns each observation's
+validity window, and `ObservationInput` gains a `with_validity`
+builder. Two regression tests pin the round trip (current-truth
+recall skips a closed window; pinned recall reaches it and drops the
+open one). All existing tests, fmt, and clippy pass.
+
+Experiment (`scripts/eval_validity.py`): fresh teamwiki store,
+supersession expressed entirely through tool calls: the old gloss is
+re-remembered with valid_from=2026-01-01, valid_until=2026-06-16
+(append-only supersede, content preserved), plus the supersedes edge.
+History queries pin valid_at=2026-03-01 (an oracle instant, same
+epistemic position as T7's asof probe: instant extraction from
+natural language remains unbuilt).
+
+## Current / history MRR
+
+| condition | current | history |
+|---|---|---|
+| graph route, default (valid_at = now) | **1.00** | 0.00 |
+| graph route, history pinned to 2026-03 | **1.00** | **1.00** |
+| index route, raw | 0.80 | 1.00 |
+| index route, successor promotion | 1.00 | 0.50 |
+
+## Findings
+
+**F-T15-21: The bitemporal contract works end to end through the MCP
+surface.** One store, no deletions, no marker observations, no rerank
+tricks: default recall answers current truth at MRR 1.00 because the
+superseded gloss's window excludes now, and the same query pinned to
+March answers history at 1.00 because the window includes the instant
+while the successor's `valid_from` (its write time) excludes it. This
+is the full plan/17 correction contract running on production code,
+and the first configuration in the whole experiment with a perfect
+current/history grid and zero information loss.
+
+**F-T15-22: Validity filtering is total, which sharpens the intent
+requirement.** Unpinned history through the graph route scores 0.00,
+worse than forget's 0.38 (forget left an OUTDATED marker that
+sometimes led somewhere; a filtered window leaves nothing). The
+strategies now rank: forget trades history for truth unboundedly;
+successor promotion bounds the trade structurally (1.00/0.50) with no
+intent signal needed; validity + pinning eliminates the trade but
+turns temporal-intent detection from an optimization into a
+correctness requirement. Production shape: validity on the graph
+route with as-of pinning when intent is detected, successor promotion
+as the fallback and as the content-layer complement (chunks carry no
+validity; index/raw current stays at 0.80 until they do or until
+promotion masks them).
+
+## V6 caveats
+
+Oracle instant on the pinned row; eight current/history queries;
+same-author judgments throughout. The append-only supersede
+(forget + re-remember with a window) changes the observation id and
+observed_at; a first-class supersede operation that stamps
+`valid_until` in place, writes the edge, and records provenance in
+one transaction is the production shape plan/16's changeset
+machinery already anticipates.

@@ -1,0 +1,82 @@
+[
+  {
+    "case": "homonym-flood",
+    "verdict": "PASS",
+    "note": "target in top5: ['payments/README-07.md', 'payments/README-06.md', 'payments/README-05.md']"
+  },
+  {
+    "case": "supersession-chain",
+    "verdict": "WARN",
+    "note": "one-hop only: c=3 b=0 a=1 (transitive resolution unimplemented, plan/18 T2)"
+  },
+  {
+    "case": "supersession-cycle",
+    "verdict": "PASS",
+    "note": "returned 10 rows in 0.00s"
+  },
+  {
+    "case": "self-supersession",
+    "verdict": "PASS",
+    "note": "rejected at write: tools/call: {'code': -32602, 'message': 'from_entity_id and to_entity_"
+  },
+  {
+    "case": "duplicate-flood",
+    "verdict": "PASS",
+    "note": "distinct fact survives dupes: ['other-fact', 'other-fact', 'dupe-target']"
+  },
+  {
+    "case": "fat-entity",
+    "verdict": "PASS",
+    "note": "needle at 0, 5ms"
+  },
+  {
+    "case": "unicode-entities",
+    "verdict": "PASS",
+    "note": "all 5 recallable"
+  },
+  {
+    "case": "prompt-injection",
+    "verdict": "PASS",
+    "note": "payload returned verbatim as data; store unchanged (server-side)"
+  },
+  {
+    "case": "huge-query",
+    "verdict": "PASS",
+    "note": "cleanly rejected: tools/call: {'code': -32602, 'message': 'query exceeds 2000 characters; retrieva"
+  },
+  {
+    "case": "as-of-edges",
+    "verdict": "PASS",
+    "note": "5 boundary checks correct"
+  },
+  {
+    "case": "inverted-window",
+    "verdict": "PASS",
+    "note": "rejected: tools/call: {'code': -32602, 'message': 'valid_from must be "
+  },
+  {
+    "case": "contradiction-tie",
+    "verdict": "PASS",
+    "note": "both contradictory facts surface; no silent winner (supersede to fix)"
+  },
+  {
+    "case": "determinism",
+    "verdict": "PASS",
+    "note": "5/5 identical"
+  },
+  {
+    "case": "latency",
+    "verdict": "PASS",
+    "note": "p50=1ms p95=4ms n=24"
+  },
+  {
+    "case": "empty-successor",
+    "verdict": "PASS",
+    "note": "promoted successor with empty gloss, no crash"
+  },
+  {
+    "case": "mixed-signals",
+    "verdict": "PASS",
+    "note": "intent=lookup, target in top5"
+  }
+]
