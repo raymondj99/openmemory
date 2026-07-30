@@ -11,6 +11,24 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ### Added
 
+- **`openmemory_supersede`: the correction write surface.** Correct a
+  fact by supersession, never deletion: the old observation keeps its
+  content under a closed validity window (still reachable via
+  `as_of`/`valid_at`), the new fact starts its own window, and a
+  `supersedes` relation records lineage. Steps are ordered so no
+  partial failure loses information; the single-transaction form lands
+  with the changeset machinery (plan/18 3.2). Measured basis:
+  correction-as-deletion scored current/history MRR 1.00/0.38,
+  supersession 1.00/1.00 (T15).
+
+- **`openmemory_retrieve` upgrades.** Supersession chains now resolve
+  transitively (A superseded by B superseded by C promotes C, not B;
+  cycle-safe, depth-capped at 8), and every response's trace carries a
+  dense-shape `confidence` object (top vector score, top-minus-second
+  margin, advisory `low` flag; null without an embedding model) — the
+  F8 calibration signal surfaced, annotation-only until held-out
+  evidence justifies gating (plan/18 T3).
+
 - **`openmemory_retrieve`: routed tri-layer retrieval.** One read tool
   that classifies a query (or takes an explicit `intent`; the calling
   agent is the best classifier), routes it to the best layer — gloss

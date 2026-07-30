@@ -181,6 +181,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
         "openmemory_add_relation",
         "openmemory_promote_observation",
         "openmemory_retrieve",
+        "openmemory_supersede",
         "openmemory_index_text",
         "openmemory_search",
         "openmemory_delete",
@@ -188,7 +189,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
     ] {
         assert!(names.contains(&expected), "missing {expected}: {names:?}");
     }
-    assert_eq!(names.len(), 14);
+    assert_eq!(names.len(), 15);
 
     // 3. openmemory_status (read) — zero counts on a fresh store
     let resp = server.call_tool("openmemory_status", json!({}));
@@ -235,6 +236,39 @@ fn e2e_initialize_tools_list_and_each_tool() {
     let resp = server.call_tool("openmemory_retrieve", json!({"query": "prefers Rust"}));
     let body = tool_text(&resp);
     assert!(body.contains("\"engaged\": false"));
+
+    // 5c. openmemory_supersede — correct a fact without losing history,
+    // then confirm current-truth recall serves only the successor.
+    let _ = server.call_tool(
+        "openmemory_remember",
+        json!({"entity": "editor-choice", "observations": [
+            {"content": "the team standardized on emacs", "valid_from": 1000}
+        ]}),
+    );
+    let resp = server.call_tool(
+        "openmemory_supersede",
+        json!({
+            "old_entity": "editor-choice",
+            "new_entity": "editor-choice-v2",
+            "new_content": "the team standardized on helix",
+            "superseded_at": 2000
+        }),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("\"supersedes_relation_id\""));
+    let resp = server.call_tool(
+        "openmemory_recall",
+        json!({"query": "team standardized editor", "mode": "keyword"}),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("helix"));
+    assert!(!body.contains("emacs"));
+    let resp = server.call_tool(
+        "openmemory_recall",
+        json!({"query": "team standardized editor", "mode": "keyword", "valid_at": 1500}),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("emacs"));
 
     // 6. openmemory_get_entity
     let resp = server.call_tool("openmemory_get_entity", json!({"entity": "Raymond"}));

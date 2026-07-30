@@ -393,9 +393,50 @@ fn traversal_route(
     Ok(out)
 }
 
+/// Cap on transitive supersession chain resolution. Chains longer
+/// than this are a data smell, not a use case; the cap plus the
+/// visited set makes cycles and adversarial chains inert.
+const SUPERSESSION_CHAIN_CAP: usize = 8;
+
+/// Follow the incoming-`supersedes` chain from `entity_id` to its
+/// newest successor: A<-B<-C resolves to C (stress v7 confirmed
+/// one-hop promotion left C below A). Returns `None` when the entity
+/// has no successor. Cycle-safe and depth-capped.
+fn resolve_successor_chain(
+    server: &OpenMemoryMcpServer,
+    entity_id: &str,
+) -> Result<Option<String>, JsonRpcError> {
+    let mut current = entity_id.to_string();
+    let mut visited = vec![current.clone()];
+    for _ in 0..SUPERSESSION_CHAIN_CAP {
+        let relations = server
+            .memory()
+            .get_entity_relations(&current)
+            .map_err(map_memory_err)?;
+        let Some(next) = relations
+            .iter()
+            .find(|r| r.relation_type == "supersedes" && r.to_entity == current)
+            .map(|r| r.from_entity.clone())
+        else {
+            break;
+        };
+        if visited.contains(&next) {
+            break; // cycle: stop at the last acyclic hop
+        }
+        visited.push(next.clone());
+        current = next;
+    }
+    Ok(if current == entity_id {
+        None
+    } else {
+        Some(current)
+    })
+}
+
 /// Successor promotion (T15 F-19): any graph result whose entity has an
-/// incoming `supersedes` edge yields its rank to the successor and is
-/// annotated. Returns the number of promotions performed.
+/// incoming `supersedes` edge yields its rank to its newest transitive
+/// successor and is annotated. Returns the number of promotions
+/// performed.
 fn promote_successors(
     server: &OpenMemoryMcpServer,
     items: &mut Vec<Item>,
@@ -411,15 +452,7 @@ fn promote_successors(
             i += 1;
             continue;
         }
-        let relations = server
-            .memory()
-            .get_entity_relations(&entity_id)
-            .map_err(map_memory_err)?;
-        let successor_id = relations
-            .iter()
-            .find(|r| r.relation_type == "supersedes" && r.to_entity == entity_id)
-            .map(|r| r.from_entity.clone());
-        let Some(successor_id) = successor_id else {
+        let Some(successor_id) = resolve_successor_chain(server, &entity_id)? else {
             i += 1;
             continue;
         };
@@ -470,6 +503,57 @@ fn promote_successors(
         i += 1;
     }
     Ok(promotions)
+}
+
+/// Advisory confidence floors for the dense-shape signal. Derived
+/// from the F8 calibration finding (dense result-set shape separates
+/// answerable from unanswerable queries at AUC ~0.81 across two
+/// corpora, while RRF-fused scores carry no usable shape). Annotation
+/// only in v1: results are never gated on it, per plan/18 T3's
+/// held-out-evidence requirement before any behavioral gating.
+const CONFIDENCE_TOP_FLOOR: f32 = 0.45;
+const CONFIDENCE_MARGIN_FLOOR: f32 = 0.005;
+
+/// Dense-shape confidence for the chosen primary route: top vector
+/// score and top-minus-second margin. `None` when no embedding model
+/// is loaded (keyword-only deployments have no dense signal).
+fn dense_confidence(
+    server: &OpenMemoryMcpServer,
+    query: &str,
+    intent: Intent,
+) -> Result<Option<Value>, JsonRpcError> {
+    let scores: Vec<f32> = if intent == Intent::Content {
+        let vector = server.memory().embed_query(query);
+        server
+            .memory()
+            .index_search(&vector, query, 5, SearchMode::VectorOnly, 0)
+            .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?
+            .into_iter()
+            .filter(|r| !r.uri.starts_with(RESERVED_OBSERVATION_PREFIX))
+            .map(|r| r.score)
+            .collect()
+    } else {
+        let mut filters = RecallFilters::new();
+        filters.record_access = false;
+        filters.mode = Some(SearchMode::VectorOnly);
+        server
+            .memory()
+            .recall(query, 5, &filters)
+            .map_err(map_memory_err)?
+            .into_iter()
+            .map(|r| r.raw_score)
+            .collect()
+    };
+    let Some(&top) = scores.first() else {
+        return Ok(None);
+    };
+    let margin = top - scores.get(1).copied().unwrap_or(0.0);
+    Ok(Some(json!({
+        "signal": "dense-shape",
+        "top": round2(top),
+        "margin": round2(margin),
+        "low": top < CONFIDENCE_TOP_FLOOR || margin < CONFIDENCE_MARGIN_FLOOR,
+    })))
 }
 
 fn append_dedup(out: &mut Vec<Item>, extra: Vec<Item>) {
@@ -565,6 +649,7 @@ impl Tool for OpenMemoryRetrieveTool {
             0
         };
         items.truncate(limit);
+        let confidence = dense_confidence(server, &req.query, intent)?;
 
         let results: Vec<Value> = items
             .iter()
@@ -604,6 +689,7 @@ impl Tool for OpenMemoryRetrieveTool {
                 "intent": intent.as_str(),
                 "as_of": req.as_of,
                 "promotions": promotions,
+                "confidence": confidence,
             },
         }))
     }
@@ -857,6 +943,78 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn supersession_chains_resolve_to_the_newest_successor() {
+        let s = server();
+        remember(
+            &s,
+            "chain-a",
+            EntityType::Concept,
+            ObservationInput::new("release policy: ship every quarter"),
+        );
+        for (name, content, target) in [
+            ("chain-b", "release policy: ship every month", "chain-a"),
+            ("chain-c", "release policy: ship continuously", "chain-b"),
+        ] {
+            s.memory()
+                .remember(
+                    name,
+                    EntityType::Concept,
+                    &[ObservationInput::new(content)],
+                    &[RelationInput::new(
+                        "supersedes",
+                        target,
+                        EntityType::Concept,
+                    )],
+                    "test",
+                )
+                .unwrap();
+        }
+        // The query matches the OLDEST version's vocabulary.
+        let r = OpenMemoryRetrieveTool::call(
+            &s,
+            json!({"query": "ship every quarter release policy",
+                   "engage": true, "intent": "lookup"}),
+        )
+        .unwrap();
+        let v = parsed(&r);
+        let rows = v["results"].as_array().unwrap();
+        let pos = |name: &str| {
+            rows.iter()
+                .position(|row| row["entity_name"] == json!(name))
+                .unwrap_or(usize::MAX)
+        };
+        assert!(
+            pos("chain-c") < pos("chain-a"),
+            "the newest transitive successor must outrank the stale root: {rows:?}"
+        );
+        assert!(
+            pos("chain-c") < pos("chain-b"),
+            "the terminal successor must outrank intermediates: {rows:?}"
+        );
+    }
+
+    #[test]
+    fn trace_carries_a_confidence_field() {
+        let s = server();
+        remember(
+            &s,
+            "conf-doc",
+            EntityType::Concept,
+            ObservationInput::new("confidence smoke content"),
+        );
+        let r =
+            OpenMemoryRetrieveTool::call(&s, json!({"query": "confidence smoke", "engage": true}))
+                .unwrap();
+        let v = parsed(&r);
+        // The key is always present; it is null when no embedding
+        // model is loaded (this test fixture has none).
+        assert!(
+            v["trace"].as_object().unwrap().contains_key("confidence"),
+            "{v}"
+        );
     }
 
     #[test]
