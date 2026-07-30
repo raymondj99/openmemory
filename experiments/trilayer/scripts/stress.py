@@ -81,9 +81,12 @@ def chain(c):
                   ("policy-a", "policy-b", "policy-c"))
     ann = next((x.get("superseded_by") for x in r["results"]
                 if x.get("entity_name") == "policy-a"), None)
-    if pc < pa and pb < pa:
+    # The invariant: the newest valid fact outranks every predecessor.
+    # Relative order among superseded predecessors is immaterial; both
+    # carry superseded_by annotations.
+    if pc < pa and pc < pb:
         record("supersession-chain", "PASS",
-               f"order c={pc} b={pb} a={pa}, a superseded_by={ann}")
+               f"terminal successor first: c={pc} b={pb} a={pa}, a superseded_by={ann}")
     elif pb < pa:
         record("supersession-chain", "WARN",
                f"one-hop only: c={pc} b={pb} a={pa} (transitive resolution unimplemented, plan/18 T2)")

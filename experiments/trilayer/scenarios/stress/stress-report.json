@@ -6,8 +6,8 @@
   },
   {
     "case": "supersession-chain",
-    "verdict": "WARN",
-    "note": "one-hop only: c=3 b=0 a=1 (transitive resolution unimplemented, plan/18 T2)"
+    "verdict": "PASS",
+    "note": "terminal successor first: c=0 b=2 a=1, a superseded_by=policy-c"
   },
   {
     "case": "supersession-cycle",
@@ -22,12 +22,12 @@
   {
     "case": "duplicate-flood",
     "verdict": "PASS",
-    "note": "distinct fact survives dupes: ['other-fact', 'other-fact', 'dupe-target']"
+    "note": "distinct fact survives dupes: ['other-fact', 'dupe-target', 'dupe-target']"
   },
   {
     "case": "fat-entity",
     "verdict": "PASS",
-    "note": "needle at 0, 5ms"
+    "note": "needle at 0, 3ms"
   },
   {
     "case": "unicode-entities",
@@ -67,7 +67,7 @@
   {
     "case": "latency",
     "verdict": "PASS",
-    "note": "p50=1ms p95=4ms n=24"
+    "note": "p50=1ms p95=2ms n=24"
   },
   {
     "case": "empty-successor",
