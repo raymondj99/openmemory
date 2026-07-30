@@ -180,6 +180,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
         "openmemory_status",
         "openmemory_add_relation",
         "openmemory_promote_observation",
+        "openmemory_retrieve",
         "openmemory_index_text",
         "openmemory_search",
         "openmemory_delete",
@@ -187,7 +188,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
     ] {
         assert!(names.contains(&expected), "missing {expected}: {names:?}");
     }
-    assert_eq!(names.len(), 13);
+    assert_eq!(names.len(), 14);
 
     // 3. openmemory_status (read) — zero counts on a fresh store
     let resp = server.call_tool("openmemory_status", json!({}));
@@ -220,6 +221,20 @@ fn e2e_initialize_tools_list_and_each_tool() {
     let body = tool_text(&resp);
     assert!(body.contains("Raymond"));
     assert!(body.contains("Rust"));
+
+    // 5b. openmemory_retrieve — routed tri-layer read over the same
+    // store; on a tiny store the scale gate must keep it on the flat
+    // content route unless engaged explicitly.
+    let resp = server.call_tool(
+        "openmemory_retrieve",
+        json!({"query": "prefers Rust", "engage": true, "intent": "lookup"}),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("Raymond"));
+    assert!(body.contains("\"intent\": \"lookup\""));
+    let resp = server.call_tool("openmemory_retrieve", json!({"query": "prefers Rust"}));
+    let body = tool_text(&resp);
+    assert!(body.contains("\"engaged\": false"));
 
     // 6. openmemory_get_entity
     let resp = server.call_tool("openmemory_get_entity", json!({"entity": "Raymond"}));

@@ -28,6 +28,7 @@ use crate::OpenMemoryMcpServer;
 pub mod index;
 pub mod maintenance;
 pub mod memory;
+pub mod retrieve;
 
 /// MCP-tool trait. Each tool is a zero-sized unit struct implementing this
 /// trait. The trait keeps three concerns colocated:
@@ -203,6 +204,9 @@ pub fn server_instructions() -> String {
 fn registry() -> Vec<Entry> {
     let mut v = Vec::new();
     memory::register_all(&mut v);
+    // Retrieve registers inside the memory group so the instructions
+    // block keeps one contiguous MEMORY TOOLS section.
+    retrieve::register_all(&mut v);
     index::register_all(&mut v);
     maintenance::register_all(&mut v);
     v
@@ -285,8 +289,8 @@ mod tests {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         assert_eq!(
             names.len(),
-            13,
-            "expected 13 tools (9 memory + 3 index + 1 maintenance), got {}: {names:?}",
+            14,
+            "expected 14 tools (10 memory + 3 index + 1 maintenance), got {}: {names:?}",
             names.len()
         );
     }
@@ -314,6 +318,7 @@ mod tests {
             "openmemory_forget",
             "openmemory_forget_entity",
             "openmemory_status",
+            "openmemory_retrieve",
             "openmemory_index_text",
             "openmemory_search",
             "openmemory_delete",

@@ -120,6 +120,14 @@ pub struct ObservationInputBody {
     pub concepts: Vec<String>,
     #[serde(default)]
     pub source_files: Vec<String>,
+    /// Unix seconds when the fact became true. `None` = open-ended.
+    #[serde(default)]
+    pub valid_from: Option<i64>,
+    /// Unix seconds when the fact stopped being true. `None` = still
+    /// valid. Set on a superseded fact so current-truth recall skips it
+    /// while `valid_at`-pinned recall can still reach it.
+    #[serde(default)]
+    pub valid_until: Option<i64>,
 }
 
 /// One relation input on the remember API. Field names mirror
@@ -202,6 +210,17 @@ impl Tool for OpenMemoryRememberTool {
                 "at least one observation is required",
             ));
         }
+        for raw in &req.observations {
+            if let RememberObservationInput::Detailed(d) = raw {
+                if let (Some(from), Some(until)) = (d.valid_from, d.valid_until) {
+                    if from > until {
+                        return Err(JsonRpcError::invalid_params(
+                            "valid_from must be <= valid_until",
+                        ));
+                    }
+                }
+            }
+        }
         let entity_type = req
             .entity_type
             .map_or(EntityType::Concept, |p| p.to_entity_type());
@@ -240,6 +259,9 @@ impl Tool for OpenMemoryRememberTool {
                         }
                         if let Some(kind) = d.source_kind.as_deref() {
                             inp = inp.with_source_kind(kind);
+                        }
+                        if d.valid_from.is_some() || d.valid_until.is_some() {
+                            inp = inp.with_validity(d.valid_from, d.valid_until);
                         }
                         inp
                     }
@@ -352,6 +374,12 @@ pub struct RecallInput {
     /// Search mode. Defaults to `hybrid`.
     #[serde(default)]
     pub mode: Option<SearchModeParam>,
+    /// Evaluate temporal validity as of this Unix timestamp instead of
+    /// now: observations whose validity window excludes the instant are
+    /// filtered out, and recency decay is measured relative to it. Use
+    /// for as-of/history questions; omit for current truth.
+    #[serde(default)]
+    pub valid_at: Option<i64>,
 }
 
 const RECALL_DESC: &str =
@@ -393,6 +421,7 @@ impl Tool for OpenMemoryRecallTool {
         filters.entity_names = req.entity_names;
         filters.mode = req.mode.map(|p| p.to_mode());
         filters.memory_tier = req.memory_tier.map(|p| p.to_tier());
+        filters.valid_at = req.valid_at;
 
         let hits = server
             .memory()
@@ -408,6 +437,8 @@ impl Tool for OpenMemoryRecallTool {
                     "entity_type": h.entity_type.as_str(),
                     "content": h.observation.content,
                     "observed_at": h.observation.observed_at,
+                    "valid_from": h.observation.valid_from,
+                    "valid_until": h.observation.valid_until,
                     "score": super::round2(h.score),
                     "raw_score": super::round2(h.raw_score),
                     "confidence": super::round2(h.observation.confidence),
@@ -998,6 +1029,71 @@ mod tests {
         // importance is serialised as a JSON number; tolerate the f32
         // rendering as either 0.7 or 0.699...
         assert!(body.contains("\"importance\""));
+    }
+
+    #[test]
+    fn validity_window_plumbs_through_remember_and_recall() {
+        let s = server();
+        // A superseded fact (valid until t=1000) and its replacement.
+        let _ = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "platform",
+                "observations": [
+                    {
+                        "content": "the platform datastore is Postgres",
+                        "valid_from": 100,
+                        "valid_until": 1000
+                    },
+                    { "content": "the platform datastore is SQLite per tenant" }
+                ]
+            }),
+        )
+        .unwrap();
+
+        let text_of = |r: &crate::protocol::CallToolResult| match &r.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+
+        // Current-truth recall (valid_at omitted = now): only the
+        // replacement fact survives the validity filter.
+        let now = OpenMemoryRecallTool::call(
+            &s,
+            json!({"query": "platform datastore", "mode": "keyword"}),
+        )
+        .unwrap();
+        let body = text_of(&now);
+        assert!(body.contains("SQLite per tenant"));
+        assert!(!body.contains("is Postgres"));
+
+        // As-of recall pinned inside the old window reaches the old fact
+        // and drops the replacement (whose valid_from defaults to its
+        // write time, after t=500).
+        let asof = OpenMemoryRecallTool::call(
+            &s,
+            json!({"query": "platform datastore", "mode": "keyword", "valid_at": 500}),
+        )
+        .unwrap();
+        let body = text_of(&asof);
+        assert!(body.contains("is Postgres"));
+        assert!(!body.contains("SQLite per tenant"));
+        assert!(body.contains("\"valid_until\": 1000"));
+    }
+
+    #[test]
+    fn inverted_validity_window_is_rejected() {
+        let s = server();
+        let err = OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "platform",
+                "observations": [
+                    {"content": "x", "valid_from": 1000, "valid_until": 100}
+                ]
+            }),
+        )
+        .unwrap_err();
+        assert!(err.message.contains("valid_from must be <= valid_until"));
     }
 
     /// Server fixture with the write-behind context engine enabled. Uses

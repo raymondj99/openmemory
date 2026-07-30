@@ -132,6 +132,17 @@ impl ObservationInput {
         self
     }
 
+    /// Set the temporal validity window (Unix seconds). `None` keeps the
+    /// corresponding bound open-ended: `valid_from = None` means "since
+    /// observed", `valid_until = None` means "still valid". Recall drops
+    /// observations whose window excludes the query's `valid_at` instant.
+    #[must_use]
+    pub fn with_validity(mut self, valid_from: Option<i64>, valid_until: Option<i64>) -> Self {
+        self.valid_from = valid_from;
+        self.valid_until = valid_until;
+        self
+    }
+
     /// Attach concept tags. Stored in the `observation_concepts` side
     /// table.
     #[must_use]

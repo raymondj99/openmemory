@@ -11,6 +11,40 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ### Added
 
+- **`openmemory_retrieve`: routed tri-layer retrieval.** One read tool
+  that classifies a query (or takes an explicit `intent`; the calling
+  agent is the best classifier), routes it to the best layer — gloss
+  recall for name-shaped queries, free-text search for content
+  questions, typed edge traversal for relational questions — appends
+  the other layers as fallback (never fused: every fused-prior variant
+  measured in T6/T15 lost), and applies supersession-aware
+  post-processing: a result whose entity carries an incoming
+  `supersedes` edge yields its rank to its successor and is annotated
+  `superseded_by`, while `as_of` pins a past instant and restricts
+  retrieval to the validity-aware graph layers instead. A store-size
+  gate keeps small stores on flat search, where it measured at the
+  quality ceiling. Deterministic by construction: never records access
+  feedback, so identical calls return identical rankings. Every
+  response carries a `trace` (intent, engagement, promotions).
+  Design and evidence: `plan/18-trilayer-retrieval-production.md`,
+  `experiments/trilayer/RESULTS.md`.
+
+- **Temporal validity is reachable from the MCP surface.** The
+  bitemporal fields that always existed in storage were unreachable
+  from every product surface. `openmemory_remember`'s detailed
+  observation shape now accepts optional `valid_from` / `valid_until`
+  (Unix seconds; an inverted window is rejected), and
+  `openmemory_recall` accepts optional `valid_at` to answer as-of
+  questions: observations whose validity window excludes the instant
+  are filtered out and decay is measured relative to it. Recall
+  results now carry each observation's `valid_from` / `valid_until`.
+  This is the supersession contract's write half: stamp `valid_until`
+  on the superseded fact instead of forgetting it, and current-truth
+  recall skips it while pinned recall still reaches it (measured in
+  the T15 correction experiment: forgetting scored current/history
+  MRR 1.00/0.38; validity-based supersession has no such trade).
+  New `ObservationInput::with_validity` builder in `openmemory-graph`.
+
 - **`openmemory-engine`: the concurrent context engine.** New crate
   putting a sharded write-behind ingestion lane in front of the store
   so thousands of agents can write concurrently. Writes hash by entity
