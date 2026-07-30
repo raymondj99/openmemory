@@ -1692,12 +1692,15 @@ dependencies = [
 name = "openmemory-core"
 version = "0.4.4"
 dependencies = [
+ "blake3",
  "rand 0.8.6",
  "rusqlite",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "toml",
+ "uuid",
 ]
 
 [[package]]
@@ -1705,6 +1708,8 @@ name = "openmemory-daemon"
 version = "0.4.4"
 dependencies = [
  "axum",
+ "blake3",
+ "fs4",
  "openmemory-admin",
  "openmemory-core",
  "openmemory-embed",
@@ -1720,6 +1725,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
+ "toml",
  "toml_edit",
  "tower",
  "tracing",
@@ -1758,9 +1764,11 @@ dependencies = [
  "openmemory-core",
  "openmemory-graph",
  "openmemory-index",
+ "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
  "toml",
  "tracing",
 ]
@@ -1770,6 +1778,7 @@ name = "openmemory-eval"
 version = "0.4.4"
 dependencies = [
  "anyhow",
+ "blake3",
  "openmemory-core",
  "openmemory-graph",
  "openmemory-index",
@@ -1837,6 +1846,19 @@ dependencies = [
  "tower-http",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "openmemory-merge"
+version = "0.4.4"
+dependencies = [
+ "blake3",
+ "codspeed-criterion-compat",
+ "openmemory-core",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/openmemory-admin",
     "crates/openmemory-core",
+    "crates/openmemory-merge",
     "crates/openmemory-index",
     "crates/openmemory-embed",
     "crates/openmemory-graph",
@@ -27,6 +28,7 @@ homepage = "https://github.com/raymondj99/openmemory"
 [workspace.dependencies]
 # Internal crates
 openmemory-core = { path = "crates/openmemory-core", version = "0.4.4" }
+openmemory-merge = { path = "crates/openmemory-merge", version = "0.4.4" }
 openmemory-admin = { path = "crates/openmemory-admin", version = "0.4.4" }
 openmemory-index = { path = "crates/openmemory-index", version = "0.4.4", default-features = false }
 openmemory-embed = { path = "crates/openmemory-embed", version = "0.4.4", default-features = false }
@@ -97,7 +99,13 @@ json5 = "0.4"
 
 # File watcher (Phase 9 — openmemory-watch crate). MSRV 1.85 for both
 # notify-debouncer-full 0.7 (the latest stable; 0.8 is RC) and notify 8.
-notify = "8"
+#
+# On macOS, use kqueue instead of notify's default FSEvents backend. FSEvents
+# purges device-wide events when a watcher is dropped, which makes immediate
+# daemon restarts capable of missing post-registration mutations. kqueue's
+# `watch` call acknowledges only after the recursive watch is installed.
+# Other platforms continue to use notify's recommended native backend.
+notify = { version = "8", features = ["macos_kqueue"] }
 notify-debouncer-full = "0.7"
 ignore = "0.4"
 walkdir = "2"

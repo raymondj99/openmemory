@@ -1,17 +1,20 @@
 # Filesystem watcher
 
-The `openmemory-watch` crate gives `openmemory` an opt-in
-filesystem watcher. It walks a directory tree once on startup
-(BLAKE3-deduped against the existing metadata store), then tails
-`notify-debouncer-full` events to re-index only what changed. The
-CLI exposes it as `openmemory watch <PATH>`.
+The `openmemory-watch` crate gives `openmemory` an opt-in filesystem watcher.
+It registers the native event backend, walks the directory tree once
+(BLAKE3-deduped against the existing metadata store), then processes queued
+and live `notify-debouncer-full` events to re-index only what changed. The CLI
+exposes it as `openmemory watch <PATH>`.
 
 The crate ships behind a default-on `watch` build feature on
 `openmemory-cli`; the rest of the workspace builds without it.
 
 ## What it does
 
-- **Initial scan.** On startup, walk the tree under `<PATH>` using
+- **Causal startup.** Register the recursive native backend before scanning or
+  reporting readiness. macOS uses kqueue and Linux uses inotify. Events that
+  arrive during the scan remain queued, so there is no scan-to-event gap.
+- **Initial scan.** Walk the tree under `<PATH>` using
   the `ignore` crate (which respects `.gitignore`, `.ignore`, and
   `.openmemory-ignore` files in precedence order). For each
   surviving file: read it, BLAKE3-hash the contents, look up the
@@ -145,22 +148,22 @@ pub struct Watcher { /* memory store, root, options */ }
 
 impl Watcher {
     pub fn new(memory: Arc<MemoryStore>, root: PathBuf, options: WatchOptions) -> Self;
-    pub fn run(self) -> WatchResult<()>;  // blocks; returns when notified to stop
+    pub fn run(self) -> WatchResult<ScanReport>;  // blocks; returns on shutdown
 }
 ```
 
 `Watcher::run` does:
 
-1. (Unless `--no-initial-scan`) Walk the tree with `ignore::WalkBuilder`
+1. Construct the `notify-debouncer-full` watcher and synchronously register a
+   recursive watch for `<root>`. macOS is platform-gated to kqueue; Linux uses
+   inotify.
+2. (Unless `--no-initial-scan`) Walk the tree with `ignore::WalkBuilder`
    honouring all the precedence rules above. Call `process_file`
-   on each surviving entry. Emit a `ScanReport { files_indexed,
-   files_skipped, files_errored }` to the tracing logs at info
-   level.
-2. Spin up a `notify-debouncer-full` watcher and subscribe to
-   create / modify / remove events for `<root>`.
-3. For each batch, derive a `BatchSummary { duration,
-   events_processed, files_indexed, files_removed }` and dispatch
-   `process_file` or `remove_path` per affected path.
+   on each surviving entry. Events arriving during this work queue for the
+   run loop. Emit the initial cumulative `ScanReport`.
+3. For each batch, derive a
+   `BatchSummary { events_in_batch, report }` and dispatch `process_file` or
+   `remove_path` per affected path.
 4. Loop until the process is signalled (SIGINT / SIGTERM in the
    CLI's case). Every write goes through a SQLite transaction in
    WAL mode, so an abrupt termination is safe.

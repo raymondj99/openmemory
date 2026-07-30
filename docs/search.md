@@ -157,9 +157,34 @@ importance     = 1 + 0.25 * importance
 final_score    = search_score * base_decay * retrieval * correction * importance * confidence
 ```
 
-- `lambda` is the per-store decay rate. Default
-  `Config::memory.decay_rate = 0.01` per day. Override per-store
-  via `MemoryStore::with_decay_rate(rate)` for tests.
+- `lambda` is the per-store **ranking** decay rate,
+  `Config::memory.recall_decay_rate`, which defaults to `0.0` — the
+  recency prior is off, so `base_decay` is `1.0` unless you enable it.
+  Override per-store via `MemoryStore::with_recall_decay_rate(rate)`.
+
+  It is off because it was measured, not because it was forgotten. A
+  sweep over 1192 queries found the term net-negative at every non-zero
+  lambda, including on a query category built specifically for a recency
+  prior to win: at `0.0025` it costs 0.46 MRR on commit lookup, and by
+  the previously shipped `0.01` that category has fallen from 0.83 to
+  0.02.
+
+  The benefit is real but not reachable from this position. In a corpus
+  containing nothing but versioned facts, the same term *gains* 0.08 MRR
+  on current-truth questions; adding the surrounding corpus flips the
+  sign. A multiplicative prior applied after fusion can only express
+  "prefer the newest row in the corpus", never "prefer the newest version
+  of *this fact*", and those coincide only when a fact competes solely
+  against its own history. Re-tuning does not fix a wrong position.
+
+  For as-of questions use `RecallFilters::valid_at`, which pins the
+  instant, drops rows not valid then, and measures decay relative to that
+  instant rather than to now. It is worth +0.11 MRR on its own and is
+  indifferent to lambda.
+
+  Do not confuse this with `Config::memory.decay_rate`, which is the
+  **retention** lambda: it decides what consolidation deletes and remains
+  at `0.01` per day.
 - `access_count` increments after each successful recall via the
   background `bump_access_counts` write. Frequently-recalled
   observations decay slower because the retrieval boost grows

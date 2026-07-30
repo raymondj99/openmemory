@@ -30,6 +30,12 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
     // Partitioning materialises here: `[engine] domains` from the config
     // creates (or reopens) the domain layout. A mismatch with an existing
     // manifest is a hard error from DomainStore::open.
+    #[cfg_attr(not(feature = "embeddings"), allow(unused_mut))]
+    let mut spaces = openmemory_engine::space::SpaceManager::new(
+        config.clone(),
+        &data_dir,
+        config.engine.domains,
+    );
     #[cfg(feature = "embeddings")]
     let memory = {
         let models_dir = Config::models_dir().context("resolving models directory")?;
@@ -38,20 +44,22 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
                 "openmemory mcp: embeddings active ({})",
                 embedder.model_name()
             );
-            DomainStore::open_with_embedder(
+            let embedder: Arc<dyn openmemory_core::testing::Embedder> = Arc::new(embedder);
+            spaces = spaces.with_embedder(Arc::clone(&embedder));
+            DomainStore::open_legacy_with_embedder(
                 &config,
                 &data_dir,
                 config.engine.domains,
-                Arc::new(embedder),
+                embedder,
             )
         } else {
             eprintln!("openmemory mcp: running in keyword-only mode (no embedder)");
-            DomainStore::open(&config, &data_dir, config.engine.domains)
+            DomainStore::open_legacy(&config, &data_dir, config.engine.domains)
         }
     }
     .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     #[cfg(not(feature = "embeddings"))]
-    let memory = DomainStore::open(&config, &data_dir, config.engine.domains)
+    let memory = DomainStore::open_legacy(&config, &data_dir, config.engine.domains)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
 
     if memory.domains() > 1 {
@@ -61,7 +69,8 @@ pub fn run(profile: &str, args: McpArgs) -> Result<()> {
         );
     }
     let server = OpenMemoryMcpServer::from_domain_store(config, Arc::new(memory))
-        .context("starting context engine")?;
+        .context("starting context engine")?
+        .with_space_manager(spaces);
     let engine = server.engine().cloned();
     if engine.is_some() {
         eprintln!("openmemory mcp: write-behind context engine active");

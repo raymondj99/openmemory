@@ -25,6 +25,30 @@ Get the full set green locally before pushing;
 `--no-default-features` in particular has caught feature-gated
 import bugs that the default-features matrix misses.
 
+For the Phase 2 space-control-plane slice, use the focused production-path
+suite while iterating:
+
+```bash
+cargo test -p openmemory-daemon --lib phase2_tests --no-fail-fast
+```
+
+It covers ordered product migrations, legacy restart binding, managed-root
+validation, workspace/capability catalog data, authorization revocation,
+cross-process lifetime locks, and bounded registry behavior with 10,000
+catalog records.  It complements rather than replaces the workspace matrix.
+
+For Phase 3 graph-audit iteration:
+
+```bash
+cargo test -p openmemory-graph --lib audit::tests --no-fail-fast
+cargo test -p openmemory-graph --lib schema::tests --no-fail-fast
+```
+
+These exercise populated legacy rows, v3–v7 migration state, proposal
+invisibility and retention, exact approval races, revisions, lifecycle,
+destruction confirmation, resumable baseline backfill, deterministic typed
+diffs, and durable index repair.
+
 ## CI matrix
 
 The `.github/workflows/ci.yml` workflow runs on every push and
@@ -42,6 +66,7 @@ merging to `main`.
 | `clippy-no-default` | ubuntu-latest | 1.85.0 | `--no-default-features` | `cargo clippy --locked --no-default-features --all-targets -- -D warnings` |
 | `doc-default` | ubuntu-latest | 1.85.0 | default | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` |
 | `doc-all-features` | ubuntu-latest | 1.85.0 | `--all-features` | `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features` |
+| `dependency-policy` | ubuntu-latest | cargo-deny on Rust 1.85.0 | (n/a) | `cargo deny check` |
 
 The `audit` workflow (`.github/workflows/audit.yml`) runs
 `cargo-deny check` weekly (Monday 06:00 UTC) and on every push.
@@ -122,12 +147,18 @@ CI runs clippy with `-D warnings`, so warnings fail the build.
 | Crate | Unit tests | Integration tests |
 |-------|-----------|-------------------|
 | `openmemory-core` | inline (`#[cfg(test)] mod tests` in each source file) | none |
-| `openmemory-index` | inline | criterion benches in `benches/` |
+| `openmemory-merge` | inline canonical/evidence/model/receipt/three-way tests | planner, adversarial, property, and permanent-fixture suites |
+| `openmemory-admin` | inline contract/serde tests | none |
+| `openmemory-index` | inline | none |
 | `openmemory-embed` | inline | `tests/onnx_smoke.rs` |
 | `openmemory-graph` | inline | `tests/integration.rs` |
+| `openmemory-engine` | inline | examples provide stress/read-path harnesses |
 | `openmemory-mcp` | inline | (covered by the CLI's `tests/mcp_e2e.rs`) |
 | `openmemory-cli` | inline | `tests/mcp_e2e.rs` |
+| `openmemory-daemon` | inline module tests | none |
 | `openmemory-watch` | inline | `tests/integration.rs` |
+| `openmemory-eval` | inline | none |
+| `openmemory-bench` | none | `benches/openmemory.rs` |
 
 Tests must:
 
@@ -157,14 +188,24 @@ MCP request decoder are the natural targets when a fuzz harness lands.
 
 ## Performance gates
 
-`cargo bench -p openmemory-index` runs the criterion benches in
-`benches/vector_search.rs` and `benches/hybrid_search.rs`.
 `cargo bench -p openmemory-bench` runs the workspace-level
-benchmarks, including `daemon_admin_api` for desktop-facing health,
-entity-list, search, and backup-preflight paths. The canonical
+benchmark target. It covers flat/HNSW vector search, hybrid search,
+recall, spreading activation, consolidation, and `daemon_admin_api`
+for desktop-facing health, entity-list, search, and backup-preflight
+paths. The canonical
 reference hardware is Apple M-series with 8 GB RAM. We do **not**
 gate CI on absolute numbers; we do compare regressions of 50% or
 more against the previous release.
+
+`cargo bench -p openmemory-merge --bench planning` runs the pure merge-planner
+gate at 10k entities + 10k relations and 100k entities + 100k relations. The
+release helper `cargo run -p openmemory-merge --release --example
+phase1_scale -- 100000` reports planning time, canonical snapshot bytes, action
+count, and plan hash. Pass a second numeric argument (for example,
+`-- 100000 20`) for nearest-rank p50/p95/p99 samples. Run the single-sample
+form under `/usr/bin/time -l` on macOS to capture peak RSS. A paired
+`build-only` run is the retained-input control used for the incremental-RSS
+calculation.
 
 ## Production-hardening pass
 

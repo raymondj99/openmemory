@@ -1074,7 +1074,7 @@ mod tests {
         );
         engine.wait_durable(ticket);
 
-        let raymond = store.get_entity("Raymond").unwrap().unwrap();
+        let raymond = store.resolve_entity("Raymond").unwrap().unique().unwrap();
         let rels = store.get_entity_relations(&raymond.id).unwrap();
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation_type, "maintains");
@@ -1435,7 +1435,11 @@ mod tests {
 
         // Every entity is reachable through the facade, and more than
         // one domain holds data.
-        assert!(domains.get_entity("entity-0").unwrap().is_some());
+        assert!(domains
+            .resolve_entity("entity-0")
+            .unwrap()
+            .unique()
+            .is_some());
         let populated = domains
             .stores()
             .iter()
@@ -1480,7 +1484,11 @@ mod tests {
         );
         engine.wait_durable(ticket);
 
-        let b_entity = domains.get_entity(&b).unwrap().expect("target exists");
+        let b_entity = domains
+            .resolve_entity(&b)
+            .unwrap()
+            .unique()
+            .expect("target exists");
         let b_rels = domains.get_entity_relations(&b_entity.id).unwrap();
         assert_eq!(b_rels.len(), 1, "mirror edge visible from the target side");
         assert_eq!(domains.status().unwrap().total_relations, 1);
@@ -1528,7 +1536,11 @@ mod tests {
             let name = format!("entity-{i}");
             let home = domains.domain_for(&name);
             assert!(
-                domains.stores()[home].get_entity(&name).unwrap().is_some(),
+                domains.stores()[home]
+                    .resolve_entity(&name)
+                    .unwrap()
+                    .unique()
+                    .is_some(),
                 "{name} must land in its home domain {home}"
             );
         }

@@ -31,6 +31,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use openmemory_engine::partition::DomainStore;
 use openmemory_graph::{EntityType, MemoryError, RecallFilters, SearchMode};
 
 use crate::protocol::{CallToolResult, JsonRpcError, ToolDescriptor};
@@ -105,6 +106,18 @@ pub struct RetrieveInput {
     /// regardless of store size. Omit to use the store-size gate.
     #[serde(default)]
     pub engage: Option<bool>,
+    /// Memory space to retrieve from. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
+    /// Ordered read set of up to four spaces to retrieve from together
+    /// (use `default` for the personal-global store). Each space runs
+    /// the full routed pipeline independently; the final ranked lists
+    /// are fused by deterministic rank interleaving in read-set order.
+    /// Scores are never compared across spaces. Mutually exclusive
+    /// with `space`.
+    #[serde(default)]
+    pub read_spaces: Option<Vec<String>>,
 }
 
 /// Resolved intent after classification.
@@ -232,12 +245,12 @@ fn snippet_of(text: &str) -> String {
 /// Gloss route: hybrid recall over graph observations. Deterministic
 /// (`record_access = false`) and validity-aware via `as_of`.
 fn gloss_route(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     query: &str,
     fetch: usize,
     as_of: Option<i64>,
 ) -> Result<Vec<Item>, JsonRpcError> {
-    gloss_route_with(server, query, fetch, as_of, true)
+    gloss_route_with(memory, query, fetch, as_of, true)
 }
 
 /// Gloss recall with explicit control over spreading activation. The
@@ -246,7 +259,7 @@ fn gloss_route(
 /// neighbors as unannotated gloss rows before the edge walk can label
 /// them.
 fn gloss_route_with(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     query: &str,
     fetch: usize,
     as_of: Option<i64>,
@@ -256,8 +269,7 @@ fn gloss_route_with(
     filters.record_access = false;
     filters.valid_at = as_of;
     filters.spreading_activation = spreading;
-    let hits = server
-        .memory()
+    let hits = memory
         .recall(query, fetch, &filters)
         .map_err(map_memory_err)?;
     Ok(hits
@@ -287,13 +299,12 @@ const RESERVED_OBSERVATION_PREFIX: &str = "memory://";
 /// here. Reserved-namespace rows are excluded (see
 /// [`RESERVED_OBSERVATION_PREFIX`]).
 fn content_route(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     query: &str,
     fetch: usize,
 ) -> Result<Vec<Item>, JsonRpcError> {
-    let vector = server.memory().embed_query(query);
-    let results = server
-        .memory()
+    let vector = memory.embed_query(query);
+    let results = memory
         .index_search(&vector, query, fetch, SearchMode::Hybrid, 0)
         .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
     Ok(results
@@ -317,11 +328,11 @@ fn content_route(
 /// outrank `part_of`; neighbors surface with their first live
 /// observation as the snippet and a `via` annotation naming the edge.
 fn traversal_route(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     query: &str,
     as_of: Option<i64>,
 ) -> Result<Vec<Item>, JsonRpcError> {
-    let seeds = gloss_route_with(server, query, TRAVERSAL_SEEDS * 2, as_of, false)?;
+    let seeds = gloss_route_with(memory, query, TRAVERSAL_SEEDS * 2, as_of, false)?;
     let mut out: Vec<Item> = Vec::new();
     let mut seen_entities: Vec<String> = Vec::new();
 
@@ -340,8 +351,7 @@ fn traversal_route(
         let Some((seed_id, seed_name)) = &seed.entity else {
             continue;
         };
-        let relations = server
-            .memory()
+        let relations = memory
             .get_entity_relations(seed_id)
             .map_err(map_memory_err)?;
         for rel in relations {
@@ -360,8 +370,7 @@ fn traversal_route(
     neighbors.sort_by_key(|(p, _, _)| *p);
 
     for (_, neighbor_id, via) in neighbors.into_iter().take(TRAVERSAL_NEIGHBORS) {
-        let Some(entity) = server
-            .memory()
+        let Some(entity) = memory
             .get_entity_by_id(&neighbor_id)
             .map_err(map_memory_err)?
         else {
@@ -371,8 +380,7 @@ fn traversal_route(
             continue;
         }
         seen_entities.push(entity.name.clone());
-        let gloss = server
-            .memory()
+        let gloss = memory
             .get_entity_observations(&neighbor_id)
             .map_err(map_memory_err)?
             .into_iter()
@@ -403,14 +411,13 @@ const SUPERSESSION_CHAIN_CAP: usize = 8;
 /// one-hop promotion left C below A). Returns `None` when the entity
 /// has no successor. Cycle-safe and depth-capped.
 fn resolve_successor_chain(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     entity_id: &str,
 ) -> Result<Option<String>, JsonRpcError> {
     let mut current = entity_id.to_string();
     let mut visited = vec![current.clone()];
     for _ in 0..SUPERSESSION_CHAIN_CAP {
-        let relations = server
-            .memory()
+        let relations = memory
             .get_entity_relations(&current)
             .map_err(map_memory_err)?;
         let Some(next) = relations
@@ -437,10 +444,7 @@ fn resolve_successor_chain(
 /// incoming `supersedes` edge yields its rank to its newest transitive
 /// successor and is annotated. Returns the number of promotions
 /// performed.
-fn promote_successors(
-    server: &OpenMemoryMcpServer,
-    items: &mut Vec<Item>,
-) -> Result<usize, JsonRpcError> {
+fn promote_successors(memory: &DomainStore, items: &mut Vec<Item>) -> Result<usize, JsonRpcError> {
     let mut promotions = 0;
     let mut i = 0;
     while i < items.len() {
@@ -452,12 +456,11 @@ fn promote_successors(
             i += 1;
             continue;
         }
-        let Some(successor_id) = resolve_successor_chain(server, &entity_id)? else {
+        let Some(successor_id) = resolve_successor_chain(memory, &entity_id)? else {
             i += 1;
             continue;
         };
-        let Some(successor) = server
-            .memory()
+        let Some(successor) = memory
             .get_entity_by_id(&successor_id)
             .map_err(map_memory_err)?
         else {
@@ -477,8 +480,7 @@ fn promote_successors(
             let promoted = if let Some(offset) = later {
                 items.remove(i + 1 + offset)
             } else {
-                let gloss = server
-                    .memory()
+                let gloss = memory
                     .get_entity_observations(&successor_id)
                     .map_err(map_memory_err)?
                     .into_iter()
@@ -518,14 +520,13 @@ const CONFIDENCE_MARGIN_FLOOR: f32 = 0.005;
 /// score and top-minus-second margin. `None` when no embedding model
 /// is loaded (keyword-only deployments have no dense signal).
 fn dense_confidence(
-    server: &OpenMemoryMcpServer,
+    memory: &DomainStore,
     query: &str,
     intent: Intent,
 ) -> Result<Option<Value>, JsonRpcError> {
     let scores: Vec<f32> = if intent == Intent::Content {
-        let vector = server.memory().embed_query(query);
-        server
-            .memory()
+        let vector = memory.embed_query(query);
+        memory
             .index_search(&vector, query, 5, SearchMode::VectorOnly, 0)
             .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?
             .into_iter()
@@ -536,8 +537,7 @@ fn dense_confidence(
         let mut filters = RecallFilters::new();
         filters.record_access = false;
         filters.mode = Some(SearchMode::VectorOnly);
-        server
-            .memory()
+        memory
             .recall(query, 5, &filters)
             .map_err(map_memory_err)?
             .into_iter()
@@ -601,98 +601,186 @@ impl Tool for OpenMemoryRetrieveTool {
             )));
         }
         let limit = req.limit.unwrap_or(10).clamp(1, 50) as usize;
-        let fetch = limit.saturating_mul(OVERFETCH_FACTOR);
 
-        let engaged = if let Some(explicit) = req.engage {
-            explicit
-        } else {
-            let status = server.memory().status().map_err(map_memory_err)?;
-            status.total_observations >= ENGAGE_MIN_OBSERVATIONS
-        };
-        // An as-of instant restricts retrieval to the validity-aware
-        // graph layers: free-text chunks (and the index copies of
-        // observation text) carry no validity metadata, so the content
-        // route cannot answer "as of March" and serving it would leak
-        // present-day facts into past-truth answers. Content questions
-        // pinned to an instant therefore answer through the gloss layer.
-        let pinned = req.as_of.is_some();
-        let mut intent = if engaged {
-            classify(&req.query, req.intent.unwrap_or_default())
-        } else {
-            Intent::Content
-        };
-        if pinned && intent == Intent::Content {
-            intent = Intent::Lookup;
+        // Layered read set: run the full routed pipeline per space, then
+        // fuse the FINAL ranked lists by deterministic rank interleaving.
+        // Scores are never compared across spaces.
+        if let Some(read_spaces) = &req.read_spaces {
+            let layers = crate::tools::memory::resolve_read_spaces(
+                server,
+                req.space.as_deref(),
+                read_spaces,
+            )?;
+            let mut per_space: Vec<(Option<String>, Vec<Item>)> = Vec::new();
+            let mut traces = Vec::new();
+            for (label, store) in &layers {
+                let run = run_pipeline(store, &req, limit)?;
+                traces.push(json!({
+                    "space": label.as_deref().unwrap_or("default"),
+                    "engaged": run.engaged,
+                    "intent": run.intent.as_str(),
+                    "promotions": run.promotions,
+                    "confidence": run.confidence,
+                }));
+                per_space.push((label.clone(), run.items));
+            }
+            // Round-robin by rank in read-set order (same composition
+            // rule as layered openmemory_recall).
+            let mut fused: Vec<(Option<String>, Item)> = Vec::new();
+            let deepest = per_space.iter().map(|(_, l)| l.len()).max().unwrap_or(0);
+            'outer: for rank in 0..deepest {
+                for (label, list) in &per_space {
+                    if let Some(item) = list.get(rank) {
+                        fused.push((label.clone(), item.clone()));
+                        if fused.len() >= limit {
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+            let results: Vec<Value> = fused
+                .iter()
+                .map(|(label, item)| {
+                    let mut row = render_item(item);
+                    row.as_object_mut()
+                        .unwrap()
+                        .insert("space".into(), json!(label.as_deref().unwrap_or("default")));
+                    row
+                })
+                .collect();
+            return json_text_result(&json!({
+                "results": results,
+                "limit": limit,
+                "trace": {
+                    "read_spaces": layers
+                        .iter()
+                        .map(|(label, _)| label.as_deref().unwrap_or("default"))
+                        .collect::<Vec<_>>(),
+                    "fusion": "rank_interleave",
+                    "as_of": req.as_of,
+                    "spaces": traces,
+                },
+            }));
         }
 
-        let mut items = match intent {
-            Intent::Lookup => gloss_route(server, &req.query, fetch, req.as_of)?,
-            Intent::Content => content_route(server, &req.query, fetch)?,
-            Intent::Relational => traversal_route(server, &req.query, req.as_of)?,
-        };
-        // Fill: the other layers append after the primary (never
-        // interleave — measured at -0.065 MRR vs +0.065 for append,
-        // T15 F-4 vs F-9).
-        if intent != Intent::Content && !pinned {
-            append_dedup(&mut items, content_route(server, &req.query, fetch)?);
-        }
-        if intent != Intent::Lookup && (engaged || pinned) {
-            append_dedup(
-                &mut items,
-                gloss_route(server, &req.query, fetch, req.as_of)?,
-            );
-        }
-
-        let promotions = if req.as_of.is_none() {
-            promote_successors(server, &mut items)?
-        } else {
-            0
-        };
-        items.truncate(limit);
-        let confidence = dense_confidence(server, &req.query, intent)?;
-
-        let results: Vec<Value> = items
-            .iter()
-            .map(|it| {
-                let mut row = json!({
-                    "route": it.route,
-                    "snippet": it.snippet,
-                });
-                let obj = row.as_object_mut().expect("object literal");
-                if let Some((_, name)) = &it.entity {
-                    obj.insert("entity_name".into(), json!(name));
-                }
-                if let Some(t) = it.entity_type {
-                    obj.insert("entity_type".into(), json!(t.as_str()));
-                }
-                if let Some(uri) = &it.uri {
-                    obj.insert("uri".into(), json!(uri));
-                }
-                if let Some(score) = it.score {
-                    obj.insert("score".into(), json!(round2(score)));
-                }
-                if let Some(via) = &it.via {
-                    obj.insert("via".into(), json!(via));
-                }
-                if let Some(s) = &it.superseded_by {
-                    obj.insert("superseded_by".into(), json!(s));
-                }
-                row
-            })
-            .collect();
+        let memory = server.store_for(req.space.as_deref())?;
+        let run = run_pipeline(&memory, &req, limit)?;
+        let results: Vec<Value> = run.items.iter().map(render_item).collect();
 
         json_text_result(&json!({
             "results": results,
             "limit": limit,
             "trace": {
-                "engaged": engaged,
-                "intent": intent.as_str(),
+                "engaged": run.engaged,
+                "intent": run.intent.as_str(),
                 "as_of": req.as_of,
-                "promotions": promotions,
-                "confidence": confidence,
+                "promotions": run.promotions,
+                "confidence": run.confidence,
             },
         }))
     }
+}
+
+/// Outcome of one routed pipeline run against one store.
+struct PipelineRun {
+    items: Vec<Item>,
+    engaged: bool,
+    intent: Intent,
+    promotions: usize,
+    confidence: Option<Value>,
+}
+
+/// The routed tri-layer pipeline against one store: classify, route,
+/// fill (append, never interleave), promote successors, annotate
+/// confidence. Extracted so layered retrieval can run it per space.
+fn run_pipeline(
+    memory: &DomainStore,
+    req: &RetrieveInput,
+    limit: usize,
+) -> Result<PipelineRun, JsonRpcError> {
+    let fetch = limit.saturating_mul(OVERFETCH_FACTOR);
+
+    let engaged = if let Some(explicit) = req.engage {
+        explicit
+    } else {
+        let status = memory.status().map_err(map_memory_err)?;
+        status.total_observations >= ENGAGE_MIN_OBSERVATIONS
+    };
+    // An as-of instant restricts retrieval to the validity-aware
+    // graph layers: free-text chunks (and the index copies of
+    // observation text) carry no validity metadata, so the content
+    // route cannot answer "as of March" and serving it would leak
+    // present-day facts into past-truth answers. Content questions
+    // pinned to an instant therefore answer through the gloss layer.
+    let pinned = req.as_of.is_some();
+    let mut intent = if engaged {
+        classify(&req.query, req.intent.unwrap_or_default())
+    } else {
+        Intent::Content
+    };
+    if pinned && intent == Intent::Content {
+        intent = Intent::Lookup;
+    }
+
+    let mut items = match intent {
+        Intent::Lookup => gloss_route(memory, &req.query, fetch, req.as_of)?,
+        Intent::Content => content_route(memory, &req.query, fetch)?,
+        Intent::Relational => traversal_route(memory, &req.query, req.as_of)?,
+    };
+    // Fill: the other layers append after the primary (never
+    // interleave — measured at -0.065 MRR vs +0.065 for append,
+    // T15 F-4 vs F-9).
+    if intent != Intent::Content && !pinned {
+        append_dedup(&mut items, content_route(memory, &req.query, fetch)?);
+    }
+    if intent != Intent::Lookup && (engaged || pinned) {
+        append_dedup(
+            &mut items,
+            gloss_route(memory, &req.query, fetch, req.as_of)?,
+        );
+    }
+
+    let promotions = if req.as_of.is_none() {
+        promote_successors(memory, &mut items)?
+    } else {
+        0
+    };
+    items.truncate(limit);
+    let confidence = dense_confidence(memory, &req.query, intent)?;
+    Ok(PipelineRun {
+        items,
+        engaged,
+        intent,
+        promotions,
+        confidence,
+    })
+}
+
+fn render_item(it: &Item) -> Value {
+    let mut row = json!({
+        "route": it.route,
+        "snippet": it.snippet,
+    });
+    let obj = row.as_object_mut().expect("object literal");
+    if let Some((_, name)) = &it.entity {
+        obj.insert("entity_name".into(), json!(name));
+    }
+    if let Some(t) = it.entity_type {
+        obj.insert("entity_type".into(), json!(t.as_str()));
+    }
+    if let Some(uri) = &it.uri {
+        obj.insert("uri".into(), json!(uri));
+    }
+    if let Some(score) = it.score {
+        obj.insert("score".into(), json!(round2(score)));
+    }
+    if let Some(via) = &it.via {
+        obj.insert("via".into(), json!(via));
+    }
+    if let Some(s) = &it.superseded_by {
+        obj.insert("superseded_by".into(), json!(s));
+    }
+    row
 }
 
 /// Register this module's tools. Called from the memory-group section of

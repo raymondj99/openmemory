@@ -88,10 +88,31 @@ impl crate::Watcher {
             options,
         } = self;
 
+        // Channel between the debouncer's internal thread and the run loop.
+        // SyncSender(0) would deadlock the debouncer if the consumer is
+        // slow; bound at 64 to absorb bursts without unbounded memory growth.
+        let (tx, rx) = mpsc::sync_channel::<DebounceEventResult>(64);
+
+        let mut debouncer = new_debouncer(options.debounce, None, move |res| {
+            // The debouncer's closure runs on its own thread. Drop the
+            // result if the consumer is gone — that means the run loop
+            // has exited and the channel has been dropped.
+            let _ = tx.send(res);
+        })
+        .map_err(WatchError::from)?;
+
+        debouncer
+            .watch(&root, RecursiveMode::Recursive)
+            .map_err(WatchError::from)?;
+
+        // Register the backend before scanning or publishing the first
+        // notification. This closes the startup gap in which callers could
+        // observe "initial scan complete", mutate the tree, and lose that
+        // mutation before the platform backend had a watch installed. Events
+        // that arrive during the scan remain queued in `rx` and are processed
+        // immediately afterward.
         let mut report = ScanReport::default();
         if options.initial_scan {
-            // Build a temporary borrow-borrowing watcher view for the
-            // initial scan, since we already deconstructed self.
             let scan_view = ScanView {
                 memory: &memory,
                 root: &root,
@@ -114,23 +135,6 @@ impl crate::Watcher {
             initial_indexed = report.inserted,
             "watcher running"
         );
-
-        // Channel between the debouncer's internal thread and the run loop.
-        // SyncSender(0) would deadlock the debouncer if the consumer is
-        // slow; bound at 64 to absorb bursts without unbounded memory growth.
-        let (tx, rx) = mpsc::sync_channel::<DebounceEventResult>(64);
-
-        let mut debouncer = new_debouncer(options.debounce, None, move |res| {
-            // The debouncer's closure runs on its own thread. Drop the
-            // result if the consumer is gone — that means the run loop
-            // has exited and the channel has been dropped.
-            let _ = tx.send(res);
-        })
-        .map_err(WatchError::from)?;
-
-        debouncer
-            .watch(&root, RecursiveMode::Recursive)
-            .map_err(WatchError::from)?;
 
         loop {
             if shutdown.load(Ordering::Relaxed) {

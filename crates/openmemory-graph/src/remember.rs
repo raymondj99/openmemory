@@ -211,10 +211,6 @@ pub(crate) enum PersistIndex {
     /// Save now. Single-shot writes use this: a short-lived CLI process
     /// may exit immediately after the call.
     Now,
-    /// Leave persistence to the caller's cadence (the context engine's
-    /// maintenance tick) and the store's `Drop` backstop. Batched
-    /// ingestion uses this because the save is O(corpus).
-    Defer,
 }
 
 /// Normalization knobs threaded into [`write_group`]. Mirrors the store
@@ -465,7 +461,7 @@ impl MemoryStore {
 
         // Hold the rebuild write-lock for the entire write+search-sync to
         // keep concurrent recall out of the half-applied state.
-        let _guard = self.write_rebuild();
+        let guard = self.write_rebuild();
 
         let mut conn = self.lock_db();
         let tx = conn.transaction()?;
@@ -481,16 +477,43 @@ impl MemoryStore {
             self.normalization_params(true),
         )?;
 
+        let audit_generation = crate::audit::record_legacy_remembers(
+            &tx,
+            &[(
+                &group.outcome,
+                crate::audit::ChangeOperation::Remember {
+                    entity_name: name.to_owned(),
+                    entity_type,
+                    observations: observations.to_vec(),
+                    relations: relations.to_vec(),
+                },
+            )],
+            source,
+            now,
+        )?;
+
         tx.commit()?;
         drop(conn);
 
         // SQLite write succeeded; sync the search index.
-        if !group.payload.is_empty() {
+        let index_result = if !group.payload.is_empty() {
             self.sync_search_groups(
                 &[(name.to_string(), group.payload)],
                 vectors,
                 PersistIndex::Now,
-            )?;
+            )
+        } else {
+            Ok(())
+        };
+        drop(guard);
+        match index_result {
+            Ok(()) => self.mark_index_generations_current(&[audit_generation])?,
+            Err(error) => tracing::warn!(
+                target: "openmemory_graph::remember",
+                error = %error,
+                generation = audit_generation,
+                "canonical write committed; durable index repair remains required"
+            ),
         }
 
         Ok(group.outcome)
@@ -606,16 +629,9 @@ impl MemoryStore {
             return Ok(());
         }
 
-        if let Err(e) = self.engine().engine.insert(&entries) {
-            tracing::warn!(
-                target: "openmemory_graph::remember",
-                error = %e,
-                count = entries.len(),
-                "search-index insert failed; SQLite row remains authoritative"
-            );
-        }
+        self.engine().engine.insert(&entries)?;
         if persist == PersistIndex::Now {
-            self.flush_engine();
+            self.persist_search_index()?;
         }
         Ok(())
     }
@@ -844,7 +860,7 @@ mod tests {
             )
             .unwrap();
 
-        let entity = store.get_entity("Raymond").unwrap().unwrap();
+        let entity = store.resolve_entity("Raymond").unwrap().unique().unwrap();
         assert_eq!(entity.name, "Raymond");
         assert_eq!(entity.entity_type, EntityType::Person);
 
@@ -961,7 +977,7 @@ mod tests {
             .unwrap();
         assert_eq!(outcome.relation_ids.len(), 1);
 
-        let target = store.get_entity("sift").unwrap().unwrap();
+        let target = store.resolve_entity("sift").unwrap().unique().unwrap();
         assert_eq!(target.entity_type, EntityType::Project);
         assert_eq!(store.status().unwrap().total_entities, 2);
     }
@@ -1008,7 +1024,7 @@ mod tests {
                 "a",
             )
             .unwrap();
-        let original = store.get_entity("X").unwrap().unwrap();
+        let original = store.resolve_entity("X").unwrap().unique().unwrap();
         assert_eq!(original.updated_at, 1_000);
 
         clock.advance(500);
@@ -1021,7 +1037,7 @@ mod tests {
                 "a",
             )
             .unwrap();
-        let bumped = store.get_entity("X").unwrap().unwrap();
+        let bumped = store.resolve_entity("X").unwrap().unique().unwrap();
         assert_eq!(bumped.updated_at, 1_500);
     }
 

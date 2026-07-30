@@ -88,31 +88,27 @@ fn spawn_watcher(
     let initial = rx.recv_timeout(RECV_DEADLINE).expect("initial scan notify");
     assert_eq!(initial.report.inserted, 0, "fresh tree");
 
-    // FSEvents (macOS) and inotify (Linux) both have a brief startup
-    // window between `Watcher::watch` returning and events actually
-    // flowing. Poke the tree until we see the corresponding batch
-    // arrive on the notifier — that proves the backend is live before
-    // any test starts measuring deltas. A warmup file pattern beats a
-    // raw sleep because the synchronisation is causal: we know events
-    // are flowing when we observe an event, not when an arbitrary
-    // timer expires.
+    // `run_inner` registers the backend before it emits the initial-scan
+    // notification. Probe until the backend acknowledges one exact
+    // post-notification mutation. This is a bounded causal barrier, not a
+    // timing sleep: readiness is established only by observing an event.
     let warmup_path = watch_root.join(".om-warmup");
     let mut warmup_attempts = 0;
-    let became_live = loop {
+    loop {
         warmup_attempts += 1;
         std::fs::write(&warmup_path, format!("warmup #{warmup_attempts}")).unwrap();
         match rx.recv_timeout(Duration::from_millis(500)) {
-            Ok(s) if s.events_in_batch > 0 => break true,
-            Ok(_) => continue,
-            Err(RecvTimeoutError::Timeout) if warmup_attempts < 8 => continue,
-            Err(RecvTimeoutError::Timeout) => break false,
-            Err(RecvTimeoutError::Disconnected) => break false,
+            Ok(summary) if summary.events_in_batch > 0 => break,
+            Ok(_) => {}
+            Err(RecvTimeoutError::Timeout) if warmup_attempts < 8 => {}
+            Err(RecvTimeoutError::Timeout) => {
+                panic!("watcher backend never became live after {warmup_attempts} causal probes");
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                panic!("watcher exited during its causal readiness probe");
+            }
         }
-    };
-    assert!(
-        became_live,
-        "watcher backend never became live after {warmup_attempts} pokes"
-    );
+    }
     let _ = std::fs::remove_file(&warmup_path);
     // Drain whatever's in the channel — including the remove event we
     // just triggered — so callers start at zero deltas.
@@ -140,8 +136,8 @@ fn watcher_indexes_create_modify_delete() {
     let target = watch_root.join("notes.md");
     std::fs::write(&target, "first version").unwrap();
     // Canonicalise *after* the write — on macOS, /var/folders is a
-    // symlink to /private/var/folders; FSEvents reports paths under
-    // the canonical prefix, so the stored URI uses that form too.
+    // symlink to /private/var/folders and native events use the canonical
+    // prefix, so the stored URI uses that form too.
     let target_uri = path_to_uri(&target.canonicalize().unwrap());
     let summary = wait_for(&rx, RECV_DEADLINE, |r| r.inserted >= 1);
     assert_eq!(summary.report.inserted, 1, "first create indexed");
@@ -182,69 +178,7 @@ fn watcher_indexes_create_modify_delete() {
     // running cleanly past the delete.
     let next = watch_root.join("more.md");
     std::fs::write(&next, "another note").unwrap();
-    wait_for(&rx, RECV_DEADLINE, |r| r.inserted >= 2);
-
-    shutdown.store(true, Ordering::Relaxed);
-    handle.join().unwrap();
-}
-
-#[test]
-fn watcher_dedupes_initial_scan_on_restart() {
-    let dir = tempfile::tempdir().unwrap();
-    let watch_root = dir.path().join("tree");
-    std::fs::create_dir_all(&watch_root).unwrap();
-    std::fs::write(watch_root.join("a.md"), "alpha").unwrap();
-    std::fs::write(watch_root.join("b.md"), "beta").unwrap();
-
-    let cfg = Config::default();
-    let data_dir = dir.path().join(".openmemory");
-    std::fs::create_dir_all(&data_dir).unwrap();
-
-    // First run: initial scan inserts both files, no events fire.
-    {
-        let memory = Arc::new(MemoryStore::open(&cfg, &data_dir).unwrap());
-        let mut options = WatchOptions::from_config(&cfg);
-        options.debounce = Duration::from_millis(80);
-        let watcher = Watcher::new(Arc::clone(&memory), watch_root.clone(), options).unwrap();
-        let shutdown = Arc::new(AtomicBool::new(false));
-        let (tx, rx) = sync_channel::<BatchSummary>(8);
-        let shutdown_run = Arc::clone(&shutdown);
-        let handle = thread::spawn(move || {
-            let _ = watcher.run_with_notifier(shutdown_run, tx);
-        });
-        let initial = rx.recv_timeout(RECV_DEADLINE).expect("initial scan");
-        assert_eq!(initial.report.inserted, 2);
-        shutdown.store(true, Ordering::Relaxed);
-        handle.join().unwrap();
-        assert_eq!(memory.engine().metadata.stats().unwrap().total_sources, 2);
-    }
-
-    // Second run against the same data dir + tree: BLAKE3 dedup kicks
-    // in and the report shows 0 inserted, 2 unchanged.
-    {
-        let memory = Arc::new(MemoryStore::open(&cfg, &data_dir).unwrap());
-        let mut options = WatchOptions::from_config(&cfg);
-        options.debounce = Duration::from_millis(80);
-        let watcher = Watcher::new(Arc::clone(&memory), watch_root, options).unwrap();
-        let shutdown = Arc::new(AtomicBool::new(false));
-        let (tx, rx) = sync_channel::<BatchSummary>(8);
-        let shutdown_run = Arc::clone(&shutdown);
-        let handle = thread::spawn(move || {
-            let _ = watcher.run_with_notifier(shutdown_run, tx);
-        });
-        let initial = rx.recv_timeout(RECV_DEADLINE).expect("initial scan");
-        assert_eq!(initial.report.inserted, 0);
-        assert_eq!(initial.report.unchanged, 2);
-        shutdown.store(true, Ordering::Relaxed);
-        handle.join().unwrap();
-    }
-}
-
-#[test]
-fn watcher_skips_files_in_always_ignored_directories() {
-    let dir = tempfile::tempdir().unwrap();
-    let (memory, handle, shutdown, rx) = spawn_watcher(dir.path());
-    let watch_root = dir.path().join("tree");
+    let mut latest = wait_for(&rx, RECV_DEADLINE, |r| r.inserted >= 2);
 
     let git_dir = watch_root.join(".git");
     std::fs::create_dir_all(&git_dir).unwrap();
@@ -255,7 +189,7 @@ fn watcher_skips_files_in_always_ignored_directories() {
     std::fs::write(&outside, "indexed").unwrap();
 
     // Wait for the README batch — the .git file must not show up.
-    let _ = wait_for(&rx, RECV_DEADLINE, |r| r.inserted >= 1);
+    latest = wait_for(&rx, RECV_DEADLINE, |r| r.inserted > latest.report.inserted);
 
     let outside_uri = path_to_uri(&outside.canonicalize().unwrap_or_else(|_| outside.clone()));
     let inside_uri = path_to_uri(&inside.canonicalize().unwrap_or_else(|_| inside.clone()));
@@ -267,21 +201,10 @@ fn watcher_skips_files_in_always_ignored_directories() {
         .is_some());
     assert!(memory.engine().metadata.get(&inside_uri).unwrap().is_none());
 
-    shutdown.store(true, Ordering::Relaxed);
-    handle.join().unwrap();
-}
-
-/// Loop create / modify / delete N times with timestamps so we can
-/// surface p50 / p99 latency numbers in the PR description. Runs at
-/// a tight 80 ms debounce, so the floor on each measurement is
-/// roughly the debounce window plus a small handler cost.
-#[test]
-fn watcher_latency_smoke_test() {
+    // Loop create / modify / delete with timestamps on the same production
+    // watcher. One stream exercises the complete supported scenario without
+    // resetting cumulative counters between lifecycle operations.
     const ITERS: usize = 6;
-
-    let dir = tempfile::tempdir().unwrap();
-    let (_memory, handle, shutdown, rx) = spawn_watcher(dir.path());
-    let watch_root = dir.path().join("tree");
 
     let mut create_lat = Vec::with_capacity(ITERS);
     let mut modify_lat = Vec::with_capacity(ITERS);
@@ -289,23 +212,20 @@ fn watcher_latency_smoke_test() {
 
     for i in 0..ITERS {
         let path: PathBuf = watch_root.join(format!("note-{i}.md"));
-        let baseline = snapshot(&rx);
 
         let t = Instant::now();
         std::fs::write(&path, format!("hello {i}")).unwrap();
-        let _ = wait_for(&rx, RECV_DEADLINE, |r| r.inserted > baseline.inserted);
+        latest = wait_for(&rx, RECV_DEADLINE, |r| r.inserted > latest.report.inserted);
         create_lat.push(t.elapsed());
 
-        let baseline = latest_snapshot(&rx);
         let t = Instant::now();
         std::fs::write(&path, format!("hello {i} v2")).unwrap();
-        let _ = wait_for(&rx, RECV_DEADLINE, |r| r.updated > baseline.updated);
+        latest = wait_for(&rx, RECV_DEADLINE, |r| r.updated > latest.report.updated);
         modify_lat.push(t.elapsed());
 
-        let baseline = latest_snapshot(&rx);
         let t = Instant::now();
         std::fs::remove_file(&path).unwrap();
-        let _ = wait_for(&rx, RECV_DEADLINE, |r| r.removed > baseline.removed);
+        latest = wait_for(&rx, RECV_DEADLINE, |r| r.removed > latest.report.removed);
         delete_lat.push(t.elapsed());
     }
 
@@ -331,30 +251,38 @@ fn watcher_latency_smoke_test() {
     assert!(percentile(&mut delete_lat.clone(), 0.99) < cap);
 }
 
-/// Drain whatever's already on the channel and return the latest
-/// cumulative `ScanReport`. Used to capture a baseline before kicking
-/// off the next filesystem op.
-fn snapshot(rx: &std::sync::mpsc::Receiver<BatchSummary>) -> ScanReport {
-    let mut last = ScanReport::default();
-    while let Ok(s) = rx.try_recv() {
-        last = s.report;
-    }
-    last
-}
+#[test]
+fn watcher_dedupes_initial_scan_on_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let watch_root = dir.path().join("tree");
+    std::fs::create_dir_all(&watch_root).unwrap();
+    std::fs::write(watch_root.join("a.md"), "alpha").unwrap();
+    std::fs::write(watch_root.join("b.md"), "beta").unwrap();
 
-/// Same as `snapshot`, but the channel may already be empty; in that
-/// case fetch one fresh summary so the caller's "wait for delta" loop
-/// has a defined baseline. Bounded by the same RECV_DEADLINE.
-fn latest_snapshot(rx: &std::sync::mpsc::Receiver<BatchSummary>) -> ScanReport {
-    let drained = snapshot(rx);
-    if drained != ScanReport::default() {
-        return drained;
+    let cfg = Config::default();
+    let data_dir = dir.path().join(".openmemory");
+    std::fs::create_dir_all(&data_dir).unwrap();
+
+    {
+        let memory = Arc::new(MemoryStore::open(&cfg, &data_dir).unwrap());
+        let watcher = Watcher::new(
+            Arc::clone(&memory),
+            watch_root.clone(),
+            WatchOptions::from_config(&cfg),
+        )
+        .unwrap();
+        let initial = watcher.scan_initial().unwrap();
+        assert_eq!(initial.inserted, 2);
+        assert_eq!(memory.engine().metadata.stats().unwrap().total_sources, 2);
     }
-    // No queued batches — we can use whatever the next batch reports.
-    // But we shouldn't *block* if nothing's coming; just return an
-    // empty baseline. The wait_for that follows will time out itself
-    // if the delta never arrives.
-    drained
+
+    {
+        let memory = Arc::new(MemoryStore::open(&cfg, &data_dir).unwrap());
+        let watcher = Watcher::new(memory, watch_root, WatchOptions::from_config(&cfg)).unwrap();
+        let initial = watcher.scan_initial().unwrap();
+        assert_eq!(initial.inserted, 0);
+        assert_eq!(initial.unchanged, 2);
+    }
 }
 
 fn percentile(samples: &mut [Duration], p: f64) -> Duration {

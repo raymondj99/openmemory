@@ -152,7 +152,7 @@ impl MemoryStore {
         // Same locking discipline as `remember`: hold the rebuild write
         // lock across the SQLite write + search sync so concurrent recall
         // never observes the half-applied state.
-        let _guard = self.write_rebuild();
+        let guard = self.write_rebuild();
 
         let mut conn = self.lock_db();
         let tx = conn.transaction()?;
@@ -175,6 +175,31 @@ impl MemoryStore {
             }
             outcomes.push(group.outcome);
         }
+        let audit_records = outcomes
+            .iter()
+            .zip(requests)
+            .map(|(outcome, req)| {
+                (
+                    outcome,
+                    crate::audit::ChangeOperation::Remember {
+                        entity_name: req.name.clone(),
+                        entity_type: req.entity_type,
+                        observations: req.observations.clone(),
+                        relations: req.relations.clone(),
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let audit_generation = if audit_records.is_empty() {
+            None
+        } else {
+            Some(crate::audit::record_legacy_remembers(
+                &tx,
+                &audit_records,
+                "compatibility-batch",
+                now,
+            )?)
+        };
 
         if let Some((key, value)) = &opts.checkpoint {
             // Monotonic upsert: a checkpoint never moves backwards, so a
@@ -191,7 +216,20 @@ impl MemoryStore {
         tx.commit()?;
         drop(conn);
 
-        self.sync_search_groups(&sync_groups, vectors, PersistIndex::Defer)?;
+        let index_result = self.sync_search_groups(&sync_groups, vectors, PersistIndex::Now);
+        drop(guard);
+        match index_result {
+            Ok(()) => {
+                if let Some(generation) = audit_generation {
+                    self.mark_index_generations_current(&[generation])?;
+                }
+            }
+            Err(error) => tracing::warn!(
+                target: "openmemory_graph::batch",
+                error = %error,
+                "canonical batch committed; durable index repair remains required"
+            ),
+        }
 
         Ok(outcomes)
     }
@@ -258,8 +296,21 @@ mod tests {
         assert_eq!(s.total_observations, 4);
 
         // Order: outcome[i] matches request[i].
-        let alpha = store.get_entity("alpha").unwrap().unwrap();
+        let alpha = store.resolve_entity("alpha").unwrap().unique().unwrap();
         assert_eq!(outcomes[0].entity_id, alpha.id);
+        let conn = store.lock_db();
+        let (changesets, requests, generation): (u64, u64, u64) = conn
+            .query_row(
+                "SELECT
+                    (SELECT COUNT(*) FROM change_sets),
+                    (SELECT COUNT(*) FROM change_requests),
+                    semantic_generation
+                 FROM domain_state WHERE id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!((changesets, requests, generation), (1, 3, 1));
     }
 
     #[test]
@@ -307,7 +358,11 @@ mod tests {
         // The relation target created in group 1 must be the same entity
         // group 2 appends to (no duplicate "openmemory").
         assert_eq!(store.status().unwrap().total_entities, 2);
-        let project = store.get_entity("openmemory").unwrap().unwrap();
+        let project = store
+            .resolve_entity("openmemory")
+            .unwrap()
+            .unique()
+            .unwrap();
         assert_eq!(outcomes[1].entity_id, project.id);
         assert_eq!(outcomes[0].relation_ids.len(), 1);
     }

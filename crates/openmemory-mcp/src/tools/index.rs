@@ -48,6 +48,10 @@ pub struct IndexTextInput {
     /// Caller-defined chunk index. Defaults to 0.
     #[serde(default)]
     pub chunk_index: Option<u32>,
+    /// Memory space whose index to write. Omit (or pass `default`) for
+    /// the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const INDEX_TEXT_DESC: &str =
@@ -88,7 +92,8 @@ impl Tool for OpenMemoryIndexTextTool {
             return Err(JsonRpcError::invalid_params("text must not be empty"));
         }
 
-        let vector = server.memory().embed_document(&req.text);
+        let memory = server.store_for(req.space.as_deref())?;
+        let vector = memory.embed_document(&req.text);
         let mut entry = IndexEntry::new(req.uri.clone(), req.text.clone())
             .with_chunk_index(req.chunk_index.unwrap_or(0));
         if !vector.is_empty() {
@@ -96,8 +101,7 @@ impl Tool for OpenMemoryIndexTextTool {
         }
         // The facade routes by URI hash AND invalidates its recall
         // cache; never write to a member store directly.
-        server
-            .memory()
+        memory
             .index_insert(entry)
             .map_err(|e| JsonRpcError::internal_error(format!("index insert failed: {e}")))?;
         json_text_result(&json!({ "uri": req.uri, "indexed": true }))
@@ -126,6 +130,10 @@ pub struct SearchInput {
     /// Search mode. Defaults to `hybrid`.
     #[serde(default)]
     pub mode: Option<SearchModeParam>,
+    /// Memory space whose index to search. Omit (or pass `default`)
+    /// for the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const SEARCH_DESC: &str =
@@ -160,13 +168,13 @@ impl Tool for OpenMemorySearchTool {
         let limit = req.limit.unwrap_or(10).clamp(1, 50) as usize;
         let mode = req.mode.unwrap_or_default().to_mode();
 
-        let vector = server.memory().embed_query(&req.query);
+        let memory = server.store_for(req.space.as_deref())?;
+        let vector = memory.embed_query(&req.query);
         let scoped_by_prefix = req.uri_prefix.as_deref().is_some_and(|p| !p.is_empty());
         let has_min_score = req.min_score.is_some_and(|s| s > 0.0);
         let needs_overfetch = scoped_by_prefix || has_min_score;
         let fetch = if needs_overfetch {
-            let (vector_count, keyword_count) = server
-                .memory()
+            let (vector_count, keyword_count) = memory
                 .index_counts()
                 .map_err(|e| JsonRpcError::internal_error(format!("count failed: {e}")))?;
             usize::try_from(vector_count.max(keyword_count))
@@ -177,8 +185,7 @@ impl Tool for OpenMemorySearchTool {
             limit
         }
         .max(limit);
-        let mut results = server
-            .memory()
+        let mut results = memory
             .index_search(&vector, &req.query, fetch, mode, 0)
             .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
 
@@ -222,6 +229,10 @@ impl Tool for OpenMemorySearchTool {
 pub struct DeleteInput {
     /// URI to remove from the index.
     pub uri: String,
+    /// Memory space whose index to modify. Omit (or pass `default`)
+    /// for the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const DELETE_DESC: &str =
@@ -251,7 +262,7 @@ impl Tool for OpenMemoryDeleteTool {
             return Err(JsonRpcError::invalid_params("uri must not be empty"));
         }
         let removed = server
-            .memory()
+            .store_for(req.space.as_deref())?
             .index_delete(&req.uri)
             .map_err(|e| JsonRpcError::internal_error(format!("delete failed: {e}")))?;
         json_text_result(&json!({

@@ -59,14 +59,17 @@ use std::time::{Duration, Instant};
 
 use lru::LruCache;
 use openmemory_core::config::Config;
+use openmemory_core::space::SpaceId;
 use openmemory_graph::batch::BatchOptions;
 use openmemory_graph::recall::{RecallFilters, RecallResult};
 use openmemory_graph::{
-    ConsolidateConfig, ConsolidateReport, Entity, EntityListRow, EntityType, MemoryError,
-    MemoryResult, MemoryStatus, MemoryStore, Observation, ObservationInput, PruneReport, Relation,
-    RelationInput, RememberOutcome, RememberRequest, SearchMode,
+    ConsolidateConfig, ConsolidateReport, Entity, EntityListRow, EntityResolution, EntityType,
+    MemoryError, MemoryResult, MemoryStatus, MemoryStore, Observation, ObservationInput,
+    PruneReport, Relation, RelationInput, RememberOutcome, RememberRequest, SearchMode,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::legacy::{read_or_create_legacy_space_id, LegacySpaceLock};
 
 #[cfg(any(feature = "testing", feature = "embeddings"))]
 use openmemory_core::testing::Embedder;
@@ -144,6 +147,8 @@ struct RecallCacheEntry {
 pub struct DomainStore {
     stores: Vec<Arc<MemoryStore>>,
     data_dir: PathBuf,
+    space_id: Option<SpaceId>,
+    lifetime_lock: Option<LegacySpaceLock>,
     /// Bumped (Release) after every facade write commits; recall
     /// captures it (Acquire) BEFORE fanning out and tags the cached
     /// entry with the pre-search value, so a write that lands during
@@ -158,6 +163,11 @@ impl std::fmt::Debug for DomainStore {
         f.debug_struct("DomainStore")
             .field("domains", &self.stores.len())
             .field("data_dir", &self.data_dir)
+            .field("space_id", &self.space_id)
+            .field(
+                "legacy_lifetime_lock",
+                &self.lifetime_lock.as_ref().map(LegacySpaceLock::path),
+            )
             .finish_non_exhaustive()
     }
 }
@@ -170,6 +180,27 @@ impl DomainStore {
         Self::open_inner(config, data_dir, domains, None)
     }
 
+    /// Open a store and bind every member database to one validated catalog
+    /// identity.  Compatibility callers may continue through [`Self::open`],
+    /// but daemon-owned spaces use this explicit identity boundary.
+    pub fn open_scoped(
+        config: &Config,
+        data_dir: &Path,
+        domains: usize,
+        space_id: SpaceId,
+    ) -> MemoryResult<Self> {
+        Self::open(config, data_dir, domains)?.bind_space_id(space_id)
+    }
+
+    /// Open the fixed personal-global compatibility space for a daemon-less
+    /// process. It retains one shared cross-process lifetime lock and can
+    /// never select a team or arbitrary catalog space.
+    pub fn open_legacy(config: &Config, data_dir: &Path, domains: usize) -> MemoryResult<Self> {
+        let space_id = read_or_create_legacy_space_id(data_dir)?;
+        let lock = LegacySpaceLock::acquire_shared(data_dir)?;
+        Self::open_scoped(config, data_dir, domains, space_id)?.with_legacy_lock(lock)
+    }
+
     /// As [`Self::open`], attaching `embedder` to every domain store.
     #[cfg(any(feature = "testing", feature = "embeddings"))]
     pub fn open_with_embedder(
@@ -179,6 +210,22 @@ impl DomainStore {
         embedder: Arc<dyn Embedder>,
     ) -> MemoryResult<Self> {
         Self::open_inner(config, data_dir, domains, Some(embedder))
+    }
+
+    /// As [`Self::open_legacy`], attaching an optional embedder while retaining
+    /// the same scoped identity and lifetime lock.
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
+    pub fn open_legacy_with_embedder(
+        config: &Config,
+        data_dir: &Path,
+        domains: usize,
+        embedder: Arc<dyn Embedder>,
+    ) -> MemoryResult<Self> {
+        let space_id = read_or_create_legacy_space_id(data_dir)?;
+        let lock = LegacySpaceLock::acquire_shared(data_dir)?;
+        Self::open_with_embedder(config, data_dir, domains, embedder)?
+            .bind_space_id(space_id)?
+            .with_legacy_lock(lock)
     }
 
     #[cfg_attr(
@@ -290,6 +337,8 @@ impl DomainStore {
         Self {
             stores,
             data_dir,
+            space_id: None,
+            lifetime_lock: None,
             write_version: AtomicU64::new(0),
             recall_cache: Mutex::new(LruCache::new(capacity)),
             recall_cache_ttl: RECALL_CACHE_TTL,
@@ -322,6 +371,13 @@ impl DomainStore {
         Self::open(config, data_dir, domains)
     }
 
+    /// Open the legacy compatibility root with its pinned layout and stable
+    /// shared lifetime lock.
+    pub fn open_existing_legacy(config: &Config, data_dir: &Path) -> MemoryResult<Self> {
+        let domains = Self::manifest_domains(data_dir)?;
+        Self::open_legacy(config, data_dir, domains)
+    }
+
     /// As [`Self::open_existing`], attaching `embedder` to every store.
     #[cfg(any(feature = "testing", feature = "embeddings"))]
     pub fn open_existing_with_embedder(
@@ -331,6 +387,17 @@ impl DomainStore {
     ) -> MemoryResult<Self> {
         let domains = Self::manifest_domains(data_dir)?;
         Self::open_with_embedder(config, data_dir, domains, embedder)
+    }
+
+    /// As [`Self::open_existing_legacy`], attaching an optional embedder.
+    #[cfg(any(feature = "testing", feature = "embeddings"))]
+    pub fn open_existing_legacy_with_embedder(
+        config: &Config,
+        data_dir: &Path,
+        embedder: Arc<dyn Embedder>,
+    ) -> MemoryResult<Self> {
+        let domains = Self::manifest_domains(data_dir)?;
+        Self::open_legacy_with_embedder(config, data_dir, domains, embedder)
     }
 
     /// Domain count pinned by the profile's manifest, `1` when absent.
@@ -356,6 +423,33 @@ impl DomainStore {
     pub fn from_single(store: Arc<MemoryStore>) -> Self {
         let data_dir = store.data_dir().to_path_buf();
         Self::assemble(vec![store], data_dir)
+    }
+
+    /// Attach a catalog identity to an already opened compatibility store.
+    /// This is used by optional-embedding constructors that share the existing
+    /// open path; every domain is checked before the handle is returned.
+    pub fn bind_space_id(mut self, space_id: SpaceId) -> MemoryResult<Self> {
+        for store in &self.stores {
+            store.bind_space_id(space_id)?;
+        }
+        self.space_id = Some(space_id);
+        Ok(self)
+    }
+
+    fn with_legacy_lock(mut self, lock: LegacySpaceLock) -> MemoryResult<Self> {
+        if self.lifetime_lock.is_some() {
+            return Err(MemoryError::InvalidInput(
+                "legacy lifetime lock already attached".to_owned(),
+            ));
+        }
+        self.lifetime_lock = Some(lock);
+        Ok(self)
+    }
+
+    /// Catalog space identity when opened through a scoped owner.
+    #[must_use]
+    pub const fn space_id(&self) -> Option<SpaceId> {
+        self.space_id
     }
 
     /// Number of domains.
@@ -673,8 +767,15 @@ impl DomainStore {
 
     /// Entity lookup by name, routed to the home domain (stubs in other
     /// domains never shadow the canonical row).
-    pub fn get_entity(&self, name: &str) -> MemoryResult<Option<Entity>> {
-        self.store_for(name).get_entity(name)
+    ///
+    /// Returns an [`EntityResolution`] rather than `Option<Entity>`
+    /// because a name can be carried by more than one entity — the live
+    /// profile store already carries `ProjectAlpha` as both a `concept`
+    /// and a `project`. Routing is unaffected: every entity sharing a
+    /// name hashes to the same domain, so one domain holds the whole
+    /// candidate set.
+    pub fn resolve_entity(&self, name: &str) -> MemoryResult<EntityResolution> {
+        self.store_for(name).resolve_entity(name)
     }
 
     /// Entity lookup by id: probe domains (ids are UUIDv7-unique).
@@ -813,6 +914,13 @@ impl DomainStore {
     /// Hard-delete an entity by name: the canonical row in its home
     /// domain plus any stubs (and their mirror edges, via cascade) in
     /// the others. Returns the number of observations cascaded.
+    ///
+    /// Fails closed with [`MemoryError::AmbiguousEntityName`] when the
+    /// name is carried by more than one entity in its home domain. The
+    /// stub sweep below now deletes stubs **by id** and visits every
+    /// candidate rather than only the first row SQLite returned, so a
+    /// domain holding two rows under one name no longer leaves a stub
+    /// behind or removes the wrong one.
     pub fn forget_entity(&self, name: &str) -> MemoryResult<usize> {
         let home = self.domain_for(name);
         let cascaded = self.stores[home].forget_entity(name)?;
@@ -820,15 +928,51 @@ impl DomainStore {
             if domain == home {
                 continue;
             }
-            match store.get_entity(name)? {
-                Some(entity) if entity.source == PARTITION_STUB_SOURCE => {
-                    let _ = store.forget_entity(name)?;
+            for candidate in store.resolve_entity(name)?.candidates() {
+                if candidate.source == PARTITION_STUB_SOURCE {
+                    let _ = store.forget_entity_by_id(&candidate.id)?;
                 }
-                _ => {}
             }
         }
         self.bump_write_version();
         Ok(cascaded)
+    }
+
+    /// Hard-delete the entity with this immutable id, plus its stubs in
+    /// the other domains.
+    ///
+    /// The unambiguous form of [`Self::forget_entity`], and the way a
+    /// caller acts after being handed a candidate set. The stub sweep
+    /// still keys on the canonical row's *name*, because that is what a
+    /// stub carries; the row to delete is chosen by id.
+    pub fn forget_entity_by_id(&self, entity_id: &str) -> MemoryResult<usize> {
+        let Some((home, entity)) = self.find_entity_by_id(entity_id)? else {
+            return Err(MemoryError::EntityNotFound(entity_id.to_owned()));
+        };
+        let cascaded = self.stores[home].forget_entity_by_id(entity_id)?;
+        for (domain, store) in self.stores.iter().enumerate() {
+            if domain == home {
+                continue;
+            }
+            for candidate in store.resolve_entity(&entity.name)?.candidates() {
+                if candidate.source == PARTITION_STUB_SOURCE {
+                    let _ = store.forget_entity_by_id(&candidate.id)?;
+                }
+            }
+        }
+        self.bump_write_version();
+        Ok(cascaded)
+    }
+
+    /// Agent-safe entity forget: retire the canonical entity's observations
+    /// through the audited lifecycle while retaining the entity, relations,
+    /// stubs, and immutable history.
+    pub fn retire_entity_observations(&self, name: &str) -> MemoryResult<usize> {
+        let retired = self.store_for(name).retire_entity_observations(name)?;
+        if retired != 0 {
+            self.bump_write_version();
+        }
+        Ok(retired)
     }
 
     /// Promote (or demote) an observation between memory tiers, in
@@ -1173,7 +1317,7 @@ mod tests {
         // Every entity is readable through the facade.
         for i in 0..40 {
             let name = format!("entity-{i}");
-            let entity = store.get_entity(&name).unwrap().unwrap();
+            let entity = store.resolve_entity(&name).unwrap().unique().unwrap();
             assert_eq!(entity.name, name);
             let observations = store.get_entity_observations(&entity.id).unwrap();
             assert_eq!(observations.len(), 1);
@@ -1249,13 +1393,13 @@ mod tests {
             .unwrap();
 
         // From the source side.
-        let a_entity = store.get_entity(&a).unwrap().unwrap();
+        let a_entity = store.resolve_entity(&a).unwrap().unique().unwrap();
         let a_rels = store.get_entity_relations(&a_entity.id).unwrap();
         assert_eq!(a_rels.len(), 1);
         assert_eq!(a_rels[0].relation_type, "maintains");
 
         // From the target side: the mirror edge in b's domain.
-        let b_entity = store.get_entity(&b).unwrap().unwrap();
+        let b_entity = store.resolve_entity(&b).unwrap().unique().unwrap();
         assert_ne!(
             b_entity.source, PARTITION_STUB_SOURCE,
             "canonical target must not be a stub"
@@ -1313,13 +1457,13 @@ mod tests {
             .unwrap();
 
         store.forget_entity(&a).unwrap();
-        assert!(store.get_entity(&a).unwrap().is_none());
+        assert!(store.resolve_entity(&a).unwrap().unique().is_none());
         // The stub of `a` in b's domain is gone too: b has no incident
         // edges left.
-        let b_entity = store.get_entity(&b).unwrap().unwrap();
+        let b_entity = store.resolve_entity(&b).unwrap().unique().unwrap();
         assert!(store.get_entity_relations(&b_entity.id).unwrap().is_empty());
         for s in store.stores() {
-            if let Some(entity) = s.get_entity(&a).unwrap() {
+            if let Some(entity) = s.resolve_entity(&a).unwrap().unique() {
                 panic!("stub of {a} survived in domain holding {}", entity.id);
             }
         }

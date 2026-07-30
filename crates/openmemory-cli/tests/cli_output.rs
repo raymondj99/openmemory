@@ -281,14 +281,33 @@ fn daemon_start_serves_authenticated_health() {
     let mut guard = ChildGuard(child);
     let (line_tx, line_rx) = mpsc::channel();
     std::thread::spawn(move || {
-        let _ = line_tx.send(lines.next().transpose());
+        let mut diagnostics = Vec::new();
+        for line in &mut lines {
+            match line {
+                Ok(line) if line.starts_with("openmemory daemon: admin API listening on ") => {
+                    let _ = line_tx.send(Ok(line));
+                    return;
+                }
+                Ok(line) => diagnostics.push(line),
+                Err(error) => {
+                    let _ = line_tx.send(Err(format!(
+                        "failed reading daemon stderr: {error}; prior output: {}",
+                        diagnostics.join("\n")
+                    )));
+                    return;
+                }
+            }
+        }
+        let _ = line_tx.send(Err(format!(
+            "daemon exited before reporting its listener; stderr: {}",
+            diagnostics.join("\n")
+        )));
     });
 
     let listen_line = line_rx
         .recv_timeout(Duration::from_secs(10))
         .expect("daemon should write listen line within 10 seconds")
-        .expect("daemon listen line should be readable")
-        .expect("daemon should write listen line");
+        .unwrap_or_else(|error| panic!("{error}"));
     let url = listen_line
         .strip_prefix("openmemory daemon: admin API listening on ")
         .unwrap_or_else(|| panic!("unexpected daemon listen line: {listen_line}"))

@@ -24,8 +24,32 @@ pub enum MemoryError {
     #[error("entity not found: {0}")]
     EntityNotFound(String),
 
+    /// A name matched more than one entity, on a path that must act on
+    /// exactly one of them.
+    ///
+    /// Destructive operations fail closed here rather than acting on
+    /// whichever row SQLite reached first: deleting or retiring an
+    /// arbitrary one of two entities that happen to share a label is
+    /// unrecoverable, and it is the failure mode this error exists to
+    /// prevent. `candidates` carries `id (entity_type)` for each match so
+    /// the caller can re-issue the call against a specific id.
+    #[error("entity name {name:?} is ambiguous: {candidates:?}")]
+    AmbiguousEntityName {
+        name: String,
+        candidates: Vec<String>,
+    },
+
     #[error("observation not found: {0}")]
     ObservationNotFound(String),
+
+    #[error("changeset precondition is stale")]
+    ChangeSetStale,
+
+    #[error("changeset idempotency key is already bound to a different request")]
+    ChangeSetIdempotencyConflict,
+
+    #[error("derived search index requires durable repair")]
+    IndexRepairRequired,
 
     #[error("lock poisoned: {0}")]
     Lock(String),

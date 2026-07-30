@@ -29,6 +29,10 @@ pub struct ConsolidateInput {
     /// decay-prune. Default 86400 (1 day).
     #[serde(default)]
     pub min_age_secs: Option<i64>,
+    /// Memory space to consolidate. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const CONSOLIDATE_DESC: &str =
@@ -60,8 +64,9 @@ impl Tool for OpenMemoryConsolidateTool {
         let req: ConsolidateInput = serde_json::from_value(args)
             .map_err(|e| JsonRpcError::invalid_params(format!("invalid arguments: {e}")))?;
 
+        let memory = server.store_for(req.space.as_deref())?;
         let mut cfg = ConsolidateConfig {
-            decay_rate: server.memory().decay_rate(),
+            decay_rate: memory.decay_rate(),
             ..ConsolidateConfig::default()
         };
         if let Some(t) = req.dedup_threshold {
@@ -74,8 +79,7 @@ impl Tool for OpenMemoryConsolidateTool {
             cfg.min_age_secs = a.max(0);
         }
 
-        let report = server
-            .memory()
+        let report = memory
             .consolidate(&cfg)
             .map_err(|e| JsonRpcError::internal_error(e.to_string()))?;
 

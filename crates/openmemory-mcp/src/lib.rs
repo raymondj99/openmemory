@@ -43,6 +43,7 @@ use serde::{Deserialize, Serialize};
 
 use openmemory_core::config::Config;
 use openmemory_engine::partition::DomainStore;
+use openmemory_engine::space::SpaceManager;
 use openmemory_engine::{ContextEngine, EngineOptions};
 use openmemory_graph::MemoryStore;
 
@@ -81,6 +82,10 @@ pub struct OpenMemoryMcpServer {
     /// Write-behind context engine, present when `[engine] enabled` is
     /// set in the config. `openmemory_remember` routes through it.
     pub(crate) engine: Option<Arc<ContextEngine>>,
+    /// Managed memory spaces beside the personal-global default. Absent
+    /// on transports that never attach one (space-addressed requests
+    /// then fail with a typed error instead of touching the default).
+    pub(crate) spaces: Option<Arc<SpaceManager>>,
 }
 
 impl Clone for OpenMemoryMcpServer {
@@ -90,6 +95,7 @@ impl Clone for OpenMemoryMcpServer {
             config: self.config.clone(),
             memory: self.memory.clone(),
             engine: self.engine.clone(),
+            spaces: self.spaces.clone(),
         }
     }
 }
@@ -124,6 +130,7 @@ impl OpenMemoryMcpServer {
             config,
             memory: Arc::new(DomainStore::from_single(memory)),
             engine: None,
+            spaces: None,
         }
     }
 
@@ -167,15 +174,53 @@ impl OpenMemoryMcpServer {
             config,
             memory,
             engine,
+            spaces: None,
         })
     }
 
     /// Open the configured profile (partitioned per `[engine] domains`)
-    /// and wrap it. Honours `[engine] enabled`.
+    /// and wrap it. Honours `[engine] enabled`. Managed memory spaces
+    /// are served from `<data_dir>/spaces/`.
     pub fn open(config: Config, profile: &str) -> anyhow::Result<Self> {
         let data_dir = Config::data_dir(profile)?;
-        let memory = DomainStore::open(&config, &data_dir, config.engine.domains)?;
-        Self::from_domain_store(config, Arc::new(memory))
+        let memory = DomainStore::open_legacy(&config, &data_dir, config.engine.domains)?;
+        let spaces = SpaceManager::new(config.clone(), &data_dir, config.engine.domains);
+        Ok(Self::from_domain_store(config, Arc::new(memory))?.with_space_manager(spaces))
+    }
+
+    /// Attach a managed-space manager. Space-addressed tool calls resolve
+    /// through it; without one they fail with a typed error.
+    #[must_use]
+    pub fn with_space_manager(mut self, spaces: SpaceManager) -> Self {
+        self.spaces = Some(Arc::new(spaces));
+        self
+    }
+
+    /// Borrow the managed-space manager, if attached.
+    pub fn space_manager(&self) -> Option<&Arc<SpaceManager>> {
+        self.spaces.as_ref()
+    }
+
+    /// Resolve the store a request addresses. `None` (or the reserved
+    /// name `default`) is the personal-global default store; any other
+    /// name resolves through the managed-space manager.
+    pub(crate) fn store_for(
+        &self,
+        space: Option<&str>,
+    ) -> Result<Arc<DomainStore>, protocol::JsonRpcError> {
+        match space {
+            None | Some("" | "default") => Ok(Arc::clone(&self.memory)),
+            Some(name) => {
+                let manager = self.spaces.as_ref().ok_or_else(|| {
+                    protocol::JsonRpcError::invalid_params(
+                        "memory spaces are not available on this server instance",
+                    )
+                })?;
+                manager
+                    .store(name)
+                    .map_err(|e| protocol::JsonRpcError::invalid_params(e.to_string()))
+            }
+        }
     }
 
     /// Borrow the active config.

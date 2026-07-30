@@ -40,6 +40,26 @@ impl<'a> Migrator<'a> {
     }
 
     pub fn apply(&self, target: u32, steps: &[(u32, &str)]) -> OmResult<()> {
+        self.apply_inner(target, steps, false)
+    }
+
+    /// Apply ordered migrations while advancing SQLite's `user_version` in
+    /// the same transaction as the repository metadata row.
+    ///
+    /// Product/control-plane databases use both version markers so external
+    /// SQLite tooling can inspect their schema without understanding the
+    /// repository metadata table. A disagreement is corruption and is never
+    /// silently repaired.
+    pub fn apply_with_user_version(&self, target: u32, steps: &[(u32, &str)]) -> OmResult<()> {
+        self.apply_inner(target, steps, true)
+    }
+
+    fn apply_inner(
+        &self,
+        target: u32,
+        steps: &[(u32, &str)],
+        update_user_version: bool,
+    ) -> OmResult<()> {
         let create_sql = format!(
             "CREATE TABLE IF NOT EXISTS {} (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
             self.table
@@ -47,18 +67,52 @@ impl<'a> Migrator<'a> {
         self.conn.execute_batch(&create_sql)?;
 
         let current = self.current()?;
+        if update_user_version {
+            let user_version: u32 = self
+                .conn
+                .pragma_query_value(None, "user_version", |row| row.get(0))?;
+            if user_version != 0 && user_version != current {
+                return Err(OmError::Migration {
+                    version: current,
+                    reason: format!(
+                        "metadata version {current} disagrees with user_version {user_version}"
+                    ),
+                });
+            }
+        }
         if current > target {
             return Err(OmError::SchemaTooNew {
                 current,
                 max: target,
             });
         }
+        if update_user_version {
+            let pending = steps
+                .iter()
+                .filter_map(|(version, _)| {
+                    (*version > current && *version <= target).then_some(*version)
+                })
+                .collect::<Vec<_>>();
+            let expected = if current == target {
+                Vec::new()
+            } else {
+                ((current + 1)..=target).collect::<Vec<_>>()
+            };
+            if pending != expected {
+                return Err(OmError::Migration {
+                    version: current,
+                    reason: format!(
+                        "migration steps must cover each version in order; expected {expected:?}, found {pending:?}"
+                    ),
+                });
+            }
+        }
 
         for &(version, sql) in steps {
             if version <= current || version > target {
                 continue;
             }
-            self.conn.execute_batch("BEGIN")?;
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
             let result: OmResult<()> = (|| {
                 self.conn
                     .execute_batch(sql)
@@ -71,6 +125,10 @@ impl<'a> Migrator<'a> {
                     self.table
                 );
                 self.conn.execute(&upsert, [version.to_string()])?;
+                if update_user_version {
+                    self.conn
+                        .execute_batch(&format!("PRAGMA user_version = {version}"))?;
+                }
                 Ok(())
             })();
             match result {
@@ -85,11 +143,26 @@ impl<'a> Migrator<'a> {
         }
 
         if self.current()? < target {
-            let upsert = format!(
-                "INSERT OR REPLACE INTO {} (key, value) VALUES ('schema_version', ?1)",
-                self.table
-            );
-            self.conn.execute(&upsert, [target.to_string()])?;
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
+            let result: OmResult<()> = (|| {
+                let upsert = format!(
+                    "INSERT OR REPLACE INTO {} (key, value) VALUES ('schema_version', ?1)",
+                    self.table
+                );
+                self.conn.execute(&upsert, [target.to_string()])?;
+                if update_user_version {
+                    self.conn
+                        .execute_batch(&format!("PRAGMA user_version = {target}"))?;
+                }
+                Ok(())
+            })();
+            match result {
+                Ok(()) => self.conn.execute_batch("COMMIT")?,
+                Err(error) => {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    return Err(error);
+                }
+            }
         }
 
         Ok(())
@@ -187,5 +260,61 @@ mod tests {
         let m = Migrator::new(&conn, "meta");
         m.apply(7, &[]).unwrap();
         assert_eq!(m.current().unwrap(), 7);
+    }
+
+    #[test]
+    fn apply_with_user_version_advances_both_markers_atomically() {
+        let conn = open();
+        let m = Migrator::new(&conn, "meta");
+        m.apply_with_user_version(
+            2,
+            &[
+                (1, "CREATE TABLE a (id INTEGER PRIMARY KEY)"),
+                (2, "CREATE TABLE b (id INTEGER PRIMARY KEY)"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(m.current().unwrap(), 2);
+        assert_eq!(
+            conn.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn apply_with_user_version_rejects_disagreement() {
+        let conn = open();
+        conn.execute_batch(
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO meta (key, value) VALUES ('schema_version', '1');
+             PRAGMA user_version = 2;",
+        )
+        .unwrap();
+        let error = Migrator::new(&conn, "meta")
+            .apply_with_user_version(2, &[])
+            .unwrap_err();
+        assert!(matches!(error, OmError::Migration { .. }));
+    }
+
+    #[test]
+    fn apply_with_user_version_rejects_missing_or_unordered_steps() {
+        for steps in [
+            vec![(2, "CREATE TABLE b(id INTEGER PRIMARY KEY)")],
+            vec![
+                (2, "CREATE TABLE b(id INTEGER PRIMARY KEY)"),
+                (1, "CREATE TABLE a(id INTEGER PRIMARY KEY)"),
+            ],
+        ] {
+            let conn = open();
+            let migrator = Migrator::new(&conn, "meta");
+            assert!(migrator.apply_with_user_version(2, &steps).is_err());
+            assert_eq!(migrator.current().unwrap(), 0);
+            assert_eq!(
+                conn.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+                    .unwrap(),
+                0
+            );
+        }
     }
 }

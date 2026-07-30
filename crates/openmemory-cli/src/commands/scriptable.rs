@@ -37,7 +37,7 @@ fn open(profile: &str, attach_embedder: bool) -> Result<DomainStore> {
     if attach_embedder {
         let models_dir = Config::models_dir().context("resolving models directory")?;
         if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
-            return DomainStore::open_existing_with_embedder(
+            return DomainStore::open_existing_legacy_with_embedder(
                 &config,
                 &data_dir,
                 Arc::new(embedder),
@@ -46,7 +46,7 @@ fn open(profile: &str, attach_embedder: bool) -> Result<DomainStore> {
         }
     }
 
-    DomainStore::open_existing(&config, &data_dir)
+    DomainStore::open_existing_legacy(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))
 }
 
@@ -267,20 +267,55 @@ pub fn list_entities(profile: &str, args: ListEntitiesArgs) -> Result<()> {
 // ------------------------- forget-entity -------------------------
 
 pub fn forget_entity(profile: &str, args: ForgetEntityArgs) -> Result<()> {
+    let target = args
+        .id
+        .as_deref()
+        .or(args.entity.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("give an entity name or --id"))?;
     if !args.yes {
         anyhow::bail!(
-            "refusing to hard-delete {:?}: re-run with --yes to confirm. \
-             this removes the entity and every observation and relation attached to it.",
-            args.entity
+            "refusing to hard-delete {target:?}: re-run with --yes to confirm. \
+             this removes the entity and every observation and relation attached to it."
         );
     }
     let store = open(profile, false)?;
-    let removed = store
-        .forget_entity(&args.entity)
-        .context("forget_entity failed")?;
+
+    // A name can be carried by more than one entity — the live profile
+    // store already carries `ProjectAlpha` as both a concept and a
+    // project. Hard-deleting the wrong one is unrecoverable, so the
+    // store refuses; render the candidates and the exact command that
+    // resolves it rather than leaving the user at a dead end.
+    let removed = match args.id.as_deref() {
+        Some(id) => store.forget_entity_by_id(id),
+        None => store.forget_entity(target),
+    };
+    let removed = match removed {
+        Ok(removed) => removed,
+        Err(openmemory_graph::MemoryError::AmbiguousEntityName { name, candidates }) => {
+            let mut stream = stdout_stream();
+            let glyph = paint(style::WARN, Glyph::Fail.as_str());
+            let _ = writeln!(
+                &mut stream,
+                "  {glyph} {} entities are named {}; refusing to guess which to delete",
+                candidates.len(),
+                paint(style::SECTION, &name),
+            );
+            for candidate in &candidates {
+                let _ = writeln!(&mut stream, "      {}", paint(style::MUTED, candidate));
+            }
+            let _ = writeln!(
+                &mut stream,
+                "    re-run with {} to name one exactly",
+                paint(style::SECTION, "--id <ID>"),
+            );
+            anyhow::bail!("entity name {name:?} is ambiguous");
+        }
+        Err(error) => return Err(error).context("forget_entity failed"),
+    };
+
     let mut stream = stdout_stream();
     let glyph = paint(style::SUCCESS, Glyph::Ok.as_str());
-    let entity = paint(style::SECTION, &args.entity);
+    let entity = paint(style::SECTION, target);
     let suffix = paint(style::MUTED, &format!("{removed} observation(s) cascaded"));
     let _ = writeln!(&mut stream, "  {glyph} removed {entity}  {suffix}");
     Ok(())
@@ -353,12 +388,75 @@ mod tests {
             let err = forget_entity(
                 "default",
                 ForgetEntityArgs {
-                    entity: "Missing".into(),
+                    entity: Some("Missing".into()),
+                    id: None,
                     yes: false,
                 },
             )
             .unwrap_err();
             assert!(err.to_string().contains("--yes"));
+        });
+    }
+
+    /// The live profile store carries `ProjectAlpha` as both a `concept`
+    /// and a `project`. Before this change, `forget-entity ProjectAlpha`
+    /// would have hard-deleted whichever row SQLite returned first.
+    #[test]
+    fn forget_entity_refuses_an_ambiguous_name_and_offers_the_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        with_home(dir.path(), || {
+            init("default");
+            for entity_type in ["concept", "project"] {
+                remember(
+                    "default",
+                    RememberArgs {
+                        entity: "ProjectAlpha".into(),
+                        entity_type: entity_type.into(),
+                        observations: vec![format!("the {entity_type} one")],
+                        relation: vec![],
+                        source: None,
+                        json: false,
+                    },
+                )
+                .unwrap();
+            }
+
+            let err = forget_entity(
+                "default",
+                ForgetEntityArgs {
+                    entity: Some("ProjectAlpha".into()),
+                    id: None,
+                    yes: true,
+                },
+            )
+            .unwrap_err();
+            assert!(err.to_string().contains("ambiguous"), "got {err}");
+
+            // Both entities survive, and naming one by id works.
+            let store = open("default", false).unwrap();
+            let candidates = store.resolve_entity("ProjectAlpha").unwrap();
+            assert_eq!(candidates.candidate_count(), 2);
+            let chosen = candidates.candidates()[0].id.clone();
+            drop(store);
+
+            forget_entity(
+                "default",
+                ForgetEntityArgs {
+                    entity: None,
+                    id: Some(chosen),
+                    yes: true,
+                },
+            )
+            .unwrap();
+
+            let store = open("default", false).unwrap();
+            assert_eq!(
+                store
+                    .resolve_entity("ProjectAlpha")
+                    .unwrap()
+                    .candidate_count(),
+                1
+            );
         });
     }
 

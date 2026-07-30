@@ -1,8 +1,7 @@
 # Crates reference
 
-This document is the per-crate reference for the eleven workspace
-members (nine platform/runtime crates plus `openmemory-bench` and
-`openmemory-eval`). Each section describes the crate's purpose,
+This document is the per-crate reference for the thirteen workspace
+members. Each section describes the crate's purpose,
 feature flags, public API surface, and source-file map.
 
 The Rust crate API is **not** part of the public-stability contract;
@@ -33,8 +32,13 @@ storage handles, or daemon side effects.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/openmemory-admin/src/lib.rs): all DTOs,
-  error codes, pagination helpers, and contract tests.
+- [`src/lib.rs`](../crates/openmemory-admin/src/lib.rs): compatibility
+  re-exports.
+- [`src/existing.rs`](../crates/openmemory-admin/src/existing.rs):
+  existing v1alpha1 DTOs, error codes, pagination helpers, and
+  contract tests.
+- `src/spaces.rs`, `src/changesets.rs`, `src/identity.rs`, and
+  `src/merges.rs`: focused ownership boundaries for additive DTOs.
 
 ## `openmemory-daemon`
 
@@ -57,14 +61,23 @@ and graceful shutdown.
 
 **Source files.**
 
-- [`src/lib.rs`](../crates/openmemory-daemon/src/lib.rs): axum
-  router, auth, runtime files, health/doctor/logs, memory routes,
-  jobs/events, shutdown.
+- [`src/lib.rs`](../crates/openmemory-daemon/src/lib.rs): daemon
+  composition, existing handlers, and server lifecycle.
+- `src/auth.rs`, `src/health.rs`, `src/runtime_files.rs`: focused
+  authentication, diagnostics, and discovery-file helpers.
+- `src/routes/`, `src/services/`, `src/space_registry.rs`: route,
+  policy-service, and future bounded-registry ownership.
 - [`src/state.rs`](../crates/openmemory-daemon/src/state.rs):
   redacted log ring and durable job/event registry.
-- [`src/product_store.rs`](../crates/openmemory-daemon/src/product_store.rs):
-  SQLite product metadata for daemon jobs/events with explicit schema
-  version checks.
+- [`src/product_store/mod.rs`](../crates/openmemory-daemon/src/product_store/mod.rs):
+  SQLite product metadata and ordered v1→v4 migrations for daemon jobs/events,
+  catalog spaces, installation principal/teams/grants, projects/workspaces,
+  context capabilities, and maintenance records.
+- [`src/space_manifest.rs`](../crates/openmemory-daemon/src/space_manifest.rs),
+  [`src/space_registry.rs`](../crates/openmemory-daemon/src/space_registry.rs),
+  and `src/policy.rs`: private Phase 2 control-plane boundaries for canonical
+  manifests, bounded lazy registry/locks, and immutable normalized selection
+  policy. Public context and admin routes intentionally wait for later phases.
 - [`src/integrations.rs`](../crates/openmemory-daemon/src/integrations.rs):
   Codex and Claude Code preview/install/verify helpers.
 - [`src/backup.rs`](../crates/openmemory-daemon/src/backup.rs):
@@ -84,7 +97,8 @@ crate.
 
 - Description: "openmemory: shared foundations (clock, config,
   error, schema migrations)"
-- Dependencies: `thiserror`, `rusqlite`, `serde`, `toml`, `rand`.
+- Dependencies: `thiserror`, `rusqlite`, `serde`, `toml`, `rand`,
+  `uuid`, `blake3`.
 - Features: `testing` (gates the test doubles).
 
 **Source files.**
@@ -100,6 +114,10 @@ crate.
 - [`src/migrations.rs`](../crates/openmemory-core/src/migrations.rs): `Migrator`, the `Migration` trait.
 - [`src/retry.rs`](../crates/openmemory-core/src/retry.rs):
   `with_retry`, `RetryConfig`.
+- [`src/space.rs`](../crates/openmemory-core/src/space.rs):
+  validated space/project/change/revision identifiers, lossless
+  workspace path keys, authority snapshots, roles/grants, explicit
+  selection provenance, and authorized read/write context.
 - [`src/testing.rs`](../crates/openmemory-core/src/testing.rs):
   `Embedder` trait, `FakeEmbedder` (gated on `testing`).
 
@@ -126,6 +144,41 @@ crate.
   `testing` feature on this crate; re-exported by
   `openmemory-embed`.
 
+## `openmemory-merge`
+
+**Purpose.** Pure, deterministic identity evidence, receipt, and semantic
+merge planning. The crate performs no filesystem, database, network, model, or
+authorization I/O. It consumes validated immutable snapshot streams and
+current receipts, then emits one canonical action stream through an explicit
+`begin`/`emit`/`finish`/`abort` sink protocol.
+
+**Cargo.toml summary.**
+
+- Description: "openmemory: pure identity evidence and deterministic merge
+  planning".
+- Dependencies: `openmemory-core`, `blake3`, `serde`, `thiserror`.
+- Features: none.
+- Bench: `benches/planning.rs`, covering 10k-entity + 10k-relation and
+  100k-entity + 100k-relation plans.
+
+**Source files.**
+
+- `src/model.rs`, `src/canonical.rs`, and `src/hash.rs`: bounded canonical
+  records, streaming snapshot seam, domain-separated encodings, and typed
+  digests.
+- `src/evidence.rs`, `src/discovery.rs`, and `src/receipt.rs`: conservative
+  identity proof, bounded target-scoped candidates, and current human/system
+  decision receipts.
+- `src/three_way.rs`: exact base/target/source field and lifecycle conflict
+  rules.
+- `src/planner.rs`: accounting, one-to-one dispositions, relation rewiring,
+  semantic deduplication, predicted-result hashing, sink lifecycle, and
+  independent plan verification.
+- `tests/common/mod.rs`: bounded test-only materialized reference oracle.
+- `tests/properties.rs`, `tests/adversarial.rs`, and
+  `tests/permanent_fixtures.rs`: generated equivalence, failure injection, and
+  sanitized pinned public-repository fixtures.
+
 ## `openmemory-index`
 
 **Purpose.** The hybrid (vector + keyword) search engine. Text in
@@ -146,8 +199,8 @@ compiled at a time.
 - Dependencies: `openmemory-core`, `thiserror`, `serde`,
   `serde_json`, `rusqlite` (bundled), `lru`, `usearch` (optional),
   `tracing`.
-- Benches: `benches/vector_search.rs`,
-  `benches/hybrid_search.rs` (criterion).
+- Bench coverage lives in the workspace-level
+  `openmemory-bench/benches/openmemory.rs` target.
 
 **Source files.**
 
@@ -291,6 +344,11 @@ lockstep by `MemoryStore`. This is the heart of the project.
   `new_id()`.
 - [`src/schema.rs`](../crates/openmemory-graph/src/schema.rs):
   `MEMORY_SCHEMA_VERSION`, the migration list.
+- [`src/audit.rs`](../crates/openmemory-graph/src/audit.rs): bounded
+  changeset drafts, proposal/approval/rejection transitions, immutable
+  observation revisions, lazy baselines, deterministic diffs, and index
+  outbox repair. `revision.rs`, `diff.rs`, and `outbox.rs` keep those seams
+  separately addressable.
 - [`src/store.rs`](../crates/openmemory-graph/src/store.rs):
   `MemoryStore`, `MemoryStatus`, `EntityListRow`, `MEMORY_DB_FILE`.
 - [`src/pool.rs`](../crates/openmemory-graph/src/pool.rs):
@@ -322,6 +380,12 @@ lockstep by `MemoryStore`. This is the heart of the project.
   `with_concepts`, `with_source_files`.
 - `pub struct RelationInput { relation_type, target_name, target_type, weight, source }`.
 - `pub struct RememberOutcome { entity_id, entity_existed, observation_ids, relation_ids, normalized }`.
+- `pub struct ChangeSetDraft` and `pub enum ChangeOperation` provide the
+  audited immediate/proposal write seam. `MemoryStore::submit_changeset`,
+  `approve_changeset`, `reject_changeset`, `backfill_audit`,
+  `diff_observation_revisions`, and `repair_index` expose typed receipts and
+  bounded repair state. Proposals create no canonical or index rows until
+  approval; stale state versions fail closed.
 - `pub enum NormalizeMatch { AutoMerge { entity_id, score }, Flag { entity_id, score } }`.
 - `pub struct RecallFilters` with optional `entity_type`,
   `valid_at`, `source`, `min_confidence`, `entity_names`, `mode`,
@@ -393,7 +457,9 @@ mirror the graph crate's flags.
 
 **Source map.** `lib.rs` (bus narrative + re-exports), `engine.rs`
 (hot path), `journal.rs` (durability), `partition.rs` (domains +
-read path), `migrate.rs`, `adapter.rs`. Examples: `stress`
+read path), `migrate.rs`, `adapter.rs`; private `space/` and `merge/`
+modules own the planned production boundaries without changing behavior.
+Examples: `stress`
 (throughput benchmark, single vs partitioned) and `readpath` (the
 recall-path validation harness, kept as the reader-pool
 re-evaluation tool).
@@ -503,10 +569,11 @@ The full per-subcommand flag reference lives in [cli.md](cli.md):
 
 ## `openmemory-watch`
 
-**Purpose.** Filesystem watcher with incremental re-indexing. Walks
-the tree once on startup (BLAKE3-deduped against the existing
-metadata store), then tails `notify-debouncer-full` events to
-re-index only what changed.
+**Purpose.** Filesystem watcher with incremental re-indexing. Registers the
+native recursive backend, walks the tree once (BLAKE3-deduped against the
+existing metadata store), then processes queued and live
+`notify-debouncer-full` events to re-index only what changed. macOS is
+platform-gated to kqueue; Linux uses inotify.
 
 **Cargo.toml summary.**
 
@@ -577,14 +644,16 @@ the hot paths. Not published.
 
 **Cargo.toml summary.**
 
-- Description: "openmemory: criterion benchmarks (recall, consolidate, vector)".
+- Description: "openmemory: performance benchmarks".
 - Benches: `benches/openmemory.rs`. CodSpeed-instrumented (the
   CodSpeed badge in the top-level README reports the latest run).
-- Dependencies: `openmemory-core`, `openmemory-graph`,
-  `openmemory-index`, `criterion`, `tempfile`.
+- Dependencies: `openmemory-core`, `openmemory-daemon`,
+  `openmemory-graph`, `openmemory-index`, `axum`, `criterion`,
+  `serde_json`, `tempfile`, `tokio`, and `tower`.
 
-**What it measures.** `recall::keyword`, `recall::hybrid`,
-`recall_spreading::disabled`, `consolidate_*`, `flat_vector_search`.
+**What it measures.** Flat/HNSW vector search, hybrid search,
+`recall::keyword`, `recall::hybrid`, `recall_spreading::disabled`,
+`consolidate_*`, and `daemon_admin_api`.
 The v0.3 recall hot-path reshape (single bulk `WHERE id IN (...)`,
 14-column projection, statement cache) shows up as a 2.6x–3.8x
 speedup on the recall benches versus pre-3e721e4 `main`.

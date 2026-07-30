@@ -58,7 +58,12 @@
 pub mod adapter;
 pub mod engine;
 pub mod journal;
+mod legacy;
 pub mod migrate;
 pub mod partition;
+pub mod portability;
+
+mod merge;
+pub mod space;
 
 pub use engine::{ContextEngine, EngineOptions, EnginePause, EngineStats, Ticket};

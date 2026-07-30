@@ -25,9 +25,9 @@
 use std::collections::{HashMap, HashSet};
 
 use openmemory_index::SearchMode;
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
-use crate::error::MemoryResult;
+use crate::error::{MemoryError, MemoryResult};
 use crate::store::{row_to_recall_observation, MemoryStore};
 use crate::types::{EntityType, MemoryTier, Observation};
 
@@ -109,6 +109,19 @@ impl MemoryStore {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
+        let repair_required = self.with_reader(|conn| {
+            let value: Option<i64> = conn
+                .query_row(
+                    "SELECT index_repair_required FROM domain_state WHERE id = 1",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .optional()?;
+            Ok(value.unwrap_or(0) != 0)
+        })?;
+        if repair_required {
+            return Err(MemoryError::IndexRepairRequired);
+        }
         let top_k = top_k.max(1);
 
         let mode = filters.mode.unwrap_or_default();
@@ -145,7 +158,10 @@ impl MemoryStore {
         };
 
         let valid_at = filters.valid_at.unwrap_or_else(|| self.clock().now_secs());
-        let lambda = self.decay_rate();
+        // Ranking lambda, not the retention one. Zero by default: the
+        // post-fusion recency prior measured net-negative at every
+        // non-zero value, including on recency-sensitive queries.
+        let lambda = self.recall_decay_rate();
         let entity_name_filter = normalize_entity_name_filter(filters);
 
         // Extract the (obs_id, raw_score) pairs from the engine response so
@@ -564,9 +580,62 @@ mod tests {
     }
 
     #[test]
-    fn fresh_observation_outranks_old_on_equal_match() {
+    fn ranking_does_not_prefer_the_fresher_row_by_default() {
+        // This asserted the opposite until a lambda sweep measured what
+        // the preference costs. A post-fusion recency multiplier ranks by
+        // corpus-wide age, not by age *within* the thing being asked
+        // about, and on a 1192-query set it was net-negative at every
+        // non-zero lambda — commit-lookup MRR fell from 0.83 to 0.02 at
+        // the previously shipped 0.01. So `memory.recall_decay_rate`
+        // now defaults to zero and two equally-matching rows of
+        // different ages must tie on the decay term.
         let (store, clock) = open_with_clock();
+        write_two_ages(&store, &clock);
 
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+
+        let fresh = r.iter().find(|x| x.observation.source == "fresh");
+        let old = r.iter().find(|x| x.observation.source == "old");
+        let (Some(fresh), Some(old)) = (fresh, old) else {
+            panic!("both observations should survive when age does not penalise one");
+        };
+        assert!(
+            (f64::from(fresh.score) - f64::from(old.score)).abs() < 1e-6,
+            "a 30-day age gap still moved the score: fresh {} vs old {}",
+            fresh.score,
+            old.score
+        );
+    }
+
+    #[test]
+    fn the_recency_prior_still_works_when_asked_for() {
+        // The mechanism is off, not gone. It has to keep working, both
+        // so the sweep that set it to zero stays re-runnable and so a
+        // future within-subject recency design has something to measure
+        // against.
+        let (store, clock) = open_with_clock();
+        write_two_ages(&store, &clock);
+        let store = store.with_recall_decay_rate(0.01);
+
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        let r = store.recall("alpha", 5, &filters).unwrap();
+
+        let fresh_idx = r.iter().position(|x| x.observation.source == "fresh");
+        let old_idx = r.iter().position(|x| x.observation.source == "old");
+        assert!(fresh_idx.is_some(), "fresh result should be present");
+        match (fresh_idx, old_idx) {
+            // After 30 days at lambda 0.01 the older row's multiplier is
+            // exp(-0.3) ~ 0.74, so on equal raw scores the fresh one wins.
+            (Some(f), Some(o)) => assert!(f < o, "fresh should rank ahead of old"),
+            _ => {} // the older row may fall below RECALL_MIN_SCORE — fine
+        }
+    }
+
+    /// Two identically-matching observations 30 days apart.
+    fn write_two_ages(store: &MemoryStore, clock: &Arc<FixedClock>) {
         clock.set(1_000_000);
         store
             .remember(
@@ -588,20 +657,6 @@ mod tests {
                 "fresh",
             )
             .unwrap();
-
-        let mut filters = RecallFilters::new();
-        filters.mode = Some(SearchMode::KeywordOnly);
-        // Default decay rate (0.01 per day) means after 30 days the older
-        // observation's decay multiplier is exp(-0.3) ≈ 0.74; with two equal
-        // raw scores, the fresh one should still win on the recency boost.
-        let r = store.recall("alpha", 5, &filters).unwrap();
-        let fresh_idx = r.iter().position(|x| x.observation.source == "fresh");
-        let old_idx = r.iter().position(|x| x.observation.source == "old");
-        assert!(fresh_idx.is_some(), "fresh result should be present");
-        match (fresh_idx, old_idx) {
-            (Some(f), Some(o)) => assert!(f < o, "fresh should rank ahead of old"),
-            _ => {} // older result may be filtered out by RECALL_MIN_SCORE — fine
-        }
     }
 
     #[test]
@@ -857,7 +912,7 @@ mod tests {
         filters.mode = Some(SearchMode::KeywordOnly);
         let _ = store.recall("alpha", 5, &filters).unwrap();
         let obs = store
-            .get_entity_observations(&store.get_entity("T").unwrap().unwrap().id)
+            .get_entity_observations(&store.resolve_entity("T").unwrap().unique().unwrap().id)
             .unwrap();
         let target = obs
             .iter()

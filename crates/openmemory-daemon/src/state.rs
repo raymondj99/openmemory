@@ -13,7 +13,9 @@ use openmemory_mcp::BearerToken;
 use tokio::sync::{broadcast, watch};
 
 use crate::product_store::{ProductStore, ProductStoreError};
-use crate::{redact_log_text, redact_log_value, unix_now_secs, AdminToken, DaemonConfig};
+use crate::{
+    redact_log_text, redact_log_value, unix_now_secs, AdminToken, DaemonConfig, ProductRuntime,
+};
 
 #[derive(Clone)]
 pub(crate) struct AdminState {
@@ -22,6 +24,7 @@ pub(crate) struct AdminState {
     pub(crate) config: DaemonConfig,
     pub(crate) logs: Arc<RedactedLogRing>,
     pub(crate) jobs: Arc<JobRegistry>,
+    pub(crate) product: Option<Arc<ProductRuntime>>,
     pub(crate) store: Arc<RwLock<StoreRuntime>>,
     pub(crate) engine: Option<Arc<ContextEngine>>,
     pub(crate) mcp_auth: Option<BearerToken>,
@@ -33,7 +36,10 @@ pub(crate) struct AdminState {
 /// rebuilding SQLite pools and vector indexes on every request.
 #[derive(Debug, Clone)]
 pub(crate) enum StoreRuntime {
-    Ready(Arc<DomainStore>),
+    Ready {
+        store: Arc<DomainStore>,
+        _runtime_lease: Arc<crate::space_registry::RuntimeLease>,
+    },
     Unavailable(AdminError),
 }
 

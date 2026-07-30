@@ -92,6 +92,10 @@ pub enum Command {
     MigrateDomains(MigrateDomainsArgs),
     /// List entities, optionally filtered by type.
     ListEntities(ListEntitiesArgs),
+    /// Manage memory spaces: isolated stores beside the personal-global
+    /// default.
+    #[command(subcommand)]
+    Space(SpaceCommand),
     /// Hard-delete an entity. Requires `--yes` to confirm.
     ForgetEntity(ForgetEntityArgs),
     /// Manage embedding models (download, list).
@@ -244,8 +248,14 @@ pub struct ListEntitiesArgs {
 /// `forget-entity` arguments.
 #[derive(Debug, Args)]
 pub struct ForgetEntityArgs {
-    /// Entity name to delete.
-    pub entity: String,
+    /// Entity name to delete. Ignored when `--id` is given.
+    #[arg(required_unless_present = "id")]
+    pub entity: Option<String>,
+    /// Delete the entity with this immutable id instead of resolving a
+    /// name. Use this when a name is carried by more than one entity;
+    /// `forget-entity <name>` lists the ids in that case.
+    #[arg(long, conflicts_with = "entity")]
+    pub id: Option<String>,
     /// Confirm the destructive action. Required.
     #[arg(long)]
     pub yes: bool,
@@ -396,6 +406,22 @@ pub struct McpArgs {
     pub http: Option<std::net::SocketAddr>,
 }
 
+/// Subcommands for `openmemory space`.
+#[derive(Debug, Subcommand)]
+pub enum SpaceCommand {
+    /// Create a new memory space (lowercase letters, digits, dashes).
+    Create(SpaceCreateArgs),
+    /// List memory spaces. The personal-global default is implicit.
+    List,
+}
+
+/// `space create` arguments.
+#[derive(Debug, Args)]
+pub struct SpaceCreateArgs {
+    /// Space name: 1..=64 lowercase letters, digits, and dashes.
+    pub name: String,
+}
+
 /// `daemon start` arguments.
 #[derive(Debug, Args)]
 pub struct DaemonStartArgs {
@@ -521,6 +547,7 @@ where
         Command::Status => commands::status::run(&cli.profile),
         Command::Daemon(command) => commands::daemon::run(&cli.profile, command),
         Command::Mcp(args) => commands::mcp::run(&cli.profile, args),
+        Command::Space(command) => commands::space::run(&cli.profile, command),
         Command::Consolidate(args) => commands::consolidate::run(&cli.profile, args),
         Command::Integrate(IntegrateTarget::Openclaw(args)) => {
             let report = commands::integrate::openclaw::run(&cli.profile, args)?;

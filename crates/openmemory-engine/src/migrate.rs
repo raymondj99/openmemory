@@ -580,7 +580,13 @@ fn verify_staging(
             .filter(|e| e.source != PARTITION_STUB_SOURCE)
             .take(32)
         {
-            if store.get_entity(&entity.name)?.is_none() {
+            // This asks "did this entity land in the domain that will own
+            // it", so any candidate under the name proves routing worked.
+            // An ambiguous name is not a routing failure: entities sharing
+            // a name hash to the same domain, which is exactly the
+            // property being checked. Verifying the specific row is the
+            // job of the id-keyed reconciliation below.
+            if store.resolve_entity(&entity.name)?.candidates().is_empty() {
                 return Err(MemoryError::InvalidInput(format!(
                     "staging verification failed: entity {:?} not resolvable in {}",
                     entity.name,
@@ -790,7 +796,11 @@ mod tests {
         assert_eq!(snapshot(store), before, "knowledge counts must survive");
 
         // Identity preserved: ids, timestamps, tombstones, tiers.
-        let alpha = store.get_entity(a).unwrap().expect("alpha resolvable");
+        let alpha = store
+            .resolve_entity(a)
+            .unwrap()
+            .unique()
+            .expect("alpha resolvable");
         let observations: Vec<_> = store
             .stores()
             .iter()
@@ -810,7 +820,11 @@ mod tests {
         // Relation visible from both endpoints.
         let rels = store.get_entity_relations(&alpha.id).unwrap();
         assert_eq!(rels.len(), 1);
-        let bravo = store.get_entity(b).unwrap().expect("b resolvable");
+        let bravo = store
+            .resolve_entity(b)
+            .unwrap()
+            .unique()
+            .expect("b resolvable");
         assert_eq!(store.get_entity_relations(&bravo.id).unwrap().len(), 1);
 
         // Search works end to end: graph recall and the carried

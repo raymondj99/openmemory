@@ -21,8 +21,13 @@ name is `default`, mirroring OpenClaw's `--profile <name>` concept).
 │   │   ├── model.onnx
 │   │   └── tokenizer.json
 │   └── ...
+├── product/
+│   └── product.sqlite             # daemon jobs, catalog, authority control plane
 └── data/                          # one directory per profile
     └── default/                   # profile name (default = "default")
+        ├── .space-id              # durable legacy personal-global space UUID
+        ├── .personal-global.lock  # shared lifetime lock for legacy opens
+        ├── space.toml              # canonical legacy space manifest
         ├── memory.sqlite          # entities, observations, relations + WAL
         ├── memory.sqlite-wal      # SQLite WAL sidecar
         ├── memory.sqlite-shm      # SQLite shared memory sidecar
@@ -31,18 +36,64 @@ name is `default`, mirroring OpenClaw's `--profile <name>` concept).
         │                          # (or bm25.json when --no-default-features)
         ├── vectors.bin            # FlatVectorIndex dump
         │                          # (or HNSW state when --features hnsw)
+        ├── engine-journal/         # optional crash-durable write journal
         └── embeddings/            # only when --features embeddings
             └── cache.sqlite       # BLAKE3-keyed embedding cache
 ```
 
-`memory.sqlite`, `metadata.sqlite`, `fulltext.sqlite`, and
-`embeddings/cache.sqlite` are independent SQLite databases. They
-share no foreign keys at the SQL level; the `MemoryStore` and
-`MetadataStore` keep them in lockstep through transactional writes.
+The legacy profile root is one personal-global memory space.  Its durable
+`.space-id` makes a crash/restart retry reuse the same catalog identity; the
+manifest binds the identity, owner, context, root key, domain count, and a
+canonical BLAKE3 binding hash.  Writers create manifests through a synced
+temporary file and same-directory rename.  Direct legacy opens and daemon
+opens retain a shared `.personal-global.lock` for their full lifetime, so
+maintenance can first exclude new users and then acquire the exclusive lock.
+
+New managed roots are separate complete stores under
+`data/<profile>/spaces/<space-id>/`.  Each has its own `space.toml` and
+`.space.lock`; the registry rejects symlinked or non-directory managed roots
+and does not claim protection against platform races that lack an audited
+nofollow primitive.  The product catalog is control-plane truth, while a
+manifest is the durable local identity binding.  Neither path display text nor
+lossy path conversion is used as a workspace or authorization key.
+
+The diagram above is the legacy-compatible one-domain layout. With
+`engine.domains = K > 1`, the profile instead pins the count in
+`domains.toml` and stores one complete family per domain:
+
+```text
+data/<profile>/
+├── domains.toml
+├── domains/
+│   ├── domain-00/
+│   │   ├── memory.sqlite
+│   │   ├── metadata.sqlite
+│   │   ├── fulltext.sqlite        # or bm25.json
+│   │   └── vectors.bin            # or vectors.usearch + metadata
+│   └── domain-NN/
+│       └── ...
+└── engine-journal/                # shard journals, when enabled
+```
+
+The domain count is an on-disk routing contract. Opening a populated
+one-domain profile as multi-domain, or opening a multi-domain profile
+with another count, fails and requires `openmemory migrate-domains`.
+Migration builds `.migrate-staging`, writes `.migrate-intent` before
+the swap, and retains the previous verified layout in
+`.migrate-backup`. A remaining intent blocks profile open; the current
+implementation detects interrupted migration but does not recover it
+automatically.
+
+`product/product.sqlite`, `memory.sqlite`, `metadata.sqlite`,
+`fulltext.sqlite`, and `embeddings/cache.sqlite` are independent
+SQLite databases. They share no foreign keys or cross-database
+transaction. `MemoryStore` coordinates canonical graph/index writes;
+cross-domain relations are materialized as a canonical edge plus a
+derived mirror/stub in the other domain.
 
 ## SQLite configuration
 
-Every database is opened with the same pragmas:
+Graph, index, and embedding databases use these common pragmas:
 
 | Pragma | Value | Why |
 |--------|-------|-----|
@@ -51,6 +102,9 @@ Every database is opened with the same pragmas:
 | `busy_timeout` | `5000` ms | Bounds writer contention. |
 | `foreign_keys` | `ON` | The graph schema relies on cascade deletes. |
 
+The product database also uses WAL, foreign keys, and a 5000 ms busy
+timeout; it leaves SQLite's synchronous default in effect.
+
 The reader pool opens connections with `OPEN_READ_ONLY |
 OPEN_NO_MUTEX` so they never serialise on internal SQLite locking
 that's only relevant to the single writer. See
@@ -58,16 +112,19 @@ that's only relevant to the single writer. See
 
 ## Schema versions
 
-Every database carries its current schema version in a `*_meta`
-table. The `openmemory_core::migrations::Migrator` reads the
+Semantic/index databases carry their current schema version in a
+`*_meta` table. The `openmemory_core::migrations::Migrator` reads the
 version on open, applies forward migrations idempotently, and
 **refuses to open** a database whose version is higher than the
-binary supports. This prevents an older binary from corrupting a
-newer database after a downgrade.
+binary supports. Product SQLite keeps a matching `product_meta` version and
+`PRAGMA user_version` inside each migration transaction, rejects a mismatch,
+and has the same future-version refusal. This prevents an older binary from
+corrupting a newer database after a downgrade.
 
 | Database | Version table | Current version | Owned by |
 |----------|---------------|-----------------|----------|
-| `memory.sqlite` | `memory_meta` | 2 (from `MEMORY_SCHEMA_VERSION` in [`crates/openmemory-graph/src/schema.rs`](../crates/openmemory-graph/src/schema.rs)) | `openmemory-graph` |
+| `product/product.sqlite` | `product_meta` + `PRAGMA user_version` | 4 | `openmemory-daemon` |
+| `memory.sqlite` | `memory_meta` | 7 (from `MEMORY_SCHEMA_VERSION` in [`crates/openmemory-graph/src/schema.rs`](../crates/openmemory-graph/src/schema.rs)) | `openmemory-graph` |
 | `metadata.sqlite` | `index_meta` | 1 | `openmemory-index` |
 | `fulltext.sqlite` | (FTS5 virtual table; no version row) | n/a | `openmemory-index` |
 | `embeddings/cache.sqlite` | `embed_meta` | 1 | `openmemory-embed` |
@@ -75,6 +132,18 @@ newer database after a downgrade.
 Schema upgrades are forward-only. v1 always migrates to v2; the
 reverse never works. If you need to roll back, restore from a
 backup taken before the upgrade.
+
+Graph v3/v4 add audit state without scanning the corpus at open. v3 adds
+`domain_state`, changesets/requests/events, observation revisions, and the
+durable `index_outbox`; v4 adds entity/relation history, identifiers,
+canonical-relation provenance, and mirror outbox rows. v5 records lifecycle in
+every observation revision; v6 makes observation revisions self-contained so
+history survives canonical cleanup; v7 adds short-lived hash-bound destruction
+confirmations and content-free receipts. Legacy observations are
+baseline-revisioned only when an explicit bounded backfill or audited mutation
+touches them. A committed canonical mutation remains durable if index repair
+fails; the outbox and `index_repair_required` marker make recall fail explicitly
+until repair succeeds.
 
 ## `memory.sqlite` schema
 

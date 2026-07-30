@@ -1,0 +1,57 @@
+{
+  "fixture_version": 1,
+  "source_revision": "bcd10fd3f736290c536ac94daf5a9014ef711828",
+  "entities": [
+    {
+      "name": "OpenMemory",
+      "entity_type": "project",
+      "observations": [
+        "OpenMemory stores agent memory in SQLite and derived search indexes.",
+        "A one-domain profile keeps its store family directly at the profile root."
+      ]
+    },
+    {
+      "name": "Context Engine",
+      "entity_type": "concept",
+      "observations": [
+        "The context engine journals accepted writes before asynchronous domain drains."
+      ]
+    },
+    {
+      "name": "Domain Migration",
+      "entity_type": "concept",
+      "observations": [
+        "Domain migration stages and verifies a replacement layout before promotion."
+      ]
+    },
+    {
+      "name": "Filesystem Watcher",
+      "entity_type": "tool",
+      "observations": [
+        "The watcher indexes create, modify, and delete events from a fixed tree."
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "OpenMemory",
+      "to": "Context Engine",
+      "relation_type": "uses"
+    },
+    {
+      "from": "Context Engine",
+      "to": "Domain Migration",
+      "relation_type": "supports"
+    },
+    {
+      "from": "Filesystem Watcher",
+      "to": "OpenMemory",
+      "relation_type": "indexes_into"
+    }
+  ],
+  "expected": {
+    "entities": 4,
+    "observations": 5,
+    "relations": 3
+  }
+}

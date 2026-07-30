@@ -76,28 +76,42 @@
 
 #![forbid(unsafe_code)]
 
+pub mod audit;
 pub mod batch;
+pub mod changeset;
 pub mod consolidate;
+pub mod diff;
 pub mod error;
 pub mod export;
 pub mod forget;
 pub mod normalize;
+pub mod outbox;
 pub mod pool;
 pub mod recall;
 pub mod remember;
+pub mod resolve;
+pub mod revision;
 pub mod schema;
 pub mod store;
 pub mod types;
 
+pub use audit::{
+    BackfillReport, ChangeOperation, ChangeSetDraft, ChangeSetReceipt, ChangeSetState,
+    DestructionPreview, ObjectKind, ProposalRetentionReport, ReviewAuthorization, SubmitMode,
+};
 pub use batch::{BatchOptions, RememberRequest};
 pub use consolidate::{ConsolidateConfig, ConsolidateReport};
+pub use diff::{DiffProvenance, DiffValueSummary, ObservationFieldChange, ObservationRevisionDiff};
 pub use error::{MemoryError, MemoryResult};
 pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use normalize::NormalizeMatch;
 pub use openmemory_index::SearchMode;
+pub use outbox::IndexRepairReport;
 pub use pool::ReadPool;
 pub use recall::{RecallFilters, RecallResult, RECALL_MIN_SCORE, SPREADING_DISTANCE_DECAY};
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
+pub use resolve::{EntityCandidates, EntityResolution, MAX_NAME_CANDIDATES};
+pub use revision::{HistoryCursor, ObservationHistoryEntry, ObservationHistoryPage};
 pub use schema::MEMORY_SCHEMA_VERSION;
 pub use store::{EntityListRow, MemoryStatus, MemoryStore, WalCheckpointReport, MEMORY_DB_FILE};
 pub use types::{

@@ -41,7 +41,7 @@ and returns `Option<JsonRpcResponse>`. It returns `None` for
 notification requests (no `id` field) and `Some` for everything
 else.
 
-## The eleven tools
+## The sixteen tools
 
 All tools use `snake_case`. All tools are prefixed `openmemory_`:
 short to keep them under any 64-char tool-name budget the agent
@@ -57,8 +57,12 @@ other memory MCPs.
 | `openmemory_list_entities` | read | Browse entities. Optional filter by `entity_type`; pagination via `limit` / `offset`. |
 | `openmemory_get_entity` | read | All observations and relations for one entity, lookup by `entity_id` or `name`. Used after `recall` to drill in. |
 | `openmemory_forget` | destructive | Soft-delete a single observation by id. Lineage preserved (the row is tomb-stoned, not removed). |
-| `openmemory_forget_entity` | destructive | Hard-delete an entity and its observations and relations. Irreversible. |
+| `openmemory_forget_entity` | destructive | Audit-retire an entity's observations. The entity and immutable history remain; normal recall excludes the retired observations. |
 | `openmemory_status` | read | Counts, schema versions, oldest/newest observation timestamps, entity-type and tier breakdowns, vector count, reader-pool size. |
+| `openmemory_retrieve` | read | Routed tri-layer retrieval: classifies the query (or takes an explicit `intent`), routes to the best layer (gloss recall, free-text index, or typed edge traversal), appends the other layers as fill, promotes successors over superseded facts, and annotates a dense-shape confidence signal. Deterministic (never records access feedback). `as_of` pins a past instant. |
+| `openmemory_supersede` | write | Correct a fact by supersession, never deletion: closes the old observation's validity window, writes the successor with its own window, and records a `supersedes` relation so retrieval reroutes stale rankings. History stays reachable via `as_of` / `valid_at`. |
+| `openmemory_add_relation` | write | Attach a typed relation (e.g. `supersedes`, `depends_on`) between two existing entities. |
+| `openmemory_promote_observation` | write | Move an observation between memory tiers. |
 
 ### Index tools (free-text URI store)
 
@@ -73,6 +77,43 @@ other memory MCPs.
 | Tool | Type | Purpose |
 |------|------|---------|
 | `openmemory_consolidate` | write | Run dedup (Jaccard text similarity within an entity) plus decay-prune (Ebbinghaus scoring with floor). Idempotent. |
+
+### Space tools
+
+| Tool | Type | Purpose |
+|------|------|---------|
+| `openmemory_space` | write | `create` a named memory space or `list` existing ones. |
+
+## Memory spaces
+
+A memory space is a separate notebook. Each space owns a complete,
+physically separate store with all three retrieval layers inside it:
+the knowledge graph, the free-text index, and the typed relation
+graph. Nothing written into one space is ever visible from another.
+
+The mental model is three rules:
+
+1. **Omit `space` and everything works like before.** The
+   personal-global store is the default space; legacy callers never
+   see a difference. `default` is a reserved name for it.
+2. **Pass `space: "<name>"` on any memory or index tool to target
+   one space.** Every request writes to exactly one space. Create
+   spaces with `openmemory_space {action: "create", name: "work"}`
+   or `openmemory space create work` on the CLI.
+3. **Pass `read_spaces: ["default", "work"]` on `openmemory_recall`
+   or `openmemory_retrieve` to read several spaces together** (up to
+   four, ordered). Each space is searched independently — for
+   `openmemory_retrieve`, the full routed tri-layer pipeline runs
+   per space — and the final ranked lists are fused by deterministic
+   rank interleaving in read-set order. Scores are never compared
+   across spaces (different corpora calibrate differently; measured
+   in plan/16). Every fused result carries a `space` label.
+
+Space names are 1..=64 lowercase letters, digits, and dashes.
+Spaces live under `<data_dir>/spaces/<name>/`, each with a durable
+`space.toml` manifest binding the directory to an immutable space
+ID that is also persisted inside every member database, so a copied
+store cannot silently answer for another space.
 
 ### Why split graph vs. index
 
@@ -261,7 +302,7 @@ MEMORY TOOLS:
 - openmemory_list_entities: browse entities by type
 - openmemory_get_entity: full record for one entity
 - openmemory_forget: soft-delete one observation
-- openmemory_forget_entity: hard-delete an entity
+- openmemory_forget_entity: audit-retire an entity's observations
 - openmemory_status: store statistics
 
 INDEX TOOLS:

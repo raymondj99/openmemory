@@ -11,6 +11,76 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ### Added
 
+- **Memory spaces.** A memory space is an isolated silo beside the
+  personal-global default: each space owns a complete, physically
+  separate store under `<data_dir>/spaces/<name>/` with all three
+  retrieval layers inside it (knowledge graph, free-text index, typed
+  relations). New `openmemory_space` MCP tool (`create` / `list`) and
+  `openmemory space create|list` CLI commands. Every memory and index
+  tool accepts an optional `space` parameter naming its target; a
+  request writes to exactly one space, and omitting `space` addresses
+  the personal-global default, so existing callers are unaffected.
+  `openmemory_recall` and `openmemory_retrieve` additionally accept a
+  `read_spaces` ordered read set (at most four): each space is
+  searched independently — retrieve runs its full routed tri-layer
+  pipeline per space — and the final ranked lists are fused by
+  deterministic rank interleaving in read-set order, never by
+  comparing scores across spaces (plan/16 measured invariant). Each
+  space root carries a durable `space.toml` manifest whose immutable
+  space ID is also bound into every member database, so a copied store
+  fails closed instead of answering for another space.
+
+### Changed
+
+- **Ranking hygiene: recall scoring no longer reads access counts or
+  correction tags.** The `1 + 0.15*ln(1+access_count)` retrieval boost
+  (67% top-1 churn under measurement, irreproducible rankings, a
+  popularity feedback loop, no evidence of benefit; T3) and the 1.3x
+  `source=correction` boost (measured ranking an OUTDATED marker above
+  the fact that superseded it; T15 F-16) are removed from
+  `compute_score`. Both signals remain recorded; consolidation's
+  RETENTION scoring still uses them to decide what pruning may touch,
+  which is the other half of the decay knob split. Correction
+  rerouting is now supersession's job. `CORRECTION_RETRIEVAL_BOOST` is
+  no longer exported.
+
+- **`openmemory_search` no longer returns reserved-namespace rows.**
+  Graph observation copies indexed under `memory://` are recall's
+  domain; surfacing them leaked opaque observation ids and displaced
+  genuine URI content from the candidate pool.
+
+- **The recency prior is off by default, and the decay knob has split in
+  two.** `memory.decay_rate` used to govern both what ranks higher and
+  what gets deleted. Those want opposite settings, so ranking now reads a
+  separate `memory.recall_decay_rate`, defaulting to `0.0`;
+  `memory.decay_rate` keeps its `0.01`/day and continues to drive
+  consolidation's pruning. Forgetting is unchanged.
+
+  Measured over a 1192-query set across 737 clusters, the post-fusion
+  recency multiplier was net-negative at every non-zero lambda —
+  including on `temporal-current`, a query category built from mined
+  fact-version chains specifically so a recency prior could win. At the
+  previously shipped `0.01`, commit-lookup MRR fell from 0.83 to 0.02.
+
+  The benefit is real but out of reach from that position: in a corpus of
+  nothing but versioned facts the same term *gains* +0.08 MRR
+  [+0.03, +0.13] on current-truth questions, and adding the surrounding
+  corpus flips the sign. A multiplicative prior applied after fusion can
+  only say "prefer the newest row in the corpus", not "prefer the newest
+  version of *this fact*". Re-tuning will not fix that; the position is
+  wrong, not the value. Recency belongs in a within-subject tiebreak or a
+  fused channel, and neither exists yet.
+
+  For as-of questions, `RecallFilters::valid_at` is the working mechanism
+  — worth +0.11 MRR on its own, and flat in lambda once validity is
+  pinned.
+
+  Users who want the old behaviour can set
+  `memory.recall_decay_rate = 0.01`. The mechanism is retained and
+  tested, not removed.
+
+### Added
+
 - **`openmemory_supersede`: the correction write surface.** Correct a
   fact by supersession, never deletion: the old observation keeps its
   content under a closed validity window (still reachable via
@@ -183,23 +253,6 @@ SQLite schema, or public Rust API; patch bumps for fixes).
   interval of the ack in every run.
 
 ### Changed
-
-- **Ranking hygiene: recall scoring no longer reads access counts or
-  correction tags.** The `1 + 0.15*ln(1+access_count)` retrieval boost
-  (67% top-1 churn under measurement, irreproducible rankings, a
-  popularity feedback loop, no evidence of benefit; T3) and the 1.3x
-  `source=correction` boost (measured ranking an OUTDATED marker above
-  the fact that superseded it; T15 F-16) are removed from
-  `compute_score`. Both signals remain recorded; consolidation's
-  RETENTION scoring still uses them to decide what pruning may touch,
-  which is the other half of the decay knob split. Correction
-  rerouting is now supersession's job. `CORRECTION_RETRIEVAL_BOOST` is
-  no longer exported.
-
-- **`openmemory_search` no longer returns reserved-namespace rows.**
-  Graph observation copies indexed under `memory://` are recall's
-  domain; surfacing them leaked opaque observation ids and displaced
-  genuine URI content from the candidate pool.
 
 - **Engine crate reorganized around the bus architecture.** `lib.rs`
   is now the pipeline narrative (accept, journal, route, commit,

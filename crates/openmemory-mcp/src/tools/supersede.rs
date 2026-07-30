@@ -79,6 +79,11 @@ pub struct SupersedeInput {
     /// Origin tag for audit. Defaults to `"supersession"`.
     #[serde(default)]
     pub source: Option<String>,
+    /// Memory space holding both facts. Omit (or pass `default`) for
+    /// the personal-global default store. Supersession never spans
+    /// spaces.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 /// Rebuild an [`ObservationInput`] carrying an observation's content
@@ -168,11 +173,12 @@ impl Tool for OpenMemorySupersedeTool {
             .map_or(EntityType::Concept, |p| p.to_entity_type());
         let source = req.source.as_deref().unwrap_or("supersession").to_string();
 
+        let memory = server.store_for(req.space.as_deref())?;
+
         // Resolve the old entity and collect its open observations
         // BEFORE writing anything, so the new fact can never appear in
         // its own supersede set (old_entity may equal new_entity).
-        let old = server
-            .memory()
+        let old = memory
             .get_entity_by_name_and_type(&req.old_entity, old_type)
             .map_err(map_memory_err)?
             .ok_or_else(|| JsonRpcError {
@@ -180,8 +186,7 @@ impl Tool for OpenMemorySupersedeTool {
                 message: format!("old_entity not found: {:?} ({})", req.old_entity, old_type),
                 data: None,
             })?;
-        let targets: Vec<Observation> = server
-            .memory()
+        let targets: Vec<Observation> = memory
             .get_entity_observations(&old.id)
             .map_err(map_memory_err)?
             .into_iter()
@@ -207,8 +212,7 @@ impl Tool for OpenMemorySupersedeTool {
         if let Some(t) = req.new_title.as_deref() {
             new_obs = new_obs.with_title(t);
         }
-        let outcome = server
-            .memory()
+        let outcome = memory
             .remember(&req.new_entity, new_type, &[new_obs], &[], &source)
             .map_err(map_memory_err)?;
 
@@ -217,8 +221,7 @@ impl Tool for OpenMemorySupersedeTool {
         // so the edge is recorded only across distinct entities.
         let relation_id = if outcome.entity_id != old.id {
             Some(
-                server
-                    .memory()
+                memory
                     .add_relation(&outcome.entity_id, &old.id, "supersedes", None, &source)
                     .map_err(map_memory_err)?,
             )
@@ -231,8 +234,7 @@ impl Tool for OpenMemorySupersedeTool {
         // two leaves a visible duplicate, never a gap.
         let mut superseded_ids = Vec::with_capacity(targets.len());
         for obs in &targets {
-            server
-                .memory()
+            memory
                 .remember(
                     &req.old_entity,
                     old_type,
@@ -241,7 +243,7 @@ impl Tool for OpenMemorySupersedeTool {
                     &source,
                 )
                 .map_err(map_memory_err)?;
-            server.memory().forget(&obs.id).map_err(map_memory_err)?;
+            memory.forget(&obs.id).map_err(map_memory_err)?;
             superseded_ids.push(obs.id.clone());
         }
 

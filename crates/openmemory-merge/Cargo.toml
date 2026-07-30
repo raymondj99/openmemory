@@ -1,0 +1,26 @@
+[package]
+name = "openmemory-merge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "openmemory: pure identity evidence and deterministic merge planning"
+repository.workspace = true
+
+[dependencies]
+openmemory-core.workspace = true
+blake3.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+name = "planning"
+path = "benches/planning.rs"
+harness = false
+
+[lints]
+workspace = true

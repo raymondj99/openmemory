@@ -17,7 +17,7 @@
 //! row should report `duplicates_merged == 0` and `observations_pruned == 0`
 //! on the second call.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use rusqlite::params;
 
@@ -100,76 +100,53 @@ impl MemoryStore {
         let now = self.clock().now_secs();
         let mut report = ConsolidateReport::default();
 
-        // Phases 1+2: collect candidates, then apply tombstones in one tx.
-        // The rebuild write-lock spans the dedup/decay collection and the
-        // tombstone-and-engine-sync write, then drops before we delegate
-        // to `prune` for orphan cleanup. `prune` re-acquires the same lock;
-        // taking it twice while it's already held would deadlock since the
-        // RwLock is non-reentrant.
-        {
-            let _guard = self.write_rebuild();
+        let candidate_groups = self.collect_dedup_candidates()?;
+        let mut to_tombstone: Vec<String> = Vec::new();
+        let mut access_rollups: HashMap<String, u32> = HashMap::new();
 
-            let candidate_groups = self.collect_dedup_candidates()?;
-            let mut to_tombstone: Vec<String> = Vec::new();
-            let mut access_rollups: HashMap<String, u32> = HashMap::new();
-
-            for observations in candidate_groups.values() {
-                let merges = dedup_within_entity(observations, config.dedup_text_threshold);
-                for (survivor_id, loser_ids, accumulated_access) in merges {
-                    if !loser_ids.is_empty() {
-                        *access_rollups.entry(survivor_id).or_default() += accumulated_access;
-                    }
-                    to_tombstone.extend(loser_ids);
+        for observations in candidate_groups.values() {
+            let merges = dedup_within_entity(observations, config.dedup_text_threshold);
+            for (survivor_id, loser_ids, accumulated_access) in merges {
+                if !loser_ids.is_empty() {
+                    *access_rollups.entry(survivor_id).or_default() += accumulated_access;
                 }
+                to_tombstone.extend(loser_ids);
             }
-            report.duplicates_merged = to_tombstone.len();
+        }
+        report.duplicates_merged = to_tombstone.len();
 
-            let prune_targets = self.collect_decay_prune_targets(config, now)?;
-            report.observations_pruned = prune_targets.len();
+        let prune_targets = self.collect_decay_prune_targets(config, now)?;
+        report.observations_pruned = prune_targets.len();
 
-            if !to_tombstone.is_empty() || !prune_targets.is_empty() || !access_rollups.is_empty() {
-                let mut conn = self.lock_db();
-                let tx = conn.transaction()?;
-                for id in &to_tombstone {
-                    tx.execute(
-                        "UPDATE observations
-                         SET tombstoned = 1,
-                             valid_until = COALESCE(valid_until, ?1)
-                         WHERE id = ?2 AND tombstoned = 0",
-                        params![now, id],
-                    )?;
-                }
-                for id in &prune_targets {
-                    tx.execute(
-                        "UPDATE observations
-                         SET tombstoned = 1,
-                             valid_until = COALESCE(valid_until, ?1)
-                         WHERE id = ?2 AND tombstoned = 0",
-                        params![now, id],
-                    )?;
-                }
-                for (survivor_id, bonus) in &access_rollups {
-                    tx.execute(
-                        "UPDATE observations
-                         SET access_count = access_count + ?1
-                         WHERE id = ?2",
-                        params![i64::from(*bonus), survivor_id],
-                    )?;
-                }
-                tx.commit()?;
-                drop(conn);
+        let retirement_ids = to_tombstone
+            .iter()
+            .chain(&prune_targets)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        self.retire_observations_for_maintenance(
+            &retirement_ids,
+            "consolidation deduplication and decay retirement",
+        )?;
 
-                // Hybrid-engine sync (best-effort).
-                for id in to_tombstone.iter().chain(prune_targets.iter()) {
-                    let uri = format!("memory://observation/{id}");
-                    let _ = self.engine().engine.delete_by_uri(&uri);
-                }
-                self.flush_engine();
+        // Access telemetry is deliberately not semantic revision state. Apply
+        // it only after the audited retirement commit has succeeded.
+        if !access_rollups.is_empty() {
+            let mut conn = self.lock_db();
+            let tx = conn.transaction()?;
+            for (survivor_id, bonus) in &access_rollups {
+                tx.execute(
+                    "UPDATE observations
+                     SET access_count = access_count + ?1
+                     WHERE id = ?2",
+                    params![i64::from(*bonus), survivor_id],
+                )?;
             }
-        } // <-- rebuild_lock released here so prune() can acquire it
+            tx.commit()?;
+        }
 
-        // Orphan-cleanup pass. prune() takes write_rebuild internally; we
-        // must not be holding it.
+        // Orphan cleanup retains immutable observation revisions.
         let prune_report = self.prune()?;
         report.entities_pruned = prune_report.entities_removed;
 
@@ -417,10 +394,34 @@ mod tests {
         // The survivor is the first observation in observed_at-DESC order;
         // both copies have the same observed_at so first inserted wins.
         let live = store
-            .get_entity_observations(&store.get_entity("Raymond").unwrap().unwrap().id)
+            .get_entity_observations(
+                &store
+                    .resolve_entity("Raymond")
+                    .unwrap()
+                    .unique()
+                    .unwrap()
+                    .id,
+            )
             .unwrap();
         assert_eq!(live.len(), 2);
         assert!(live.iter().any(|o| o.id == outcome.observation_ids[2]));
+        let conn = store.lock_db();
+        let audited: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM observations AS observations
+                 JOIN observation_revisions AS revisions
+                   ON revisions.revision_id = observations.current_revision_id
+                 JOIN change_events AS events
+                   ON events.revision_id = revisions.revision_id
+                 WHERE observations.lifecycle = 'retired'
+                   AND revisions.lifecycle = 'retired'
+                   AND events.event_type = 'retired'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(audited, 1);
     }
 
     #[test]
@@ -511,6 +512,45 @@ mod tests {
         cfg.prune_floor = 0.5; // baseline confidence + decay should drop here
         let report = store.consolidate(&cfg).unwrap();
         assert_eq!(report.observations_pruned, 1);
+    }
+
+    #[test]
+    fn forgetting_stays_age_driven_when_ranking_decay_is_off() {
+        // `memory.decay_rate` used to serve two masters: what ranks
+        // higher, and what gets deleted. A lambda sweep showed the
+        // ranking use is net-negative, so the ranking knob now defaults
+        // to zero — and turning it off must not quietly stop the system
+        // forgetting anything, which is a behaviour nothing measured and
+        // nobody asked for.
+        let (store, clock) = open_with_clock();
+        assert!(
+            store.recall_decay_rate().abs() < f64::EPSILON,
+            "the ranking prior is expected to be off by default"
+        );
+        assert!(
+            store.decay_rate() > 0.0,
+            "retention decay must survive the split"
+        );
+
+        clock.set(0);
+        store
+            .remember(
+                "X",
+                EntityType::Fact,
+                &[ObservationInput::new("ancient memo").with_confidence(0.1)],
+                &[],
+                "t",
+            )
+            .unwrap();
+        clock.set(1000 * 86_400);
+
+        let mut cfg = ConsolidateConfig::for_store(&store);
+        cfg.prune_floor = 0.5;
+        assert!(
+            cfg.decay_rate > 0.0,
+            "consolidation must read the retention rate, not the ranking one"
+        );
+        assert_eq!(store.consolidate(&cfg).unwrap().observations_pruned, 1);
     }
 
     #[test]

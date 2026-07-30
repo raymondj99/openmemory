@@ -33,7 +33,7 @@ pub fn run(profile: &str, args: IngestArgs) -> Result<()> {
     }
     // Partitioning materialises here when `[engine] domains > 1`.
     let memory = Arc::new(
-        DomainStore::open(&config, &data_dir, config.engine.domains)
+        DomainStore::open_legacy(&config, &data_dir, config.engine.domains)
             .with_context(|| format!("opening memory store at {}", data_dir.display()))?,
     );
 

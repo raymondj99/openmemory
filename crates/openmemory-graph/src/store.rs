@@ -31,6 +31,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 use openmemory_core::clock::{Clock, SystemClock};
 use openmemory_core::config::Config;
+use openmemory_core::space::SpaceId;
 use openmemory_index::engine::{open_engine, OpenEngine};
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -102,6 +103,7 @@ pub struct MemoryStore {
     rebuild_lock: RwLock<()>,
     data_dir: PathBuf,
     decay_rate: f64,
+    recall_decay_rate: f64,
     pub(crate) normalization_enabled: bool,
     pub(crate) auto_merge_threshold: f64,
     pub(crate) flag_threshold: f64,
@@ -152,6 +154,7 @@ impl MemoryStore {
             rebuild_lock: RwLock::new(()),
             data_dir: data_dir.to_path_buf(),
             decay_rate: config.memory.decay_rate,
+            recall_decay_rate: config.memory.recall_decay_rate,
             normalization_enabled: config.normalization.enabled,
             auto_merge_threshold: config.normalization.auto_merge_threshold,
             flag_threshold: config.normalization.flag_threshold,
@@ -161,6 +164,35 @@ impl MemoryStore {
             embedder: None,
             _temp_dir: None,
         })
+    }
+
+    /// Bind this physical domain to one catalog space identity.  The value is
+    /// stored in the existing metadata bag so compatibility schema versions do
+    /// not need a graph migration.  A mismatched existing value is corruption,
+    /// never a request to adopt a different space.
+    pub fn bind_space_id(&self, space_id: SpaceId) -> MemoryResult<()> {
+        let db = self.db.lock().unwrap_or_else(|error| error.into_inner());
+        let existing = db
+            .query_row(
+                "SELECT value FROM memory_meta WHERE key = 'space_id'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        match existing {
+            Some(existing) if existing == space_id.to_string() => Ok(()),
+            Some(existing) => Err(MemoryError::InvalidInput(format!(
+                "memory store at {} is bound to space {existing}, not {space_id}",
+                self.data_dir.display()
+            ))),
+            None => {
+                db.execute(
+                    "INSERT INTO memory_meta(key, value) VALUES('space_id', ?1)",
+                    params![space_id.to_string()],
+                )?;
+                Ok(())
+            }
+        }
     }
 
     /// Open a fully in-memory store. SQLite is `:memory:` and the search
@@ -196,6 +228,7 @@ impl MemoryStore {
             rebuild_lock: RwLock::new(()),
             data_dir: temp_dir.path().to_path_buf(),
             decay_rate: config.memory.decay_rate,
+            recall_decay_rate: config.memory.recall_decay_rate,
             normalization_enabled: config.normalization.enabled,
             auto_merge_threshold: config.normalization.auto_merge_threshold,
             flag_threshold: config.normalization.flag_threshold,
@@ -215,11 +248,29 @@ impl MemoryStore {
         self
     }
 
-    /// Override the decay rate (Ebbinghaus lambda). Mostly a hook for
-    /// tests; production callers configure this via [`Config`].
+    /// Override the **retention** decay rate (Ebbinghaus lambda), which
+    /// governs what consolidation prunes. Mostly a hook for tests;
+    /// production callers configure this via [`Config`].
+    ///
+    /// This does not affect ranking. Use
+    /// [`Self::with_recall_decay_rate`] for that — the two were split
+    /// because a sweep found the ranking prior net-negative at every
+    /// non-zero lambda while forgetting still wants to be age-driven.
     #[must_use]
     pub fn with_decay_rate(mut self, rate: f64) -> Self {
         self.decay_rate = rate;
+        self
+    }
+
+    /// Override the **ranking** decay rate applied by `recall`.
+    ///
+    /// Zero in production. Retained as a knob because the lambda sweep
+    /// that set it to zero has to be re-runnable, and because a future
+    /// within-subject recency mechanism will need something to compare
+    /// against.
+    #[must_use]
+    pub fn with_recall_decay_rate(mut self, rate: f64) -> Self {
+        self.recall_decay_rate = rate;
         self
     }
 
@@ -237,9 +288,15 @@ impl MemoryStore {
         &self.clock
     }
 
-    /// Decay rate (Ebbinghaus lambda) currently in effect.
+    /// Retention decay rate (Ebbinghaus lambda) currently in effect.
+    /// Consolidation prunes against this; ranking does not use it.
     pub fn decay_rate(&self) -> f64 {
         self.decay_rate
+    }
+
+    /// Ranking decay rate applied by `recall`. Zero unless configured.
+    pub fn recall_decay_rate(&self) -> f64 {
+        self.recall_decay_rate
     }
 
     /// Path passed at open time. Empty for `open_in_memory`.
@@ -383,41 +440,26 @@ impl MemoryStore {
 
     // --------------------- read paths ---------------------
 
-    /// Look up an entity by name. Names are case-sensitive in v0.1; pair
-    /// with [`EntityType`] when uniqueness matters across types (the schema
-    /// allows the same name with different types).
-    pub fn get_entity(&self, name: &str) -> MemoryResult<Option<Entity>> {
-        self.with_reader(|conn| {
-            let row = conn
-                .query_row(
-                    "SELECT id, name, entity_type, created_at, updated_at, confidence, source
-                     FROM entities WHERE name = ?1",
-                    params![name],
-                    row_to_entity,
-                )
-                .optional()?;
-            Ok(row)
-        })
-    }
-
-    /// Look up an entity by `(name, entity_type)`. Useful when two entities
-    /// share a name across types.
+    /// Look up an entity by `(name, entity_type)`. Names are
+    /// case-sensitive in v0.1.
+    ///
+    /// **Fails closed.** This delegates to
+    /// [`resolve_entity_by_name_and_type`](Self::resolve_entity_by_name_and_type)
+    /// and returns `None` unless exactly one entity matched. Under the
+    /// current UNIQUE `(name, entity_type)` index that is the same answer
+    /// as a direct query, because at most one row can match. If that
+    /// constraint is ever relaxed, this returns `None` rather than
+    /// quietly picking one — which is the behaviour that made
+    /// `get_entity(name)` unsafe. Callers that need to see the
+    /// alternatives should use the resolver directly.
     pub fn get_entity_by_name_and_type(
         &self,
         name: &str,
         entity_type: EntityType,
     ) -> MemoryResult<Option<Entity>> {
-        self.with_reader(|conn| {
-            let row = conn
-                .query_row(
-                    "SELECT id, name, entity_type, created_at, updated_at, confidence, source
-                     FROM entities WHERE name = ?1 AND entity_type = ?2",
-                    params![name, entity_type.as_str()],
-                    row_to_entity,
-                )
-                .optional()?;
-            Ok(row)
-        })
+        Ok(self
+            .resolve_entity_by_name_and_type(name, entity_type)?
+            .unique())
     }
 
     /// Look up an entity by its UUID.
@@ -681,16 +723,7 @@ impl MemoryStore {
                 "observation_id must not be empty".into(),
             ));
         }
-        let _guard = self.write_rebuild();
-        let mut conn = self.lock_db();
-        let tx = conn.transaction()?;
-        let updated = tx.execute(
-            "UPDATE observations SET memory_tier = ?1
-              WHERE id = ?2 AND tombstoned = 0",
-            params![tier.as_str(), observation_id],
-        )?;
-        tx.commit()?;
-        Ok(updated > 0)
+        self.set_observation_memory_tier_audited(observation_id, tier)
     }
 
     /// Aggregate counts + timestamps for the store.
@@ -1063,7 +1096,7 @@ mod tests {
     #[test]
     fn get_entity_missing_returns_none() {
         let (store, _dir) = open_temp();
-        assert!(store.get_entity("nope").unwrap().is_none());
+        assert!(store.resolve_entity("nope").unwrap().unique().is_none());
         assert!(store.get_entity_by_id("missing").unwrap().is_none());
     }
 
@@ -1192,8 +1225,8 @@ mod tests {
             )
             .unwrap();
         }
-        assert!(store.get_entity("Raymond").unwrap().is_some());
-        assert!(store.get_entity("raymond").unwrap().is_none());
+        assert!(store.resolve_entity("Raymond").unwrap().unique().is_some());
+        assert!(store.resolve_entity("raymond").unwrap().unique().is_none());
     }
 
     #[test]
@@ -1274,7 +1307,7 @@ mod tests {
         }
         let store = MemoryStore::open(&cfg(), dir.path()).unwrap();
         assert_eq!(store.status().unwrap().total_entities, 1);
-        assert!(store.get_entity("A").unwrap().is_some());
+        assert!(store.resolve_entity("A").unwrap().unique().is_some());
     }
 
     #[test]

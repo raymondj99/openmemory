@@ -26,7 +26,7 @@ pub fn run(profile: &str) -> Result<()> {
             .render(&mut stream);
         return Ok(());
     }
-    let store = DomainStore::open_existing(&config, &data_dir)
+    let store = DomainStore::open_existing_legacy(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let status = store.status().context("reading status")?;
     render_status(&mut stream, profile, &data_dir, &status, store.domains());

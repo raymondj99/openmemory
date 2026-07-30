@@ -32,3 +32,6 @@ Thumbs.db
 # Release artifacts
 *.tar.gz
 *.zip
+
+# Experiment corpora (personal data — never committed)
+experiments/*/.corpora/

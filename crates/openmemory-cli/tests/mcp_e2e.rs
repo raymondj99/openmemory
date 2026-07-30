@@ -186,10 +186,11 @@ fn e2e_initialize_tools_list_and_each_tool() {
         "openmemory_search",
         "openmemory_delete",
         "openmemory_consolidate",
+        "openmemory_space",
     ] {
         assert!(names.contains(&expected), "missing {expected}: {names:?}");
     }
-    assert_eq!(names.len(), 15);
+    assert_eq!(names.len(), 16);
 
     // 3. openmemory_status (read) — zero counts on a fresh store
     let resp = server.call_tool("openmemory_status", json!({}));
@@ -270,6 +271,60 @@ fn e2e_initialize_tools_list_and_each_tool() {
     let body = tool_text(&resp);
     assert!(body.contains("emacs"));
 
+    // 5d. openmemory_space — create an isolated space, write into it,
+    // and prove both isolation and layered rank-interleaved reads.
+    let resp = server.call_tool(
+        "openmemory_space",
+        json!({"action": "create", "name": "work"}),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("\"created\": true"), "{body}");
+    let resp = server.call_tool("openmemory_space", json!({"action": "list"}));
+    let body = tool_text(&resp);
+    assert!(body.contains("\"work\""));
+    let _ = server.call_tool(
+        "openmemory_remember",
+        json!({
+            "entity": "sprint-goal",
+            "observations": ["finish the quarterly billing migration"],
+            "space": "work",
+        }),
+    );
+    // Isolated: visible inside the space, invisible in the default.
+    let resp = server.call_tool(
+        "openmemory_recall",
+        json!({"query": "billing migration", "mode": "keyword", "space": "work"}),
+    );
+    assert!(tool_text(&resp).contains("sprint-goal"));
+    let resp = server.call_tool(
+        "openmemory_recall",
+        json!({"query": "billing migration", "mode": "keyword"}),
+    );
+    assert!(!tool_text(&resp).contains("sprint-goal"));
+    // Layered read across default + work fuses by rank interleaving.
+    let resp = server.call_tool(
+        "openmemory_recall",
+        json!({
+            "query": "billing migration",
+            "mode": "keyword",
+            "read_spaces": ["default", "work"],
+        }),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("sprint-goal"));
+    assert!(body.contains("\"fusion\": \"rank_interleave\""));
+    // Layered retrieve routes per space and labels results.
+    let resp = server.call_tool(
+        "openmemory_retrieve",
+        json!({
+            "query": "billing migration",
+            "read_spaces": ["default", "work"],
+            "engage": true,
+        }),
+    );
+    let body = tool_text(&resp);
+    assert!(body.contains("\"space\": \"work\""), "{body}");
+
     // 6. openmemory_get_entity
     let resp = server.call_tool("openmemory_get_entity", json!({"entity": "Raymond"}));
     let body = tool_text(&resp);
@@ -310,7 +365,7 @@ fn e2e_initialize_tools_list_and_each_tool() {
     let body = tool_text(&resp);
     assert!(body.contains("\"modified\": true"));
 
-    // 11. openmemory_forget_entity — hard-delete Raymond
+    // 11. openmemory_forget_entity — audited retirement, not destruction
     let resp = server.call_tool("openmemory_forget_entity", json!({"entity": "Raymond"}));
     let body = tool_text(&resp);
     assert!(body.contains("\"observations_removed\""));

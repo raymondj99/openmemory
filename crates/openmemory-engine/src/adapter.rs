@@ -422,12 +422,20 @@ We will ship the context engine behind a feature flag.
         let report = ingest_all(&engine, &mut adapter).unwrap();
         assert_eq!(report.requests, 2);
 
-        let q3 = store.get_entity("Q3 Planning Sync").unwrap().unwrap();
+        let q3 = store
+            .resolve_entity("Q3 Planning Sync")
+            .unwrap()
+            .unique()
+            .unwrap();
         let obs = store.get_entity_observations(&q3.id).unwrap();
         assert_eq!(obs.len(), 3);
         let rels = store.get_entity_relations(&q3.id).unwrap();
         assert_eq!(rels.len(), 3, "three attendees");
-        assert!(store.get_entity("Sprint Retro").unwrap().is_some());
+        assert!(store
+            .resolve_entity("Sprint Retro")
+            .unwrap()
+            .unique()
+            .is_some());
         engine.shutdown();
     }
 }

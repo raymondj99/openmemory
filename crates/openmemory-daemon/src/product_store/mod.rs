@@ -1,14 +1,22 @@
+//! Product control-plane SQLite ownership.
+
+mod identity;
+mod jobs;
+mod merges;
+mod schema;
+mod spaces;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use openmemory_admin::{AdminEvent, AdminJob};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use thiserror::Error;
+
+pub(crate) use spaces::{CatalogSpace, CatalogSpaceState, RootKey};
 
 const PRODUCT_DIR: &str = "product";
 const PRODUCT_DB_FILE: &str = "product.sqlite";
-const PRODUCT_SCHEMA_VERSION: i64 = 1;
-const SCHEMA_VERSION_KEY: &str = "schema_version";
 
 #[derive(Debug, Error)]
 pub(crate) enum ProductStoreError {
@@ -22,6 +30,10 @@ pub(crate) enum ProductStoreError {
     UnsupportedSchema { found: i64, supported: i64 },
     #[error("product metadata schema version is invalid: {0}")]
     InvalidSchemaVersion(String),
+    #[error("invalid product control-plane value: {0}")]
+    InvalidValue(String),
+    #[error("product control-plane state is corrupt: {0}")]
+    Corrupt(String),
 }
 
 #[derive(Debug, Clone)]
@@ -145,93 +157,11 @@ impl ProductStore {
 
     fn initialize(&self) -> Result<(), ProductStoreError> {
         let mut conn = self.connect()?;
-        let tx = conn.transaction()?;
-        let current = Self::read_schema_version(&tx)?;
-        if current > PRODUCT_SCHEMA_VERSION {
-            return Err(ProductStoreError::UnsupportedSchema {
-                found: current,
-                supported: PRODUCT_SCHEMA_VERSION,
-            });
-        }
-
-        Self::create_schema(&tx)?;
-        Self::write_schema_version(&tx)?;
-        tx.commit()?;
+        schema::migrate(&mut conn)?;
         Ok(())
     }
 
-    fn create_schema(conn: &Connection) -> Result<(), ProductStoreError> {
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS product_meta (
-                 key TEXT PRIMARY KEY,
-                 value TEXT NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS daemon_jobs (
-                 id TEXT PRIMARY KEY,
-                 kind_json TEXT NOT NULL,
-                 state_json TEXT NOT NULL,
-                 profile TEXT NOT NULL,
-                 created_at_unix_secs INTEGER NOT NULL,
-                 updated_at_unix_secs INTEGER NOT NULL,
-                 job_json TEXT NOT NULL
-             );
-             CREATE INDEX IF NOT EXISTS idx_daemon_jobs_created
-                 ON daemon_jobs(created_at_unix_secs, id);
-             CREATE INDEX IF NOT EXISTS idx_daemon_jobs_state
-                 ON daemon_jobs(state_json);
-             CREATE TABLE IF NOT EXISTS daemon_events (
-                 sequence INTEGER PRIMARY KEY,
-                 unix_secs INTEGER NOT NULL,
-                 event_type_json TEXT NOT NULL,
-                 job_id TEXT,
-                 event_json TEXT NOT NULL
-             );
-             CREATE INDEX IF NOT EXISTS idx_daemon_events_job
-                 ON daemon_events(job_id, sequence);",
-        )?;
-        Ok(())
-    }
-
-    fn read_schema_version(conn: &Connection) -> Result<i64, ProductStoreError> {
-        let has_meta = conn.query_row(
-            "SELECT EXISTS(
-                 SELECT 1 FROM sqlite_master
-                 WHERE type = 'table' AND name = 'product_meta'
-             )",
-            [],
-            |row| row.get::<_, bool>(0),
-        )?;
-        if !has_meta {
-            return Ok(0);
-        }
-
-        let value = conn
-            .query_row(
-                "SELECT value FROM product_meta WHERE key = ?1",
-                params![SCHEMA_VERSION_KEY],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        let Some(value) = value else {
-            return Ok(0);
-        };
-        value
-            .parse::<i64>()
-            .map_err(|_| ProductStoreError::InvalidSchemaVersion(value))
-    }
-
-    fn write_schema_version(conn: &Connection) -> Result<(), ProductStoreError> {
-        conn.execute(
-            "INSERT INTO product_meta(key, value)
-             VALUES(?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![SCHEMA_VERSION_KEY, PRODUCT_SCHEMA_VERSION.to_string()],
-        )?;
-        conn.pragma_update(None, "user_version", PRODUCT_SCHEMA_VERSION)?;
-        Ok(())
-    }
-
-    fn connect(&self) -> Result<Connection, ProductStoreError> {
+    pub(crate) fn connect(&self) -> Result<Connection, ProductStoreError> {
         let conn = Connection::open(&self.path)?;
         conn.busy_timeout(Duration::from_millis(5_000))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;

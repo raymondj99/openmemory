@@ -21,6 +21,7 @@ testing = ["openmemory-core/testing", "openmemory-graph/testing"]
 openmemory-core = { workspace = true }
 openmemory-graph = { workspace = true, default-features = false }
 openmemory-index = { workspace = true, default-features = false }
+blake3 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

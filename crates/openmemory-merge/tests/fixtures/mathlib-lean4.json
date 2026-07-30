@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "name": "mathlib-lean4",
+  "retrieved_at": "2026-07-18",
+  "provenance": [
+    {"repository":"leanprover-community/mathlib4","commit":"8b58c0d23bc8f89e33c4a06f33ee650bac6afb51","license":"Apache-2.0"},
+    {"repository":"leanprover/lean4","commit":"25ba8c3d3bcb1dded7ff5a6f3b6044b0a7970198","license":"Apache-2.0"}
+  ],
+  "target": {
+    "space_sequence": 301,
+    "snapshot_sequence": 302,
+    "entities": [
+      {"id":"mathlib","label":"Mathlib","kind":"lean_project","identifier":{"namespace":"github_repository","value":"leanprover-community/mathlib4"},"description":"Mathematics library for Lean 4."},
+      {"id":"lean4","label":"Lean 4","kind":"lean_project","identifier":{"namespace":"github_repository","value":"leanprover/lean4"},"description":"Lean theorem prover used by Mathlib."},
+      {"id":"kernel-api","label":"Kernel","kind":"library_component","identifier":null,"description":"Mathlib-facing kernel API concept."}
+    ],
+    "relations": [
+      {"id":"mathlib-uses-lean","subject":"mathlib","predicate":"uses","object":"lean4"}
+    ]
+  },
+  "source": {
+    "space_sequence": 311,
+    "snapshot_sequence": 312,
+    "entities": [
+      {"id":"lean-project","label":"Lean 4","kind":"lean_project","identifier":{"namespace":"github_repository","value":"leanprover/lean4"},"description":"Implementation of the Lean theorem prover."},
+      {"id":"kernel","label":"Kernel","kind":"library_component","identifier":null,"description":"Trusted Lean kernel implementation."},
+      {"id":"runtime","label":"Lean runtime","kind":"runtime_component","identifier":null,"description":"Lean runtime system."}
+    ],
+    "relations": [
+      {"id":"lean-has-kernel","subject":"lean-project","predicate":"contains","object":"kernel"},
+      {"id":"lean-has-runtime","subject":"lean-project","predicate":"contains","object":"runtime"}
+    ]
+  },
+  "same_pairs": [
+    ["lean4","lean-project"]
+  ],
+  "expected": {
+    "coalesced_entities": 1,
+    "added_entities": 2,
+    "result_relations": 3,
+    "plan_hash": "5bfbf27b08d9ca3e6d770e0982c379b5b84ffea2bfc5829046539235422b954b",
+    "predicted_result_hash": "599c74444c4a722174ed8e397623886a255a2f5994092cffe277a167df89d955"
+  }
+}

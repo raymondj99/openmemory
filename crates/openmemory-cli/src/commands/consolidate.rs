@@ -20,7 +20,7 @@ pub fn run(profile: &str, args: ConsolidateArgs) -> Result<()> {
             data_dir.display()
         );
     }
-    let store = DomainStore::open_existing(&config, &data_dir)
+    let store = DomainStore::open_existing_legacy(&config, &data_dir)
         .with_context(|| format!("opening memory store at {}", data_dir.display()))?;
     let mut cfg = ConsolidateConfig::from_config(&config);
     if let Some(t) = args.dedup_threshold {

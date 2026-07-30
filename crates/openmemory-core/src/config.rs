@@ -71,8 +71,41 @@ pub struct FieldWeights {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemorySection {
+    /// Ebbinghaus lambda governing **retention** — how fast an
+    /// unreinforced memory decays towards `prune_floor` and becomes
+    /// eligible for deletion during consolidation.
+    ///
+    /// This used to govern retrieval ranking as well. The two were split
+    /// because they want opposite settings: forgetting genuinely should
+    /// be age-driven, and ranking measurably should not. See
+    /// [`Self::recall_decay_rate`].
     #[serde(default = "MemorySection::default_decay_rate")]
     pub decay_rate: f64,
+    /// Ebbinghaus lambda applied to **retrieval ranking**, as a
+    /// multiplicative prior after fusion. Defaults to `0.0` — off.
+    ///
+    /// Measured, not assumed. A sweep over a 1192-query set found this
+    /// term net-negative at every non-zero lambda, including on the
+    /// query category built specifically for a recency prior to win:
+    /// at lambda = 0.0025 it costs -0.46 MRR on commit lookup and
+    /// -0.08 on current-truth questions, and by lambda = 0.01 commit
+    /// lookup has collapsed from 0.83 to 0.02.
+    ///
+    /// The benefit is real but unreachable from here. In a corpus
+    /// containing only versioned facts the same term *gains* +0.08 MRR
+    /// on current-truth questions; adding the surrounding corpus flips
+    /// the sign. A multiplicative prior applied after fusion cannot
+    /// express "prefer the newest version of *this fact*" — only
+    /// "prefer the newest row in the corpus" — and those coincide only
+    /// when a fact competes solely against its own history.
+    ///
+    /// So the position is wrong rather than the value, and re-tuning
+    /// will not fix it. Recency belongs in a within-subject tiebreak or
+    /// a fused channel. Until one exists this stays at zero, and
+    /// as-of questions are served by `RecallFilters::valid_at`, which
+    /// is worth +0.11 MRR on its own and is indifferent to lambda.
+    #[serde(default = "MemorySection::default_recall_decay_rate")]
+    pub recall_decay_rate: f64,
     #[serde(default = "MemorySection::default_consolidation_interval")]
     pub consolidation_interval: u64,
     #[serde(default = "MemorySection::default_dedup_threshold")]
@@ -251,6 +284,11 @@ impl Config {
                 )));
             }
         }
+        if self.memory.recall_decay_rate < 0.0 {
+            return Err(OmError::Config(
+                "memory.recall_decay_rate must be non-negative".into(),
+            ));
+        }
         if self.memory.decay_rate < 0.0 {
             return Err(OmError::Config(
                 "memory.decay_rate must be non-negative".into(),
@@ -428,6 +466,11 @@ impl MemorySection {
     fn default_decay_rate() -> f64 {
         0.01
     }
+    /// Off. See [`MemorySection::recall_decay_rate`] for the measurement
+    /// that put it here.
+    fn default_recall_decay_rate() -> f64 {
+        0.0
+    }
     fn default_consolidation_interval() -> u64 {
         1800
     }
@@ -443,6 +486,7 @@ impl Default for MemorySection {
     fn default() -> Self {
         Self {
             decay_rate: Self::default_decay_rate(),
+            recall_decay_rate: Self::default_recall_decay_rate(),
             consolidation_interval: Self::default_consolidation_interval(),
             dedup_threshold: Self::default_dedup_threshold(),
             prune_floor: Self::default_prune_floor(),

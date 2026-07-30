@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "name": "codex-homebrew-tools",
+  "retrieved_at": "2026-07-18",
+  "provenance": [
+    {"repository":"openai/codex","commit":"028edf8c1e0914d42556ac0731bcc5b8cfa4d2ca","license":"Apache-2.0"},
+    {"repository":"openai/homebrew-tools","commit":"065bc95028be59a1744ad7c66f61f5a0ab7e5bb1","license":"Apache-2.0"}
+  ],
+  "target": {
+    "space_sequence": 101,
+    "snapshot_sequence": 102,
+    "entities": [
+      {"id":"openai","label":"OpenAI","kind":"organization","identifier":{"namespace":"github_owner","value":"openai"},"description":"Organization owning the Codex repository."},
+      {"id":"homebrew","label":"Homebrew","kind":"package_ecosystem","identifier":{"namespace":"ecosystem","value":"homebrew"},"description":"Package ecosystem used to distribute Codex."},
+      {"id":"codex","label":"Codex CLI","kind":"cli_product","identifier":{"namespace":"github_repository","value":"openai/codex"},"description":"Coding-agent command line product."}
+    ],
+    "relations": [
+      {"id":"codex-owned","subject":"codex","predicate":"maintained_by","object":"openai"}
+    ]
+  },
+  "source": {
+    "space_sequence": 111,
+    "snapshot_sequence": 112,
+    "entities": [
+      {"id":"openai-source","label":"OpenAI","kind":"organization","identifier":{"namespace":"github_owner","value":"openai"},"description":"Organization owning Homebrew Tools."},
+      {"id":"homebrew-source","label":"Homebrew","kind":"package_ecosystem","identifier":{"namespace":"ecosystem","value":"homebrew"},"description":"Package ecosystem hosting the tap."},
+      {"id":"openai-cli","label":"OpenAI CLI","kind":"cli_product","identifier":{"namespace":"github_repository","value":"openai/openai-cli"},"description":"A separate OpenAI API command line product."}
+    ],
+    "relations": [
+      {"id":"cli-distributed","subject":"openai-cli","predicate":"distributed_through","object":"homebrew-source"},
+      {"id":"cli-owned","subject":"openai-cli","predicate":"maintained_by","object":"openai-source"}
+    ]
+  },
+  "same_pairs": [
+    ["openai","openai-source"],
+    ["homebrew","homebrew-source"]
+  ],
+  "expected": {
+    "coalesced_entities": 2,
+    "added_entities": 1,
+    "result_relations": 3,
+    "plan_hash": "d1fefde945d659f0068589e24c2e36f15a3c5a6e3cb18c19a84b5117856bd719",
+    "predicted_result_hash": "fd68ac4c93f6a1222e5f0eaa8c4affeed0afa0dfee7b8c5c69c2ce2353002184"
+  }
+}

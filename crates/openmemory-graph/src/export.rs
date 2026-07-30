@@ -289,7 +289,7 @@ mod tests {
         assert_eq!(target.export_relations_raw().unwrap(), relations);
 
         // The import did not stamp the target's clock anywhere.
-        let alpha = target.get_entity("alpha").unwrap().unwrap();
+        let alpha = target.resolve_entity("alpha").unwrap().unique().unwrap();
         assert_eq!(alpha.created_at, 1_000);
         assert_eq!(alpha.updated_at, 1_000);
     }

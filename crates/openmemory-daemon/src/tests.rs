@@ -342,7 +342,10 @@ fn health_opens_initialized_profile_and_reports_store_counts() {
     assert_eq!(health.store.details["entities"], 0);
     assert_eq!(health.store.details["observations"], 0);
     assert_eq!(health.store.details["relations"], 0);
-    assert_eq!(health.store.details["schema_version"], 2);
+    assert_eq!(
+        health.store.details["schema_version"],
+        openmemory_graph::MEMORY_SCHEMA_VERSION
+    );
 }
 
 #[test]
@@ -1274,7 +1277,7 @@ fn job_registry_rejects_future_product_schema_version() {
              value TEXT NOT NULL
          );
          INSERT INTO product_meta(key, value)
-         VALUES('schema_version', '2');",
+         VALUES('schema_version', '5');",
     )
     .unwrap();
     drop(conn);

@@ -10,28 +10,26 @@
 use std::collections::BTreeSet;
 use std::convert::Infallible;
 use std::future::Future;
-use std::io::Write as _;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Path as AxumPath, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
 use axum::{Json, Router};
 use openmemory_admin::{
-    AdminBackupRequest, AdminConsolidateReport, AdminConsolidateRequest, AdminDiagnostic,
-    AdminDoctorResponse, AdminEntityDetail, AdminEntitySummary, AdminError, AdminErrorCode,
-    AdminErrorResponse, AdminEvent, AdminEventType, AdminIntegrationRequest, AdminJobKind,
-    AdminLogLevel, AdminLogsResponse, AdminObservation, AdminProfileSummary, AdminProfilesResponse,
-    AdminRelation, AdminRestorePreflightRequest, AdminRestoreRequest, AdminSearchResult,
-    AdminShutdownResponse, AdminTokenRotationResponse, ComponentHealth, DaemonRuntimeInfo,
-    HealthResponse, IntegrationSummary, Page, PageRequest, ADMIN_API_VERSION,
+    AdminBackupRequest, AdminConsolidateReport, AdminConsolidateRequest, AdminDoctorResponse,
+    AdminEntityDetail, AdminEntitySummary, AdminError, AdminErrorCode, AdminErrorResponse,
+    AdminEvent, AdminEventType, AdminIntegrationRequest, AdminJobKind, AdminLogLevel,
+    AdminLogsResponse, AdminObservation, AdminProfileSummary, AdminProfilesResponse, AdminRelation,
+    AdminRestorePreflightRequest, AdminRestoreRequest, AdminSearchResult, AdminShutdownResponse,
+    AdminTokenRotationResponse, ComponentHealth, HealthResponse, IntegrationSummary, Page,
+    PageRequest, ADMIN_API_VERSION,
 };
 use openmemory_core::config::Config;
+use openmemory_core::space::ProfileName;
 #[cfg(feature = "embeddings")]
 use openmemory_embed::{ModelManager, ModelRegistry};
 use openmemory_engine::partition::DomainStore;
@@ -40,26 +38,49 @@ use openmemory_graph::ConsolidateConfig;
 use openmemory_graph::{Entity, EntityListRow, EntityType, Observation, Relation};
 use openmemory_index::traits::SearchMode;
 use openmemory_mcp::{BearerToken, OpenMemoryMcpServer};
-use rand::RngCore;
 use serde::Deserialize;
 use thiserror::Error;
 use tokio_stream::wrappers::{BroadcastStream, WatchStream};
 use tokio_stream::StreamExt;
 
+mod auth;
 mod backup;
+mod health;
 mod integrations;
+mod policy;
 mod product_store;
+mod routes;
+mod runtime_files;
+mod services;
+mod space_manifest;
+mod space_registry;
 mod state;
 
+pub use auth::{
+    admin_token_path, load_admin_token, load_or_create_admin_token, rotate_admin_token, AdminToken,
+};
+use auth::{authorize_state, json_auth_error, AuthorizationService};
 use backup::{
     backup_preflight, restore_preflight, spawn_backup_create_job, spawn_restore_job,
     validate_restore_target_profile,
 };
+use health::{collect_health_diagnostic, mcp_health, watcher_health};
 use integrations::{
     integration_install, integration_preview, integrations_response, parse_integration_client,
     spawn_integration_verify_job,
 };
+use policy::{ResolvedProductPolicy, SelectionInputs};
+use product_store::ProductStore;
+pub use runtime_files::{
+    read_runtime_info, remove_runtime_info, runtime_info, runtime_info_path, write_runtime_info,
+};
+use runtime_files::{unix_now_secs, write_atomic};
+use space_manifest::{bind_legacy_personal_global, profile_root, LegacyBinding};
+use space_registry::{RegistryLimits, SpaceRegistry};
 use state::{AdminState, JobMessages, JobRegistry, RedactedLogRing, StoreRuntime};
+
+#[cfg(test)]
+use auth::constant_time_eq;
 
 pub const RUN_DIR: &str = "run";
 pub const ADMIN_TOKEN_FILE: &str = "admin-token";
@@ -81,42 +102,8 @@ pub enum DaemonError {
     RuntimeJson(#[from] serde_json::Error),
     #[error("system clock is before the Unix epoch")]
     ClockBeforeUnixEpoch,
-}
-
-/// Redacted bearer token used by the local admin API.
-#[derive(Clone)]
-pub struct AdminToken {
-    expected: Arc<str>,
-}
-
-impl AdminToken {
-    /// Build a token from a non-empty string.
-    ///
-    /// The token is trimmed before storage. Empty or whitespace-only
-    /// strings are rejected so the daemon cannot accidentally run with a
-    /// trivially bypassed auth check.
-    pub fn new(token: impl Into<String>) -> Result<Self, DaemonError> {
-        let token = token.into();
-        let trimmed = token.trim();
-        if trimmed.is_empty() {
-            return Err(DaemonError::EmptyAdminToken);
-        }
-        Ok(Self {
-            expected: Arc::from(trimmed.to_string()),
-        })
-    }
-
-    fn matches(&self, candidate: &str) -> bool {
-        constant_time_eq(self.expected.as_bytes(), candidate.as_bytes())
-    }
-}
-
-impl std::fmt::Debug for AdminToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AdminToken")
-            .field("expected", &"<redacted>")
-            .finish()
-    }
+    #[error("active profile is not a canonical portable profile name")]
+    InvalidProfile,
 }
 
 /// Configuration needed to start the daemon.
@@ -137,11 +124,13 @@ impl DaemonConfig {
         active_profile: impl Into<String>,
     ) -> Result<Self, DaemonError> {
         validate_loopback(bind_addr)?;
+        let active_profile = active_profile.into();
+        ProfileName::new(active_profile.clone()).map_err(|_| DaemonError::InvalidProfile)?;
         Ok(Self {
             bind_addr,
             admin_token,
             home,
-            active_profile: active_profile.into(),
+            active_profile,
         })
     }
 
@@ -155,6 +144,97 @@ impl DaemonConfig {
     #[must_use]
     pub fn active_profile(&self) -> &str {
         &self.active_profile
+    }
+
+    fn profile_name(&self) -> Result<ProfileName, DaemonError> {
+        ProfileName::new(self.active_profile.clone()).map_err(|_| DaemonError::InvalidProfile)
+    }
+}
+
+/// Daemon-owned Phase 2 control-plane state.  The existing public request
+/// routing remains personal-global; these private services make that binding,
+/// authority, and lifetime lock explicit before later context surfaces use it.
+#[allow(dead_code)] // Private Phase 2 state consumed by later context routes.
+#[derive(Debug)]
+pub(crate) struct ProductRuntime {
+    pub(crate) catalog: ProductStore,
+    pub(crate) authority: AuthorizationService,
+    pub(crate) policy: Option<ResolvedProductPolicy>,
+    pub(crate) registry: Option<SpaceRegistry>,
+    legacy_binding: Option<LegacyBinding>,
+}
+
+impl ProductRuntime {
+    fn open(config: &DaemonConfig) -> Result<Self, String> {
+        let catalog = ProductStore::open(config.home()).map_err(|error| error.to_string())?;
+        let now = i64::try_from(unix_now_secs().map_err(|error| error.to_string())?)
+            .map_err(|_| "system clock exceeds the supported catalog timestamp range".to_owned())?;
+        catalog
+            .ensure_installation_principal(now)
+            .map_err(|error| error.to_string())?;
+        let authority = AuthorizationService::new(catalog.clone());
+        let profile = config.profile_name().map_err(|error| error.to_string())?;
+        let root = profile_root(config.home(), &profile);
+        if !root.exists() {
+            return Ok(Self {
+                catalog,
+                authority,
+                policy: None,
+                registry: None,
+                legacy_binding: None,
+            });
+        }
+        let domains = DomainStore::manifest_domains(&root).map_err(|error| error.to_string())?;
+        let memory_config = load_config(config.home())?;
+        let domain_count = u8::try_from(domains)
+            .ok()
+            .filter(|count| (1..=64).contains(count))
+            .ok_or_else(|| "legacy profile has an invalid domain count".to_owned())?;
+        let binding = bind_legacy_personal_global(
+            &catalog,
+            &memory_config,
+            config.home(),
+            &profile,
+            domain_count,
+            now,
+        )
+        .map_err(|error| error.to_string())?;
+        let limits = RegistryLimits::default();
+        let policy = ResolvedProductPolicy::resolve(
+            profile.as_str(),
+            None,
+            SelectionInputs::default(),
+            binding.filesystem,
+            limits,
+        )
+        .map_err(|error| error.to_string())?;
+        let registry = SpaceRegistry::new(
+            catalog.clone(),
+            memory_config,
+            root,
+            policy.registry_limits(),
+            binding.catalog.space.id(),
+        )
+        .map_err(|error| error.to_string())?;
+        #[cfg(feature = "embeddings")]
+        let registry = {
+            let models_dir = config.home().join("models");
+            registry.with_embedder(
+                openmemory_embed::load_embedder(&models_dir)
+                    .map(|embedder| Arc::new(embedder) as Arc<_>),
+            )
+        };
+        Ok(Self {
+            catalog,
+            authority,
+            policy: Some(policy),
+            registry: Some(registry),
+            legacy_binding: Some(binding),
+        })
+    }
+
+    fn legacy_binding(&self) -> Option<&LegacyBinding> {
+        self.legacy_binding.as_ref()
     }
 }
 
@@ -174,108 +254,6 @@ struct SearchQuery {
     mode: Option<String>,
 }
 
-/// Load the per-home admin token or create one with owner-only
-/// permissions where supported.
-pub fn load_or_create_admin_token(home: &Path) -> Result<String, DaemonError> {
-    let path = admin_token_path(home);
-    if let Some(existing) = read_admin_token(&path)? {
-        return Ok(existing);
-    }
-
-    let token = generate_token();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    match write_new_token_file(&path, &token) {
-        Ok(()) => Ok(token),
-        Err(DaemonError::RuntimeIo(e)) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            read_admin_token(&path)?.ok_or_else(|| {
-                DaemonError::RuntimeIo(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "admin token file appeared but could not be read",
-                ))
-            })
-        }
-        Err(e) => Err(e),
-    }
-}
-
-/// Atomically replace the per-home admin token and return the new secret.
-pub fn rotate_admin_token(home: &Path) -> Result<String, DaemonError> {
-    let token = generate_token();
-    let path = admin_token_path(home);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    write_token_file_atomic(&path, &token)?;
-    Ok(token)
-}
-
-/// Path to the local admin token file for an OpenMemory home.
-#[must_use]
-pub fn admin_token_path(home: &Path) -> PathBuf {
-    home.join(RUN_DIR).join(ADMIN_TOKEN_FILE)
-}
-
-/// Load the per-home admin token without creating it.
-pub fn load_admin_token(home: &Path) -> Result<Option<String>, DaemonError> {
-    read_admin_token(&admin_token_path(home))
-}
-
-/// Path to the daemon runtime discovery file for an OpenMemory home.
-#[must_use]
-pub fn runtime_info_path(home: &Path) -> PathBuf {
-    home.join(RUN_DIR).join(DAEMON_RUNTIME_FILE)
-}
-
-/// Build runtime metadata for a daemon bound to `bound_addr`.
-pub fn runtime_info(
-    config: &DaemonConfig,
-    bound_addr: SocketAddr,
-) -> Result<DaemonRuntimeInfo, DaemonError> {
-    validate_loopback(bound_addr)?;
-    Ok(DaemonRuntimeInfo {
-        api_version: ADMIN_API_VERSION.to_string(),
-        daemon_version: env!("CARGO_PKG_VERSION").to_string(),
-        pid: std::process::id(),
-        bind_addr: bound_addr.to_string(),
-        admin_url: format!("http://{bound_addr}"),
-        home: config.home.display().to_string(),
-        active_profile: config.active_profile.clone(),
-        started_at_unix_secs: unix_now_secs()?,
-    })
-}
-
-/// Write daemon runtime metadata under `<home>/run/daemon.json`.
-pub fn write_runtime_info(home: &Path, info: &DaemonRuntimeInfo) -> Result<(), DaemonError> {
-    let path = runtime_info_path(home);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let content = serde_json::to_vec_pretty(info)?;
-    write_atomic(&path, &content)?;
-    Ok(())
-}
-
-/// Read daemon runtime metadata if the discovery file exists.
-pub fn read_runtime_info(home: &Path) -> Result<Option<DaemonRuntimeInfo>, DaemonError> {
-    let path = runtime_info_path(home);
-    match std::fs::read(&path) {
-        Ok(content) => Ok(Some(serde_json::from_slice(&content)?)),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(DaemonError::RuntimeIo(e)),
-    }
-}
-
-/// Remove daemon runtime metadata. Missing files are treated as already removed.
-pub fn remove_runtime_info(home: &Path) -> Result<(), DaemonError> {
-    match std::fs::remove_file(runtime_info_path(home)) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(DaemonError::RuntimeIo(e)),
-    }
-}
-
 /// Build the axum router for the local admin API.
 pub fn build_router(config: DaemonConfig) -> Router {
     build_router_with_shutdown(config, None)
@@ -287,7 +265,22 @@ fn build_router_with_shutdown(
 ) -> Router {
     let logs = Arc::new(RedactedLogRing::new(DEFAULT_LOG_RING_CAPACITY));
     let jobs = Arc::new(JobRegistry::open(config.home()));
-    let store = Arc::new(RwLock::new(open_profile_runtime(&config)));
+    let product = match ProductRuntime::open(&config) {
+        Ok(product) => Some(Arc::new(product)),
+        Err(error) => {
+            logs.push(
+                AdminLogLevel::Error,
+                "product_runtime_start_failed",
+                "product catalog and authority could not be initialized",
+                serde_json::json!({ "error": error }),
+            );
+            None
+        }
+    };
+    let store = Arc::new(RwLock::new(open_profile_runtime(
+        &config,
+        product.as_deref(),
+    )));
     let (token_generation, _) = tokio::sync::watch::channel(0);
     logs.push(
         AdminLogLevel::Info,
@@ -305,7 +298,7 @@ fn build_router_with_shutdown(
     // here instead of opening independent vector indexes and journals.
     let initial_store = store.read().unwrap_or_else(|error| error.into_inner());
     let (mcp_router, engine, mcp_auth) = match &*initial_store {
-        StoreRuntime::Ready(memory) => match load_config(config.home()) {
+        StoreRuntime::Ready { store: memory, .. } => match load_config(config.home()) {
             Ok(mut engine_config) => {
                 engine_config.engine.enabled = true;
                 engine_config.engine.journal = true;
@@ -353,50 +346,14 @@ fn build_router_with_shutdown(
         config,
         logs,
         jobs,
+        product,
         store,
         engine,
         mcp_auth,
         shutdown,
     };
 
-    let admin = Router::new()
-        .route("/admin/health", get(handle_health))
-        .route("/admin/doctor", get(handle_doctor))
-        .route("/admin/shutdown", post(handle_shutdown))
-        .route("/admin/logs", get(handle_logs))
-        .route("/admin/auth/rotate", post(handle_rotate_token))
-        .route("/admin/profiles", get(handle_profiles))
-        .route("/admin/entities", get(handle_entities))
-        .route("/admin/entities/{id}", get(handle_entity_detail))
-        .route("/admin/search", get(handle_search))
-        .route("/admin/consolidate", post(handle_consolidate))
-        .route("/admin/jobs/{id}", get(handle_job))
-        .route("/admin/events", get(handle_events))
-        .route("/admin/integrations", get(handle_integrations))
-        .route(
-            "/admin/integrations/{client}/preview",
-            post(handle_integration_preview),
-        )
-        .route(
-            "/admin/integrations/{client}/install",
-            post(handle_integration_install),
-        )
-        .route(
-            "/admin/integrations/{client}/verify",
-            post(handle_integration_verify),
-        )
-        .route("/admin/backup/preflight", post(handle_backup_preflight))
-        .route("/admin/backup/create", post(handle_backup_create))
-        .route("/admin/backups/preflight", post(handle_backup_preflight))
-        .route("/admin/backups/create", post(handle_backup_create))
-        .route("/admin/restore/preflight", post(handle_restore_preflight))
-        .route("/admin/restore", post(handle_restore))
-        .with_state(state);
-    if let Some(mcp) = mcp_router {
-        admin.merge(mcp)
-    } else {
-        admin
-    }
+    routes::existing::router(state, mcp_router)
 }
 
 /// Bind the daemon listener after validating loopback policy.
@@ -453,7 +410,8 @@ pub async fn serve(config: DaemonConfig) -> Result<(), DaemonError> {
 
 #[cfg(test)]
 fn health_response(config: &DaemonConfig) -> HealthResponse {
-    let store = open_profile_runtime(config);
+    let product = ProductRuntime::open(config).ok();
+    let store = open_profile_runtime(config, product.as_ref());
     health_response_with_jobs(config, None, &store)
 }
 
@@ -513,47 +471,6 @@ fn doctor_response(
     }
 }
 
-fn mcp_health() -> ComponentHealth {
-    match std::env::current_exe() {
-        Ok(path) if path.is_file() => ComponentHealth::ok("MCP stdio command is available")
-            .with_details(serde_json::json!({ "binary": path.display().to_string() })),
-        Ok(path) => ComponentHealth::error(
-            AdminErrorCode::ClientConfigStale,
-            "current executable is not a file",
-        )
-        .with_details(serde_json::json!({ "binary": path.display().to_string() })),
-        Err(error) => ComponentHealth::error(
-            AdminErrorCode::ClientConfigUnreadable,
-            "current executable could not be resolved",
-        )
-        .with_details(serde_json::json!({ "error": error.to_string() })),
-    }
-}
-
-fn watcher_health() -> ComponentHealth {
-    ComponentHealth::ok("watcher is CLI-managed for this daemon version")
-}
-
-fn collect_health_diagnostic(
-    component: &str,
-    health: &ComponentHealth,
-    diagnostics: &mut Vec<AdminDiagnostic>,
-) {
-    let Some(code) = health.code else {
-        return;
-    };
-    diagnostics.push(AdminDiagnostic {
-        component: component.to_string(),
-        code,
-        message: health
-            .message
-            .clone()
-            .unwrap_or_else(|| "diagnostic".to_string()),
-        hint: None,
-        details: health.details.clone(),
-    });
-}
-
 fn load_config(home: &Path) -> Result<Config, String> {
     Config::load_from(home.join("config.toml")).map_err(|e| e.to_string())
 }
@@ -569,7 +486,7 @@ fn store_health(config: &DaemonConfig, loaded_config: Result<&Config, &String>) 
         "data_dir": data_dir.display().to_string(),
     });
 
-    let loaded_config = match loaded_config {
+    let _loaded_config = match loaded_config {
         Ok(config) => config,
         Err(error) => {
             return ComponentHealth::error(
@@ -591,19 +508,14 @@ fn store_health(config: &DaemonConfig, loaded_config: Result<&Config, &String>) 
         .with_details(details);
     }
 
-    let store = match DomainStore::open_existing(loaded_config, &data_dir) {
-        Ok(store) => store,
-        Err(error) => {
-            let message = error.to_string();
-            return ComponentHealth::error(
-                store_error_code(&message),
-                "memory store is unreadable",
-            )
-            .with_details(merge_details(
-                details,
-                serde_json::json!({ "error": message }),
-            ));
-        }
+    let product = ProductRuntime::open(config).ok();
+    let runtime = open_profile_runtime(config, product.as_ref());
+    let StoreRuntime::Ready { store, .. } = runtime else {
+        let StoreRuntime::Unavailable(error) = runtime else {
+            unreachable!()
+        };
+        return ComponentHealth::error(error.code, error.message)
+            .with_details(merge_details(details, error.details));
     };
     let domains = store.domains();
 
@@ -638,21 +550,18 @@ fn store_health(config: &DaemonConfig, loaded_config: Result<&Config, &String>) 
     }
 }
 
-fn open_profile_runtime(config: &DaemonConfig) -> StoreRuntime {
-    let loaded_config = match load_config(config.home()) {
-        Ok(config) => config,
-        Err(error) => {
-            return StoreRuntime::Unavailable(
-                AdminError::new(
-                    AdminErrorCode::ConfigInvalid,
-                    "OpenMemory config could not be loaded",
-                    Some("Fix config.toml and restart the daemon."),
-                    false,
-                )
-                .with_details(serde_json::json!({ "error": error })),
-            );
-        }
-    };
+fn open_profile_runtime(config: &DaemonConfig, product: Option<&ProductRuntime>) -> StoreRuntime {
+    if let Err(error) = load_config(config.home()) {
+        return StoreRuntime::Unavailable(
+            AdminError::new(
+                AdminErrorCode::ConfigInvalid,
+                "OpenMemory config could not be loaded",
+                Some("Fix config.toml and restart the daemon."),
+                false,
+            )
+            .with_details(serde_json::json!({ "error": error })),
+        );
+    }
     let data_dir = profile_data_dir(config.home(), config.active_profile());
     if !data_dir.exists() {
         return StoreRuntime::Unavailable(
@@ -668,23 +577,66 @@ fn open_profile_runtime(config: &DaemonConfig) -> StoreRuntime {
             })),
         );
     }
-    #[cfg(feature = "embeddings")]
-    let opened = {
-        let models_dir = config.home().join("models");
-        if let Some(embedder) = openmemory_embed::load_embedder(&models_dir) {
-            DomainStore::open_existing_with_embedder(&loaded_config, &data_dir, Arc::new(embedder))
-        } else {
-            DomainStore::open_existing(&loaded_config, &data_dir)
+    let fallback_product = if product.is_some_and(|runtime| runtime.legacy_binding().is_none()) {
+        match ProductRuntime::open(config) {
+            Ok(runtime) => Some(runtime),
+            Err(error) => {
+                return StoreRuntime::Unavailable(
+                    AdminError::new(
+                        AdminErrorCode::StoreUnreadable,
+                        "product catalog could not bind the active profile",
+                        Some("Inspect the product catalog and active profile manifest."),
+                        true,
+                    )
+                    .with_details(serde_json::json!({ "error": error })),
+                );
+            }
         }
+    } else {
+        None
     };
-    #[cfg(not(feature = "embeddings"))]
-    let opened = DomainStore::open_existing(&loaded_config, &data_dir);
-
-    match opened {
-        Ok(store) => StoreRuntime::Ready(Arc::new(store)),
-        Err(error) => {
-            StoreRuntime::Unavailable(store_admin_error("memory store is unreadable", error))
+    let product = fallback_product.as_ref().or(product);
+    let Some(binding) = product.and_then(ProductRuntime::legacy_binding) else {
+        return StoreRuntime::Unavailable(AdminError::new(
+            AdminErrorCode::StoreUnreadable,
+            "product catalog could not bind the active profile",
+            Some("Inspect the product catalog and active profile manifest."),
+            true,
+        ));
+    };
+    if binding.root != data_dir {
+        return StoreRuntime::Unavailable(AdminError::new(
+            AdminErrorCode::StoreUnreadable,
+            "product catalog root does not match the active profile",
+            Some("Inspect the active profile manifest."),
+            true,
+        ));
+    }
+    let Some(registry) = product.and_then(|runtime| runtime.registry.as_ref()) else {
+        return StoreRuntime::Unavailable(AdminError::new(
+            AdminErrorCode::StoreUnreadable,
+            "space runtime registry is unavailable",
+            Some("Inspect the product catalog and active profile manifest."),
+            true,
+        ));
+    };
+    match registry.acquire(binding.catalog.space.id()) {
+        Ok(lease) => {
+            let store = lease.store();
+            StoreRuntime::Ready {
+                store,
+                _runtime_lease: Arc::new(lease),
+            }
         }
+        Err(error) => StoreRuntime::Unavailable(
+            AdminError::new(
+                AdminErrorCode::StoreUnreadable,
+                "memory store runtime could not be acquired",
+                Some("Inspect the active space manifest and store."),
+                true,
+            )
+            .with_details(serde_json::json!({ "error": error.to_string() })),
+        ),
     }
 }
 
@@ -695,7 +647,7 @@ fn store_runtime_health(config: &DaemonConfig, runtime: &StoreRuntime) -> Compon
         "data_dir": data_dir.display().to_string(),
         "persistent_runtime": true,
     });
-    let StoreRuntime::Ready(store) = runtime else {
+    let StoreRuntime::Ready { store, .. } = runtime else {
         let StoreRuntime::Unavailable(error) = runtime else {
             unreachable!()
         };
@@ -929,7 +881,7 @@ fn open_active_store(state: &AdminState) -> Result<Arc<DomainStore>, (StatusCode
         .read()
         .unwrap_or_else(|error| error.into_inner());
     match &*store {
-        StoreRuntime::Ready(store) => Ok(Arc::clone(store)),
+        StoreRuntime::Ready { store, .. } => Ok(Arc::clone(store)),
         StoreRuntime::Unavailable(error) => {
             let status = if error.code == AdminErrorCode::ProfileNotInitialized {
                 StatusCode::NOT_FOUND
@@ -955,7 +907,7 @@ fn refresh_store_runtime(state: &AdminState) {
         return;
     }
 
-    let refreshed = open_profile_runtime(&state.config);
+    let refreshed = open_profile_runtime(&state.config, state.product.as_deref());
     let mut runtime = state
         .store
         .write()
@@ -1113,7 +1065,7 @@ fn looks_like_secret_word(word: &str) -> bool {
     trimmed.len() >= 32 && trimmed.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-async fn handle_health(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_health(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {
             refresh_store_runtime(&state);
@@ -1132,7 +1084,7 @@ async fn handle_health(State(state): State<AdminState>, headers: HeaderMap) -> R
     }
 }
 
-async fn handle_doctor(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_doctor(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {
             refresh_store_runtime(&state);
@@ -1146,7 +1098,10 @@ async fn handle_doctor(State(state): State<AdminState>, headers: HeaderMap) -> R
     }
 }
 
-async fn handle_shutdown(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_shutdown(
+    State(state): State<AdminState>,
+    headers: HeaderMap,
+) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {}
         Err((status, error)) => return json_auth_error(status, error),
@@ -1197,7 +1152,7 @@ async fn handle_shutdown(State(state): State<AdminState>, headers: HeaderMap) ->
     }
 }
 
-async fn handle_logs(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_logs(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => Json(AdminLogsResponse {
             entries: state.logs.snapshot(),
@@ -1207,7 +1162,10 @@ async fn handle_logs(State(state): State<AdminState>, headers: HeaderMap) -> Res
     }
 }
 
-async fn handle_rotate_token(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_rotate_token(
+    State(state): State<AdminState>,
+    headers: HeaderMap,
+) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {}
         Err((status, error)) => return json_auth_error(status, error),
@@ -1276,14 +1234,17 @@ async fn handle_rotate_token(State(state): State<AdminState>, headers: HeaderMap
     }
 }
 
-async fn handle_profiles(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_profiles(
+    State(state): State<AdminState>,
+    headers: HeaderMap,
+) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => Json(profiles_response(&state.config)).into_response(),
         Err((status, error)) => json_auth_error(status, error),
     }
 }
 
-async fn handle_entities(
+pub(crate) async fn handle_entities(
     State(state): State<AdminState>,
     headers: HeaderMap,
     Query(query): Query<EntityListQuery>,
@@ -1347,7 +1308,7 @@ async fn handle_entities(
     Json(Page::new(items, next_offset)).into_response()
 }
 
-async fn handle_entity_detail(
+pub(crate) async fn handle_entity_detail(
     State(state): State<AdminState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
@@ -1416,7 +1377,7 @@ async fn handle_entity_detail(
     .into_response()
 }
 
-async fn handle_search(
+pub(crate) async fn handle_search(
     State(state): State<AdminState>,
     headers: HeaderMap,
     Query(query): Query<SearchQuery>,
@@ -1499,7 +1460,7 @@ async fn handle_search(
     Json(Page::new(results, None)).into_response()
 }
 
-async fn handle_consolidate(
+pub(crate) async fn handle_consolidate(
     State(state): State<AdminState>,
     headers: HeaderMap,
     body: Option<Json<AdminConsolidateRequest>>,
@@ -1530,7 +1491,7 @@ async fn handle_consolidate(
     Json(job).into_response()
 }
 
-async fn handle_job(
+pub(crate) async fn handle_job(
     State(state): State<AdminState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
@@ -1554,7 +1515,7 @@ async fn handle_job(
     }
 }
 
-async fn handle_events(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_events(State(state): State<AdminState>, headers: HeaderMap) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {}
         Err((status, error)) => return json_auth_error(status, error),
@@ -1609,7 +1570,10 @@ fn event_to_sse(event: AdminEvent) -> Result<Event, Infallible> {
     }
 }
 
-async fn handle_integrations(State(state): State<AdminState>, headers: HeaderMap) -> Response {
+pub(crate) async fn handle_integrations(
+    State(state): State<AdminState>,
+    headers: HeaderMap,
+) -> Response {
     match authorize_state(&headers, &state) {
         Ok(()) => {}
         Err((status, error)) => return json_auth_error(status, error),
@@ -1618,7 +1582,7 @@ async fn handle_integrations(State(state): State<AdminState>, headers: HeaderMap
     Json(integrations_response(&state.config)).into_response()
 }
 
-async fn handle_integration_preview(
+pub(crate) async fn handle_integration_preview(
     State(state): State<AdminState>,
     headers: HeaderMap,
     AxumPath(client): AxumPath<String>,
@@ -1643,7 +1607,7 @@ async fn handle_integration_preview(
     }
 }
 
-async fn handle_integration_install(
+pub(crate) async fn handle_integration_install(
     State(state): State<AdminState>,
     headers: HeaderMap,
     AxumPath(client): AxumPath<String>,
@@ -1668,7 +1632,7 @@ async fn handle_integration_install(
     }
 }
 
-async fn handle_integration_verify(
+pub(crate) async fn handle_integration_verify(
     State(state): State<AdminState>,
     headers: HeaderMap,
     AxumPath(client): AxumPath<String>,
@@ -1699,7 +1663,7 @@ async fn handle_integration_verify(
     Json(job).into_response()
 }
 
-async fn handle_backup_preflight(
+pub(crate) async fn handle_backup_preflight(
     State(state): State<AdminState>,
     headers: HeaderMap,
     body: Option<Json<AdminBackupRequest>>,
@@ -1712,7 +1676,7 @@ async fn handle_backup_preflight(
     Json(backup_preflight(&state.config, &request)).into_response()
 }
 
-async fn handle_backup_create(
+pub(crate) async fn handle_backup_create(
     State(state): State<AdminState>,
     headers: HeaderMap,
     body: Option<Json<AdminBackupRequest>>,
@@ -1793,7 +1757,7 @@ async fn handle_backup_create(
     Json(job).into_response()
 }
 
-async fn handle_restore_preflight(
+pub(crate) async fn handle_restore_preflight(
     State(state): State<AdminState>,
     headers: HeaderMap,
     Json(request): Json<AdminRestorePreflightRequest>,
@@ -1805,7 +1769,7 @@ async fn handle_restore_preflight(
     Json(restore_preflight(&request)).into_response()
 }
 
-async fn handle_restore(
+pub(crate) async fn handle_restore(
     State(state): State<AdminState>,
     headers: HeaderMap,
     Json(request): Json<AdminRestoreRequest>,
@@ -1893,96 +1857,12 @@ async fn handle_restore(
     Json(job).into_response()
 }
 
-fn authorize_state(
-    headers: &HeaderMap,
-    state: &AdminState,
-) -> Result<(), (StatusCode, AdminErrorResponse)> {
-    let token = state
-        .token
-        .read()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone();
-    let result = authorize(headers, &token);
-    if let Err((_, error)) = &result {
-        state.logs.push(
-            AdminLogLevel::Warning,
-            "admin_auth_rejected",
-            "admin authorization rejected",
-            serde_json::json!({ "code": error.error.code }),
-        );
-    }
-    result
-}
-
-fn authorize(
-    headers: &HeaderMap,
-    expected: &AdminToken,
-) -> Result<(), (StatusCode, AdminErrorResponse)> {
-    let Some(raw) = headers.get(header::AUTHORIZATION) else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            auth_error(
-                AdminErrorCode::AuthRequired,
-                "admin bearer token required",
-                "Start the daemon through OpenMemory Desktop or the openmemory CLI.",
-            ),
-        ));
-    };
-
-    let Ok(header_str) = raw.to_str() else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            auth_error(
-                AdminErrorCode::AuthInvalid,
-                "admin bearer token is invalid",
-                "Use the current token for this OpenMemory home.",
-            ),
-        ));
-    };
-
-    let Some(token) = header_str.strip_prefix("Bearer ") else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            auth_error(
-                AdminErrorCode::AuthInvalid,
-                "admin bearer token is invalid",
-                "Use an Authorization header in the form: Bearer <token>.",
-            ),
-        ));
-    };
-
-    if !expected.matches(token.trim()) {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            auth_error(
-                AdminErrorCode::AuthInvalid,
-                "admin bearer token is invalid",
-                "Use the current token for this OpenMemory home.",
-            ),
-        ));
-    }
-
-    Ok(())
-}
-
-fn auth_error(code: AdminErrorCode, message: &str, hint: &str) -> AdminErrorResponse {
-    AdminErrorResponse::new(AdminError::new(code, message, Some(hint), false))
-}
-
 fn json_error(status: StatusCode, error: AdminErrorResponse) -> Response {
     let mut response = (status, Json(error)).into_response();
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json"),
     );
-    response
-}
-
-fn json_auth_error(status: StatusCode, error: AdminErrorResponse) -> Response {
-    let mut response = json_error(status, error);
-    response
-        .headers_mut()
-        .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
     response
 }
 
@@ -1994,171 +1874,7 @@ fn validate_loopback(addr: SocketAddr) -> Result<(), DaemonError> {
     }
 }
 
-fn generate_token() -> String {
-    let mut bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut bytes);
-    hex_encode(&bytes)
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        out.push(HEX[(byte >> 4) as usize] as char);
-        out.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    out
-}
-
-fn write_new_token_file(path: &Path, token: &str) -> Result<(), DaemonError> {
-    #[cfg(unix)]
-    let mut file = {
-        use std::os::unix::fs::OpenOptionsExt;
-        std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path)
-    }?;
-
-    #[cfg(not(unix))]
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)?;
-
-    file.write_all(token.as_bytes())?;
-    file.write_all(b"\n")?;
-    Ok(())
-}
-
-fn write_token_file_atomic(path: &Path, token: &str) -> Result<(), DaemonError> {
-    let tmp = token_tmp_path(path);
-    {
-        #[cfg(unix)]
-        let mut file = {
-            use std::os::unix::fs::OpenOptionsExt;
-            std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(&tmp)
-        }?;
-
-        #[cfg(not(unix))]
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp)?;
-
-        file.write_all(token.as_bytes())?;
-        file.write_all(b"\n")?;
-        file.sync_all()?;
-    }
-    match std::fs::rename(&tmp, path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            Err(DaemonError::RuntimeIo(e))
-        }
-    }
-}
-
-fn token_tmp_path(path: &Path) -> PathBuf {
-    let suffix = generate_token();
-    let name = path.file_name().map_or_else(
-        || std::borrow::Cow::Borrowed("admin-token"),
-        |name| name.to_string_lossy(),
-    );
-    path.with_file_name(format!(".{name}.tmp.{}", &suffix[..12]))
-}
-
-fn write_atomic(path: &Path, content: &[u8]) -> Result<(), DaemonError> {
-    let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
-    {
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)?;
-        file.write_all(content)?;
-        file.write_all(b"\n")?;
-        file.sync_all()?;
-    }
-    match std::fs::rename(&tmp, path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            Err(DaemonError::RuntimeIo(e))
-        }
-    }
-}
-
-fn read_admin_token(path: &Path) -> Result<Option<String>, DaemonError> {
-    if !admin_token_file_exists_securely(path)? {
-        return Ok(None);
-    }
-    match std::fs::read_to_string(path) {
-        Ok(existing) => {
-            let token = existing.trim();
-            if token.is_empty() {
-                Err(DaemonError::EmptyAdminToken)
-            } else {
-                Ok(Some(token.to_string()))
-            }
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(DaemonError::RuntimeIo(e)),
-    }
-}
-
-#[cfg(unix)]
-fn admin_token_file_exists_securely(path: &Path) -> Result<bool, DaemonError> {
-    use std::os::unix::fs::PermissionsExt;
-
-    let metadata = match std::fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(e) => return Err(DaemonError::RuntimeIo(e)),
-    };
-    let mode = metadata.permissions().mode() & 0o777;
-    if metadata.file_type().is_symlink()
-        || (metadata.file_type().is_file() && metadata.permissions().mode() & 0o077 != 0)
-    {
-        return Err(DaemonError::InsecureAdminTokenPermissions {
-            path: path.to_path_buf(),
-            mode,
-        });
-    }
-    Ok(true)
-}
-
-#[cfg(not(unix))]
-fn admin_token_file_exists_securely(path: &Path) -> Result<bool, DaemonError> {
-    match std::fs::metadata(path) {
-        Ok(_) => Ok(true),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(e) => Err(DaemonError::RuntimeIo(e)),
-    }
-}
-
-fn constant_time_eq(expected: &[u8], provided: &[u8]) -> bool {
-    if expected.len() != provided.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in expected.iter().zip(provided) {
-        diff |= x ^ y;
-    }
-    diff == 0
-}
-
-fn unix_now_secs() -> Result<u64, DaemonError> {
-    Ok(SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| DaemonError::ClockBeforeUnixEpoch)?
-        .as_secs())
-}
-
+#[cfg(test)]
+mod phase2_tests;
 #[cfg(test)]
 mod tests;

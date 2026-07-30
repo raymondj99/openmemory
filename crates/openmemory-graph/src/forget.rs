@@ -39,63 +39,65 @@ impl MemoryStore {
     /// Soft-delete observation `id`. Idempotent: a no-op if the observation
     /// is already tombstoned. Returns `true` if a row was modified.
     pub fn forget(&self, observation_id: &str) -> MemoryResult<bool> {
-        let _guard = self.write_rebuild();
-
-        let conn = self.lock_db();
-        let now = self.clock().now_secs();
-        let updated = conn.execute(
-            "UPDATE observations
-             SET tombstoned = 1, valid_until = COALESCE(valid_until, ?1)
-             WHERE id = ?2 AND tombstoned = 0",
-            params![now, observation_id],
-        )?;
-        drop(conn);
-
-        if updated > 0 {
-            // Drop the search-index entry so recall stops returning it. If
-            // the index is briefly out of sync, the recall path's tombstone
-            // filter still excludes it.
-            let uri = format!("memory://observation/{observation_id}");
-            if let Err(e) = self.engine().engine.delete_by_uri(&uri) {
-                tracing::warn!(
-                    target: "openmemory_graph::forget",
-                    error = %e,
-                    observation_id,
-                    "search-index delete failed; SQLite tombstone remains authoritative"
-                );
-            }
-            self.flush_engine();
-        }
-        Ok(updated > 0)
+        self.retire_observation(observation_id)
     }
 
     /// Hard-delete an entity by name. CASCADE removes observations and
     /// relations. Returns the number of observations purged.
     ///
-    /// Returns [`MemoryError::EntityNotFound`] when the name doesn't match
-    /// any entity. Pair with `get_entity_by_name_and_type` upstream when
-    /// the name is ambiguous across types — this method deletes the first
-    /// match.
+    /// Returns [`MemoryError::EntityNotFound`] when the name matches no
+    /// entity, and [`MemoryError::AmbiguousEntityName`] when it matches
+    /// more than one.
+    ///
+    /// It previously deleted "the first match", meaning whichever row
+    /// SQLite reached first. That is the worst place in the codebase for
+    /// that behaviour: the live profile store already carries
+    /// `ProjectAlpha` as both a `concept` and a `project`, so a user
+    /// typing `forget-entity ProjectAlpha` would have destroyed one of
+    /// two unrelated entities with no way to tell which, and no way back.
+    /// Use [`Self::forget_entity_by_id`] after disambiguating.
     pub fn forget_entity(&self, name: &str) -> MemoryResult<usize> {
         if name.trim().is_empty() {
             return Err(MemoryError::InvalidInput(
                 "entity name must not be empty".into(),
             ));
         }
+        let entity_id = match self.resolve_entity(name)? {
+            crate::resolve::EntityResolution::NotFound => {
+                return Err(MemoryError::EntityNotFound(name.to_string()));
+            }
+            crate::resolve::EntityResolution::Unique(entity) => entity.id,
+            crate::resolve::EntityResolution::Ambiguous(candidates) => {
+                return Err(MemoryError::AmbiguousEntityName {
+                    name: name.to_string(),
+                    candidates: candidates.labels(),
+                });
+            }
+        };
+        self.forget_entity_by_id(&entity_id)
+    }
+
+    /// Hard-delete the entity with this immutable id.
+    ///
+    /// The unambiguous form of [`Self::forget_entity`]: an id names
+    /// exactly one entity by construction, so there is nothing to guess.
+    pub fn forget_entity_by_id(&self, entity_id: &str) -> MemoryResult<usize> {
+        if entity_id.trim().is_empty() {
+            return Err(MemoryError::InvalidInput(
+                "entity id must not be empty".into(),
+            ));
+        }
         let _guard = self.write_rebuild();
 
         let conn = self.lock_db();
-        let entity_id: String = match conn.query_row(
-            "SELECT id FROM entities WHERE name = ?1",
-            params![name],
+        let exists: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM entities WHERE id = ?1)",
+            params![entity_id],
             |row| row.get(0),
-        ) {
-            Ok(id) => id,
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                return Err(MemoryError::EntityNotFound(name.to_string()));
-            }
-            Err(e) => return Err(e.into()),
-        };
+        )?;
+        if !exists {
+            return Err(MemoryError::EntityNotFound(entity_id.to_string()));
+        }
 
         let observation_ids: Vec<String> = {
             let mut stmt = conn.prepare("SELECT id FROM observations WHERE entity_id = ?1")?;

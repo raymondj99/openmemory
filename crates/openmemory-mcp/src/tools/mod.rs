@@ -29,6 +29,7 @@ pub mod index;
 pub mod maintenance;
 pub mod memory;
 pub mod retrieve;
+pub mod spaces;
 pub mod supersede;
 
 /// MCP-tool trait. Each tool is a zero-sized unit struct implementing this
@@ -68,6 +69,7 @@ pub enum ToolGroup {
     Memory,
     Index,
     Maintenance,
+    Spaces,
 }
 
 impl ToolGroup {
@@ -76,6 +78,7 @@ impl ToolGroup {
             Self::Memory => "MEMORY TOOLS:",
             Self::Index => "INDEX TOOLS:",
             Self::Maintenance => "MAINTENANCE TOOLS:",
+            Self::Spaces => "SPACE TOOLS:",
         }
     }
 }
@@ -194,7 +197,10 @@ pub fn server_instructions() -> String {
          1. Use openmemory_remember to store facts about named entities.\n\
          2. Use openmemory_recall to find facts by natural-language query.\n\
          3. Use openmemory_index_text + openmemory_search for free-text content.\n\
-         4. Run openmemory_consolidate periodically to dedup + decay-prune.\n",
+         4. Run openmemory_consolidate periodically to dedup + decay-prune.\n\
+         5. Use openmemory_space to create isolated spaces; pass `space` on any \
+         memory/index tool to target one, and `read_spaces` on recall/retrieve \
+         to compose up to four spaces.\n",
     );
     out
 }
@@ -211,6 +217,7 @@ fn registry() -> Vec<Entry> {
     supersede::register_all(&mut v);
     index::register_all(&mut v);
     maintenance::register_all(&mut v);
+    spaces::register_all(&mut v);
     v
 }
 
@@ -291,8 +298,8 @@ mod tests {
         let names: Vec<_> = registry().iter().map(|e| e.name).collect();
         assert_eq!(
             names.len(),
-            15,
-            "expected 15 tools (11 memory + 3 index + 1 maintenance), got {}: {names:?}",
+            16,
+            "expected 16 tools (11 memory + 3 index + 1 maintenance + 1 space), got {}: {names:?}",
             names.len()
         );
     }

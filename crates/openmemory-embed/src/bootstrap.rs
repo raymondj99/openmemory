@@ -47,46 +47,48 @@ fn resolve_model(registry: &ModelRegistry) -> &'static Model {
     registry.default_model()
 }
 
-static ORT_INIT: OnceLock<()> = OnceLock::new();
+static ORT_PATH_INIT: OnceLock<bool> = OnceLock::new();
 
-/// Attempt to find the ONNX Runtime shared library in common
-/// locations and set `ORT_DYLIB_PATH` if not already set.
+/// Configure ONNX Runtime from an explicit or discovered library path.
 ///
-/// Runs exactly once per process via `OnceLock`. The `set_var` call
-/// happens before any threads are spawned (the MCP server's tokio
-/// runtime starts after bootstrap returns).
-#[allow(unsafe_code)]
-fn init_ort_env() {
-    ORT_INIT.get_or_init(|| {
-        if std::env::var("ORT_DYLIB_PATH").is_ok() {
-            return;
-        }
+/// `ort::init_from` records the dynamic-loader path without mutating the
+/// process environment. Actual runtime loading remains lazy so a missing
+/// runtime cannot break keyword-only startup before a model is present.
+fn init_ort_loader_path() -> bool {
+    *ORT_PATH_INIT.get_or_init(|| {
+        let configured = std::env::var_os("ORT_DYLIB_PATH").map(std::path::PathBuf::from);
+        let discovered = configured.or_else(|| {
+            let candidates: &[&str] = if cfg!(target_os = "macos") {
+                &[
+                    "/opt/homebrew/opt/onnxruntime/lib/libonnxruntime.dylib",
+                    "/usr/local/opt/onnxruntime/lib/libonnxruntime.dylib",
+                    "/usr/local/lib/libonnxruntime.dylib",
+                ]
+            } else {
+                &[
+                    "/usr/lib/libonnxruntime.so",
+                    "/usr/local/lib/libonnxruntime.so",
+                    "/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
+                    "/usr/lib/aarch64-linux-gnu/libonnxruntime.so",
+                ]
+            };
+            candidates
+                .iter()
+                .map(std::path::PathBuf::from)
+                .find(|path| path.exists())
+        });
 
-        let candidates: &[&str] = if cfg!(target_os = "macos") {
-            &[
-                "/opt/homebrew/opt/onnxruntime/lib/libonnxruntime.dylib",
-                "/usr/local/opt/onnxruntime/lib/libonnxruntime.dylib",
-                "/usr/local/lib/libonnxruntime.dylib",
-            ]
+        if let Some(path) = discovered {
+            info!("Configuring ONNX Runtime from {}", path.display());
+            // Creating this builder safely records ort's process-global loader
+            // path. Do not commit it here: session construction owns the
+            // actual load, as it did before this bootstrap refactor.
+            let _ = ort::init_from(path.to_string_lossy());
+            true
         } else {
-            &[
-                "/usr/lib/libonnxruntime.so",
-                "/usr/local/lib/libonnxruntime.so",
-                "/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
-                "/usr/lib/aarch64-linux-gnu/libonnxruntime.so",
-            ]
-        };
-
-        for path in candidates {
-            if Path::new(path).exists() {
-                // SAFETY: called exactly once via OnceLock, before the
-                // tokio runtime (and its thread pool) is created.
-                unsafe { std::env::set_var("ORT_DYLIB_PATH", path) };
-                info!("Auto-detected ONNX Runtime at {path}");
-                return;
-            }
+            false
         }
-    });
+    })
 }
 
 /// Load the default text embedder from a locally cached model.
@@ -97,7 +99,7 @@ fn init_ort_env() {
 ///
 /// To download the model first, use [`ensure_model`].
 pub fn load_embedder(models_dir: &Path) -> Option<crate::CachedEmbedder> {
-    init_ort_env();
+    init_ort_loader_path();
 
     let manager = ModelManager::new(models_dir.to_path_buf());
     let registry = ModelRegistry::default();
@@ -151,8 +153,7 @@ pub fn load_embedder(models_dir: &Path) -> Option<crate::CachedEmbedder> {
 /// was freshly downloaded). Returns `false` when ORT is missing or
 /// the download fails.
 pub fn ensure_model(models_dir: &Path) -> bool {
-    init_ort_env();
-    if std::env::var("ORT_DYLIB_PATH").is_err() {
+    if !init_ort_loader_path() {
         info!("ONNX Runtime not found. Skipping model download.");
         return false;
     }
@@ -181,4 +182,13 @@ pub fn ensure_model(models_dir: &Path) -> bool {
 pub fn load_default_embedder() -> Option<crate::CachedEmbedder> {
     let models_dir = openmemory_core::config::Config::models_dir().ok()?;
     load_embedder(&models_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn empty_model_cache_falls_back_without_loading_ort() {
+        let models = tempfile::tempdir().expect("create empty model cache");
+        assert!(super::load_embedder(models.path()).is_none());
+    }
 }

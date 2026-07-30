@@ -9,7 +9,7 @@
 //! - `openmemory_add_relation` — attach a relation between two existing entities
 //! - `openmemory_promote_observation` — move an observation between memory tiers
 //! - `openmemory_forget` — soft-delete a single observation
-//! - `openmemory_forget_entity` — hard-delete an entity (cascade)
+//! - `openmemory_forget_entity` — audit-retire an entity's observations
 //! - `openmemory_status` — counts and timestamps
 //!
 //! Each tool is a unit struct + an input struct + a handler. Both the
@@ -22,8 +22,8 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use openmemory_graph::{
-    EntityType, MemoryError, MemoryTier, NormalizeMatch, ObservationInput, RecallFilters,
-    RelationInput,
+    EntityCandidates, EntityType, MemoryError, MemoryTier, NormalizeMatch, ObservationInput,
+    RecallFilters, RelationInput,
 };
 
 use crate::params::{EntityTypeParam, MemoryTierParam, SearchModeParam};
@@ -50,6 +50,25 @@ fn map_memory_err(e: MemoryError) -> JsonRpcError {
             code: -32004,
             message: e.to_string(),
             data: None,
+        },
+        // A destructive call named something that matches several
+        // entities. Refusing is the whole point — retiring the wrong
+        // `Alex Chen` is unrecoverable — so hand back the candidate ids
+        // as structured data and let the agent name one.
+        MemoryError::AmbiguousEntityName {
+            ref name,
+            ref candidates,
+        } => JsonRpcError {
+            code: -32005,
+            message: format!(
+                "entity name {name:?} matches {} entities; retry with one of the listed ids",
+                candidates.len()
+            ),
+            data: Some(json!({
+                "reason": "ambiguous_entity_name",
+                "name": name,
+                "candidates": candidates,
+            })),
         },
         other => JsonRpcError::internal_error(other.to_string()),
     }
@@ -90,6 +109,11 @@ pub struct RememberInput {
     /// returning. Defaults to the configured `engine.durable_ack`.
     #[serde(default)]
     pub durable: Option<bool>,
+    /// Memory space to write into. Omit (or pass `default`) for the
+    /// personal-global default store. A request writes to exactly one
+    /// space.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 /// One observation on the remember API. Either a bare string (the
@@ -291,34 +315,40 @@ impl Tool for OpenMemoryRememberTool {
             })
             .collect();
 
+        let memory = server.store_for(req.space.as_deref())?;
+
         // Write-behind path: when the context engine is enabled, submit
         // to its sharded queue instead of paying a per-call transaction.
         // The response is an ingestion receipt; ids are not minted until
-        // the epoch flush commits the batch.
-        if let Some(engine) = server.engine() {
-            let wait = req.durable.unwrap_or(server.config().engine.durable_ack);
-            let ticket = engine
-                .try_submit(
-                    openmemory_graph::RememberRequest::new(req.entity.clone(), entity_type)
-                        .with_observations(observations)
-                        .with_relations(relations)
-                        .with_source(source),
-                )
-                .map_err(map_memory_err)?;
-            if wait {
-                engine.wait_durable_result(ticket).map_err(map_memory_err)?;
+        // the epoch flush commits the batch. The engine is bound to the
+        // personal-global default store, so space-targeted writes always
+        // take the synchronous path below.
+        let default_target = matches!(req.space.as_deref(), None | Some("" | "default"));
+        if default_target {
+            if let Some(engine) = server.engine() {
+                let wait = req.durable.unwrap_or(server.config().engine.durable_ack);
+                let ticket = engine
+                    .try_submit(
+                        openmemory_graph::RememberRequest::new(req.entity.clone(), entity_type)
+                            .with_observations(observations)
+                            .with_relations(relations)
+                            .with_source(source),
+                    )
+                    .map_err(map_memory_err)?;
+                if wait {
+                    engine.wait_durable_result(ticket).map_err(map_memory_err)?;
+                }
+                return json_text_result(&json!({
+                    "accepted": true,
+                    "durable": wait,
+                    "entity": req.entity,
+                    "shard": ticket.shard,
+                    "seq": ticket.seq,
+                }));
             }
-            return json_text_result(&json!({
-                "accepted": true,
-                "durable": wait,
-                "entity": req.entity,
-                "shard": ticket.shard,
-                "seq": ticket.seq,
-            }));
         }
 
-        let outcome = server
-            .memory()
+        let outcome = memory
             .remember(&req.entity, entity_type, &observations, &relations, &source)
             .map_err(map_memory_err)?;
         let mut response = json!({
@@ -380,6 +410,16 @@ pub struct RecallInput {
     /// for as-of/history questions; omit for current truth.
     #[serde(default)]
     pub valid_at: Option<i64>,
+    /// Memory space to search. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
+    /// Ordered read set of up to four spaces to search together (use
+    /// `default` for the personal-global store). Results are fused by
+    /// deterministic rank interleaving in read-set order; scores are
+    /// never compared across spaces. Mutually exclusive with `space`.
+    #[serde(default)]
+    pub read_spaces: Option<Vec<String>>,
 }
 
 const RECALL_DESC: &str =
@@ -423,37 +463,128 @@ impl Tool for OpenMemoryRecallTool {
         filters.memory_tier = req.memory_tier.map(|p| p.to_tier());
         filters.valid_at = req.valid_at;
 
-        let hits = server
-            .memory()
+        let render = |h: &openmemory_graph::RecallResult, space: Option<&str>| {
+            let mut row = json!({
+                "observation_id": h.observation.id,
+                "entity_name": h.entity_name,
+                "entity_type": h.entity_type.as_str(),
+                "content": h.observation.content,
+                "observed_at": h.observation.observed_at,
+                "valid_from": h.observation.valid_from,
+                "valid_until": h.observation.valid_until,
+                "score": super::round2(h.score),
+                "raw_score": super::round2(h.raw_score),
+                "confidence": super::round2(h.observation.confidence),
+                "source": h.observation.source,
+                "access_count": h.observation.access_count,
+                "memory_tier": h.observation.memory_tier.as_str(),
+            });
+            if let Some(space) = space {
+                row.as_object_mut()
+                    .unwrap()
+                    .insert("space".into(), json!(space));
+            }
+            row
+        };
+
+        // Layered read set: recall each space independently, then fuse
+        // by deterministic rank interleaving. Scores are never compared
+        // across spaces (established invariant; see plan/16).
+        if let Some(read_spaces) = &req.read_spaces {
+            let layers = resolve_read_spaces(server, req.space.as_deref(), read_spaces)?;
+            // Layered reads are read-only composition; retrieval-
+            // frequency feedback stays off so a fused preview does not
+            // mutate per-space retention state.
+            filters.record_access = false;
+            let mut lists = Vec::with_capacity(layers.len());
+            for (label, store) in &layers {
+                let hits = store
+                    .recall(&req.query, limit, &filters)
+                    .map_err(map_memory_err)?;
+                lists.push((label.clone(), hits));
+            }
+            let fused = openmemory_engine::space::interleave_by_rank(lists, limit);
+            let results: Vec<Value> = fused
+                .iter()
+                .map(|hit| render(&hit.result, Some(hit.space.as_deref().unwrap_or("default"))))
+                .collect();
+            return json_text_result(&json!({
+                "results": results,
+                "limit": limit,
+                "read_spaces": layers
+                    .iter()
+                    .map(|(label, _)| label.as_deref().unwrap_or("default"))
+                    .collect::<Vec<_>>(),
+                "fusion": "rank_interleave",
+            }));
+        }
+
+        let memory = server.store_for(req.space.as_deref())?;
+        let hits = memory
             .recall(&req.query, limit, &filters)
             .map_err(map_memory_err)?;
 
-        let results: Vec<Value> = hits
-            .into_iter()
-            .map(|h| {
-                json!({
-                    "observation_id": h.observation.id,
-                    "entity_name": h.entity_name,
-                    "entity_type": h.entity_type.as_str(),
-                    "content": h.observation.content,
-                    "observed_at": h.observation.observed_at,
-                    "valid_from": h.observation.valid_from,
-                    "valid_until": h.observation.valid_until,
-                    "score": super::round2(h.score),
-                    "raw_score": super::round2(h.raw_score),
-                    "confidence": super::round2(h.observation.confidence),
-                    "source": h.observation.source,
-                    "access_count": h.observation.access_count,
-                    "memory_tier": h.observation.memory_tier.as_str(),
-                })
-            })
-            .collect();
+        let results: Vec<Value> = hits.iter().map(|h| render(h, None)).collect();
 
         json_text_result(&json!({
             "results": results,
             "limit": limit,
         }))
     }
+}
+
+/// One resolved layer in an ordered read set: the space label (`None`
+/// for the personal-global default) and its store.
+pub(crate) type ReadLayer = (
+    Option<String>,
+    std::sync::Arc<openmemory_engine::partition::DomainStore>,
+);
+
+/// Resolve an ordered layered read set. `read_spaces` entries name
+/// managed spaces, with `default` (or an empty string) addressing the
+/// personal-global store; at most [`MAX_READ_SPACES`] entries, no
+/// duplicates, and `space` must not also be set.
+pub(crate) fn resolve_read_spaces(
+    server: &OpenMemoryMcpServer,
+    space: Option<&str>,
+    read_spaces: &[String],
+) -> Result<Vec<ReadLayer>, JsonRpcError> {
+    use openmemory_engine::space::MAX_READ_SPACES;
+
+    if space.is_some() {
+        return Err(JsonRpcError::invalid_params(
+            "`space` and `read_spaces` are mutually exclusive; put every \
+             space to read into `read_spaces`",
+        ));
+    }
+    if read_spaces.is_empty() {
+        return Err(JsonRpcError::invalid_params(
+            "`read_spaces` must name at least one space",
+        ));
+    }
+    if read_spaces.len() > MAX_READ_SPACES {
+        return Err(JsonRpcError::invalid_params(format!(
+            "`read_spaces` allows at most {MAX_READ_SPACES} spaces"
+        )));
+    }
+    let mut out = Vec::with_capacity(read_spaces.len());
+    let mut seen = std::collections::HashSet::new();
+    for name in read_spaces {
+        let canonical = if name.is_empty() {
+            "default"
+        } else {
+            name.as_str()
+        };
+        if !seen.insert(canonical) {
+            return Err(JsonRpcError::invalid_params(format!(
+                "`read_spaces` names '{canonical}' more than once"
+            )));
+        }
+        let store = server.store_for(Some(canonical))?;
+        let label = (canonical != "default").then(|| canonical.to_owned());
+        out.push((label, store));
+    }
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -471,6 +602,10 @@ pub struct ListEntitiesInput {
     /// Skip first N entities for pagination.
     #[serde(default)]
     pub offset: Option<u32>,
+    /// Memory space to list. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const LIST_ENTITIES_DESC: &str =
@@ -504,7 +639,7 @@ impl Tool for OpenMemoryListEntitiesTool {
         let entity_type = req.entity_type.map(|p| p.to_entity_type());
 
         let rows = server
-            .memory()
+            .store_for(req.space.as_deref())?
             .list_entities(entity_type, limit, offset)
             .map_err(map_memory_err)?;
 
@@ -541,11 +676,19 @@ pub struct GetEntityInput {
     /// Entity name (exact match).
     #[serde(alias = "entity_name", alias = "name")]
     pub entity: String,
+    /// Memory space to read. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const GET_ENTITY_DESC: &str =
     "Look up an entity by name and return all of its live observations + relations. Returns \
-     `null` (and a `found: false` flag in the JSON) if the entity does not exist.";
+     `null` (and a `found: false` flag in the JSON) if the entity does not exist. If several \
+     entities share the name, `ambiguous` is true and `candidates` lists every match as \
+     `{id, name, entity_type}`; the returned bundle is the oldest match by `created_at` \
+     (`selected_by: \"oldest_created_at\"`). Re-issue against a specific entity type, or use \
+     the listed ids, when the wrong one came back.";
 
 /// Handler for the `openmemory_get_entity` MCP tool. Returns one
 /// entity bundled with its live observations and relations.
@@ -569,16 +712,37 @@ impl Tool for OpenMemoryGetEntityTool {
         if req.entity.trim().is_empty() {
             return Err(JsonRpcError::invalid_params("entity must not be empty"));
         }
-        let memory = server.memory();
-        let entity = memory.get_entity(&req.entity).map_err(map_memory_err)?;
-        let Some(entity) = entity else {
+        let memory = server.store_for(req.space.as_deref())?;
+        // This tool's contract is one entity, so it must collapse a
+        // candidate set — but it collapses by a stated rule (oldest
+        // `created_at`, ties by id) and reports both that a choice was
+        // made and what the alternatives were. It previously took
+        // whichever row SQLite returned first and said nothing, which on
+        // the live profile store meant `ProjectAlpha` silently resolved
+        // to one of a `concept` and a `project`.
+        let resolution = memory.resolve_entity(&req.entity).map_err(map_memory_err)?;
+        let candidates_json: Vec<Value> = resolution
+            .candidates()
+            .iter()
+            .map(|candidate| {
+                json!({
+                    "id": candidate.id,
+                    "name": candidate.name,
+                    "entity_type": candidate.entity_type.as_str(),
+                })
+            })
+            .collect();
+        let Some((entity, ambiguity)) = resolution.choose_oldest() else {
             return json_text_result(&json!({
                 "found": false,
+                "ambiguous": false,
                 "entity": Value::Null,
                 "observations": [],
                 "relations": [],
             }));
         };
+        let ambiguous = ambiguity.is_some();
+        let truncated = ambiguity.as_ref().is_some_and(EntityCandidates::truncated);
 
         let observations = memory
             .get_entity_observations(&entity.id)
@@ -628,6 +792,12 @@ impl Tool for OpenMemoryGetEntityTool {
 
         json_text_result(&json!({
             "found": true,
+            "ambiguous": ambiguous,
+            // Always present, so a caller can branch on the list rather
+            // than on a flag. One element when the name was unique.
+            "candidates": candidates_json,
+            "candidates_truncated": truncated,
+            "selected_by": if ambiguous { "oldest_created_at" } else { "only_match" },
             "entity": {
                 "id": entity.id,
                 "name": entity.name,
@@ -652,6 +822,10 @@ pub struct ForgetInput {
     /// Observation ID (UUIDv7) returned by `openmemory_recall` or
     /// `openmemory_remember`.
     pub observation_id: String,
+    /// Memory space holding the observation. Omit (or pass `default`)
+    /// for the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const FORGET_DESC: &str =
@@ -680,7 +854,7 @@ impl Tool for OpenMemoryForgetTool {
     fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
         let req: ForgetInput = parse_args(args)?;
         let modified = server
-            .memory()
+            .store_for(req.space.as_deref())?
             .forget(&req.observation_id)
             .map_err(map_memory_err)?;
         json_text_result(&json!({ "modified": modified }))
@@ -696,18 +870,23 @@ pub struct ForgetEntityInput {
     /// Entity name (exact match).
     #[serde(alias = "entity_name", alias = "name")]
     pub entity: String,
+    /// Memory space holding the entity. Omit (or pass `default`) for
+    /// the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const FORGET_ENTITY_DESC: &str =
-    "Hard-delete an entity by name, cascading to its observations and relations. Returns the \
-     observation count purged. Returns an `entity not found` error for unknown names.";
+    "Retire every observation for an entity by name through the audited lifecycle. The entity and \
+     immutable history are retained; normal recall no longer returns its retired observations. \
+     Returns the observation count retired and an `entity not found` error for unknown names.";
 
-/// Handler for the `openmemory_forget_entity` MCP tool. Hard-deletes
-/// an entity by name and cascades to its observations and relations.
+/// Handler for the `openmemory_forget_entity` MCP tool. Retires the entity's
+/// observations without exposing irreversible destruction to an agent.
 pub struct OpenMemoryForgetEntityTool;
 impl Tool for OpenMemoryForgetEntityTool {
     const NAME: &'static str = "openmemory_forget_entity";
-    const SUMMARY: &'static str = "Hard-delete one entity. Cascades to observations + relations.";
+    const SUMMARY: &'static str = "Retire one entity's observations while retaining history.";
     const GROUP: ToolGroup = ToolGroup::Memory;
 
     fn descriptor() -> ToolDescriptor {
@@ -722,8 +901,8 @@ impl Tool for OpenMemoryForgetEntityTool {
     fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
         let req: ForgetEntityInput = parse_args(args)?;
         let removed = server
-            .memory()
-            .forget_entity(&req.entity)
+            .store_for(req.space.as_deref())?
+            .retire_entity_observations(&req.entity)
             .map_err(map_memory_err)?;
         json_text_result(&json!({
             "observations_removed": removed,
@@ -772,6 +951,11 @@ pub struct AddRelationInput {
     /// Source tag for audit/dedup (e.g. `"curator"`, `"omdemos:..."`).
     #[serde(default)]
     pub source: Option<String>,
+    /// Memory space holding both entities. Omit (or pass `default`)
+    /// for the personal-global default store. Relations never span
+    /// spaces.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const ADD_RELATION_DESC: &str =
@@ -814,8 +998,8 @@ impl Tool for OpenMemoryAddRelationTool {
         let to_type = req
             .to_entity_type
             .map_or(EntityType::Concept, |p| p.to_entity_type());
-        let from = server
-            .memory()
+        let memory = server.store_for(req.space.as_deref())?;
+        let from = memory
             .get_entity_by_name_and_type(&req.from_entity, from_type)
             .map_err(map_memory_err)?
             .ok_or_else(|| JsonRpcError {
@@ -827,8 +1011,7 @@ impl Tool for OpenMemoryAddRelationTool {
                 ),
                 data: None,
             })?;
-        let to = server
-            .memory()
+        let to = memory
             .get_entity_by_name_and_type(&req.to_entity, to_type)
             .map_err(map_memory_err)?
             .ok_or_else(|| JsonRpcError {
@@ -841,8 +1024,7 @@ impl Tool for OpenMemoryAddRelationTool {
                 data: None,
             })?;
         let source = req.source.as_deref().unwrap_or("mcp");
-        let rel_id = server
-            .memory()
+        let rel_id = memory
             .add_relation(&from.id, &to.id, &req.relation_type, req.weight, source)
             .map_err(map_memory_err)?;
         json_text_result(&json!({
@@ -865,6 +1047,10 @@ pub struct PromoteObservationInput {
     pub observation_id: String,
     /// Target tier: `episodic`, `semantic`, or `procedural`.
     pub memory_tier: MemoryTierParam,
+    /// Memory space holding the observation. Omit (or pass `default`)
+    /// for the personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
 }
 
 const PROMOTE_DESC: &str =
@@ -896,7 +1082,7 @@ impl Tool for OpenMemoryPromoteObservationTool {
         let req: PromoteObservationInput = parse_args(args)?;
         let tier = req.memory_tier.to_tier();
         let modified = server
-            .memory()
+            .store_for(req.space.as_deref())?
             .set_observation_memory_tier(&req.observation_id, tier)
             .map_err(map_memory_err)?;
         json_text_result(&json!({
@@ -909,6 +1095,14 @@ impl Tool for OpenMemoryPromoteObservationTool {
 // ---------------------------------------------------------------------------
 // openmemory_status
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+pub struct StatusInput {
+    /// Memory space to report on. Omit (or pass `default`) for the
+    /// personal-global default store.
+    #[serde(default)]
+    pub space: Option<String>,
+}
 
 const STATUS_DESC: &str =
     "Show counts of entities, observations, and relations, plus per-type and per-tier \
@@ -929,13 +1123,21 @@ impl Tool for OpenMemoryStatusTool {
         ToolDescriptor {
             name: Self::NAME.into(),
             description: STATUS_DESC.into(),
-            input_schema: super::empty_schema(),
+            input_schema: schema_for::<StatusInput>(),
             annotations: Some(read_only_annotations()),
         }
     }
 
-    fn call(server: &OpenMemoryMcpServer, _args: Value) -> Result<CallToolResult, JsonRpcError> {
-        let s = server.memory().status().map_err(map_memory_err)?;
+    fn call(server: &OpenMemoryMcpServer, args: Value) -> Result<CallToolResult, JsonRpcError> {
+        let req: StatusInput = if args.is_null() {
+            StatusInput::default()
+        } else {
+            parse_args(args)?
+        };
+        let s = server
+            .store_for(req.space.as_deref())?
+            .status()
+            .map_err(map_memory_err)?;
         json_text_result(&json!({
             "total_entities": s.total_entities,
             "total_observations": s.total_observations,
@@ -1358,6 +1560,107 @@ mod tests {
             crate::protocol::Content::Text { text } => text.clone(),
         };
         assert!(body.contains("\"found\": false"));
+    }
+
+    /// Build the collision the live profile store actually contains:
+    /// `ProjectAlpha` as both a `concept` and a `project`. See
+    /// `openmemory-graph/tests/name_ambiguity.rs` for provenance.
+    fn server_with_the_real_collision() -> OpenMemoryMcpServer {
+        let s = server();
+        OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "ProjectAlpha",
+                "entity_type": "concept",
+                "observations": ["the architectural pattern"],
+            }),
+        )
+        .unwrap();
+        OpenMemoryRememberTool::call(
+            &s,
+            json!({
+                "entity": "ProjectAlpha",
+                "entity_type": "project",
+                "observations": ["the shipping codebase"],
+            }),
+        )
+        .unwrap();
+        s
+    }
+
+    fn body_of(result: &CallToolResult) -> Value {
+        let text = match &result.content[0] {
+            crate::protocol::Content::Text { text } => text.clone(),
+        };
+        serde_json::from_str(&text).expect("tool payload is JSON")
+    }
+
+    #[test]
+    fn get_entity_on_an_ambiguous_name_says_a_choice_was_made() {
+        let s = server_with_the_real_collision();
+        let body =
+            body_of(&OpenMemoryGetEntityTool::call(&s, json!({"entity": "ProjectAlpha"})).unwrap());
+
+        assert_eq!(body["found"], json!(true));
+        assert_eq!(
+            body["ambiguous"],
+            json!(true),
+            "the tool must not pretend the name was unique"
+        );
+        assert_eq!(body["selected_by"], json!("oldest_created_at"));
+
+        let candidates = body["candidates"].as_array().expect("candidates array");
+        assert_eq!(candidates.len(), 2);
+        let types: Vec<&str> = candidates
+            .iter()
+            .map(|c| c["entity_type"].as_str().unwrap())
+            .collect();
+        assert!(
+            types.contains(&"concept") && types.contains(&"project"),
+            "{types:?}"
+        );
+        for candidate in candidates {
+            assert!(
+                !candidate["id"].as_str().unwrap().is_empty(),
+                "an agent needs ids to disambiguate with"
+            );
+        }
+        // The returned bundle is one of the candidates, not something else.
+        let selected = body["entity"]["id"].as_str().unwrap();
+        assert!(candidates.iter().any(|c| c["id"] == selected));
+    }
+
+    #[test]
+    fn get_entity_on_a_unique_name_reports_no_ambiguity() {
+        let s = server();
+        OpenMemoryRememberTool::call(
+            &s,
+            json!({"entity": "SoloEntity", "observations": ["only one"]}),
+        )
+        .unwrap();
+        let body =
+            body_of(&OpenMemoryGetEntityTool::call(&s, json!({"entity": "SoloEntity"})).unwrap());
+        assert_eq!(body["ambiguous"], json!(false));
+        assert_eq!(body["selected_by"], json!("only_match"));
+        assert_eq!(body["candidates"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn forget_entity_on_an_ambiguous_name_refuses_and_lists_the_candidates() {
+        let s = server_with_the_real_collision();
+        let error = OpenMemoryForgetEntityTool::call(&s, json!({"entity": "ProjectAlpha"}))
+            .expect_err("a destructive call must not guess");
+
+        assert_eq!(error.code, -32005);
+        let data = error.data.expect("structured disambiguation data");
+        assert_eq!(data["reason"], json!("ambiguous_entity_name"));
+        assert_eq!(data["name"], json!("ProjectAlpha"));
+        assert_eq!(data["candidates"].as_array().unwrap().len(), 2);
+
+        // Nothing was retired.
+        let body =
+            body_of(&OpenMemoryGetEntityTool::call(&s, json!({"entity": "ProjectAlpha"})).unwrap());
+        assert_eq!(body["candidates"].as_array().unwrap().len(), 2);
     }
 
     #[test]

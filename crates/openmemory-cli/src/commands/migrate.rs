@@ -134,7 +134,7 @@ mod tests {
             let data_dir = Config::data_dir("default").unwrap();
             let store = DomainStore::open_existing(&config, &data_dir).unwrap();
             assert_eq!(store.domains(), 4);
-            assert!(store.get_entity("alpha").unwrap().is_some());
+            assert!(store.resolve_entity("alpha").unwrap().unique().is_some());
         });
     }
 }

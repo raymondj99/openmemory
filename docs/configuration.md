@@ -25,7 +25,8 @@ max_results  = 10
 rrf_k        = 60
 
 [memory]
-decay_rate              = 0.01    # per day
+decay_rate              = 0.01    # per day, retention only
+recall_decay_rate       = 0.0     # per day, ranking; 0 = off (measured)
 consolidation_interval  = 1800    # seconds (= 30 minutes)
 dedup_threshold         = 0.95
 prune_floor             = 0.05
@@ -97,7 +98,8 @@ weights to old content.
 
 | Key | Type | Default | Effect |
 |-----|------|---------|--------|
-| `decay_rate` | f64 | `0.01` per day | Lambda in `exp(-lambda * days)`. Higher = faster forgetting. |
+| `decay_rate` | f64 | `0.01` per day | Lambda in `exp(-lambda * days)` governing **retention**: how fast an unreinforced memory falls towards `prune_floor` and becomes eligible for deletion during consolidation. Higher = faster forgetting. |
+| `recall_decay_rate` | f64 | `0.0` (off) | Lambda applied to **retrieval ranking** as a multiplicative prior after fusion. Defaults off because it measured net-negative at every non-zero value — see below. |
 | `consolidation_interval` | u64 (secs) | `1800` | Minimum spacing between automatic consolidate runs. No in-process scheduler currently ships; this remains reserved for a future scheduler. |
 | `dedup_threshold` | f32 | `0.95` | Jaccard text-similarity threshold for the consolidation dedup pass. |
 | `prune_floor` | f32 | `0.05` | Score floor for the consolidation decay-prune pass. |

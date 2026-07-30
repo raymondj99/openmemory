@@ -56,7 +56,14 @@ fn integration_remember_then_recall_round_trips() {
 }
 
 #[test]
-fn integration_recall_decay_prefers_fresher_observation() {
+fn integration_recall_decay_is_off_by_default_and_works_when_enabled() {
+    // This asserted that the fresher row always wins. A lambda sweep over
+    // 1192 queries found that preference net-negative at every non-zero
+    // lambda — including on the query category built for recency to win —
+    // so `memory.recall_decay_rate` now defaults to zero. The mechanism
+    // is retained and still tested, because turning something off is not
+    // the same as removing it, and a future within-subject recency design
+    // needs it to compare against.
     let (store, clock) = open(0);
 
     store
@@ -83,13 +90,30 @@ fn integration_recall_decay_prefers_fresher_observation() {
 
     let mut filters = RecallFilters::new();
     filters.mode = Some(SearchMode::KeywordOnly);
+
     let r = store.recall("alpha", 10, &filters).unwrap();
+    let fresh = r.iter().find(|x| x.observation.source == "fresh");
+    let old = r.iter().find(|x| x.observation.source == "old");
+    let (Some(fresh), Some(old)) = (fresh, old) else {
+        panic!("both rows should survive when age does not penalise one");
+    };
+    assert!(
+        (f64::from(fresh.score) - f64::from(old.score)).abs() < 1e-6,
+        "a 30-day age gap still moved the score by default: {} vs {}",
+        fresh.score,
+        old.score
+    );
+
+    let with_prior = store.with_recall_decay_rate(0.01);
+    let r = with_prior.recall("alpha", 10, &filters).unwrap();
     let fresh_idx = r.iter().position(|x| x.observation.source == "fresh");
     assert!(fresh_idx.is_some(), "fresh result must be present");
-
     let old_idx = r.iter().position(|x| x.observation.source == "old");
     if let (Some(f), Some(o)) = (fresh_idx, old_idx) {
-        assert!(f < o, "fresh should rank ahead of old");
+        assert!(
+            f < o,
+            "with the prior enabled, fresh should rank ahead of old"
+        );
     }
 }
 
@@ -141,8 +165,8 @@ fn integration_get_entity_and_list_entities() {
         )
         .unwrap();
 
-    assert!(store.get_entity("Alpha").unwrap().is_some());
-    assert!(store.get_entity("Missing").unwrap().is_none());
+    assert!(store.resolve_entity("Alpha").unwrap().unique().is_some());
+    assert!(store.resolve_entity("Missing").unwrap().unique().is_none());
 
     let rows = store.list_entities(None, 100, 0).unwrap();
     assert_eq!(rows.len(), 2);

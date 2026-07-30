@@ -21,9 +21,15 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --locked
+      - name: Repeat real watcher integration
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "watcher repetition ${attempt}/5"
+            cargo test -p openmemory-watch --test integration --locked
+          done
       - run: cargo test --workspace --locked
 
   test-no-default-features:
@@ -32,7 +38,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: no-default-features
@@ -44,7 +50,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: all-features
@@ -56,7 +62,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
@@ -67,7 +73,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -79,13 +85,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           key: clippy-no-default-features
       - run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+
+  dependency-policy:
+    name: dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          rust-version: "1.85.0"
+          command: check
 
   doc:
     name: rustdoc (default features)
@@ -95,7 +112,7 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo doc --workspace --no-deps
 
@@ -107,8 +124,92 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: doc-all-features
       - run: cargo doc --workspace --no-deps --all-features
+
+  retrieval-quality-instrument:
+    name: retrieval-quality instrument
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: retrieval-quality
+      # Proves the quality instrument still detects regressions.
+      #
+      # This is deliberately not a "did quality change" check: the real
+      # corpora are personal data and cannot run in CI. What runs here is
+      # the instrument's own sensitivity and specificity, driven through
+      # the production `MemoryStore::recall` path against an in-memory
+      # store. A gate that has silently stopped catching regressions
+      # reports green and is believed, which is worse than no gate.
+      # The suite is feature-gated on `fts5` and `testing`. If either
+      # stops being enabled, every test in it compiles away and `cargo
+      # test` reports success over an empty run — this job would stay
+      # green while proving nothing, which is the failure mode the
+      # instrument exists to prevent, one level up. So the step asserts
+      # that tests actually ran, whatever the cause of their absence.
+      - name: instrument sensitivity and specificity
+        run: |
+          set -o pipefail
+          cargo test -p openmemory-eval --features testing \
+            --test instrument_sensitivity -- --nocapture | tee result.txt
+          grep -qE 'test result: ok\. [1-9][0-9]* passed' result.txt || {
+            echo "::error::the instrument suite ran zero tests; it has been compiled out"
+            exit 1
+          }
+      - name: quality-gate logic
+        run: cargo test -p openmemory-eval --lib gates
+      - name: evaluation contract
+        run: cargo test -p openmemory-eval --lib contract
+
+  storage-fault-matrix:
+    name: storage fault matrix (VFS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: storage-faults
+      # Injects I/O faults *below* SQLite through a controllable VFS, so
+      # the production storage path above it is genuinely exercised:
+      # SQLITE_FULL, short write, sync, checkpoint, WAL open, corrupt page
+      # on open and on scan, and reopen after a fault. Each test asserts a
+      # surviving invariant — no torn canonical state, no partially
+      # applied changeset, derived indexes consistent or fail-closed —
+      # rather than merely that an error came back.
+      #
+      # It runs here for two reasons. It was authored and calibrated on
+      # macOS/arm64 and the port to Linux was an expectation rather than a
+      # measurement, so this is where that gets checked. And a suite that
+      # silently stops running is the failure this whole job exists to
+      # prevent, so the step asserts tests actually ran rather than only
+      # that none failed.
+      - name: VFS fault matrix
+        run: |
+          set -o pipefail
+          cargo test -p openmemory-graph --test vfs_fault_matrix -- --nocapture \
+            | tee vfs.txt
+          grep -qE 'test result: ok\. [1-9][0-9]* passed' vfs.txt || {
+            echo "::error::the VFS fault matrix ran zero tests; it has been compiled out or removed"
+            exit 1
+          }
+      # The fault injection must survive the feature matrix too: a shim
+      # that only registers under one configuration would leave the other
+      # two untested while all three reported green.
+      - name: VFS fault matrix (--no-default-features)
+        run: |
+          set -o pipefail
+          cargo test -p openmemory-graph --no-default-features \
+            --test vfs_fault_matrix | tee vfs-nodefault.txt
+          grep -qE 'test result: ok\. [1-9][0-9]* passed' vfs-nodefault.txt || {
+            echo "::error::the VFS fault matrix ran zero tests without default features"
+            exit 1
+          }

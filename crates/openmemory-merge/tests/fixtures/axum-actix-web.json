@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "name": "axum-actix-web",
+  "retrieved_at": "2026-07-18",
+  "provenance": [
+    {"repository":"tokio-rs/axum","commit":"b7e37889932edcf521ca54e5ed30245f01180994","license":"MIT"},
+    {"repository":"actix/actix-web","commit":"a329cbb422f2c78ed3e501f874f2a3452a173bc2","license":"MIT"}
+  ],
+  "target": {
+    "space_sequence": 201,
+    "snapshot_sequence": 202,
+    "entities": [
+      {"id":"axum","label":"Axum","kind":"web_framework","identifier":{"namespace":"github_repository","value":"tokio-rs/axum"},"description":"Rust web application framework."},
+      {"id":"tower","label":"Tower","kind":"rust_crate","identifier":{"namespace":"crates_io","value":"tower"},"description":"Service abstraction used by Axum."},
+      {"id":"router","label":"Router","kind":"framework_component","identifier":null,"description":"Axum routing component."}
+    ],
+    "relations": [
+      {"id":"axum-uses-tower","subject":"axum","predicate":"uses","object":"tower"}
+    ]
+  },
+  "source": {
+    "space_sequence": 211,
+    "snapshot_sequence": 212,
+    "entities": [
+      {"id":"actix","label":"Actix Web","kind":"web_framework","identifier":{"namespace":"github_repository","value":"actix/actix-web"},"description":"Actor-oriented Rust web framework."},
+      {"id":"tower-source","label":"Tower","kind":"rust_crate","identifier":{"namespace":"crates_io","value":"tower"},"description":"Shared Rust service abstraction."},
+      {"id":"router-source","label":"Router","kind":"framework_component","identifier":null,"description":"Actix routing component with separate identity."}
+    ],
+    "relations": [
+      {"id":"actix-router","subject":"actix","predicate":"contains","object":"router-source"},
+      {"id":"actix-tower","subject":"actix","predicate":"interoperates_with","object":"tower-source"}
+    ]
+  },
+  "same_pairs": [
+    ["tower","tower-source"]
+  ],
+  "expected": {
+    "coalesced_entities": 1,
+    "added_entities": 2,
+    "result_relations": 3,
+    "plan_hash": "4fbbe2026d2d516a329f37206316e3a9180935def0b9cbb5ff07b42aa96a2278",
+    "predicted_result_hash": "f5db7868a294242daff4ff2f2879221bb78b185859cfcf6c0e7672091372f369"
+  }
+}
