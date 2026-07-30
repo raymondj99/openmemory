@@ -1,0 +1,19 @@
+{"id": "lex-01", "category": "direct-lexical", "query": "Corin Ashe character sheet", "relevant": ["book2/characters/corin-ashe.md"]}
+{"id": "lex-02", "category": "direct-lexical", "query": "the Partition Survey", "relevant": ["worldbuilding/mirror-blade.md", "worldbuilding/ember-court.md"]}
+{"id": "lex-03", "category": "direct-lexical", "query": "The Salt Meridian outline", "relevant": ["book2/outline.md"]}
+{"id": "sem-01", "category": "semantic", "query": "the instrument that makes a drawn border physically true by displacing error", "relevant": ["worldbuilding/mirror-blade.md"]}
+{"id": "sem-02", "category": "semantic", "query": "how the forged chart gets exposed by a left-handed habit", "relevant": ["book2/characters/corin-ashe.md", "book2/revision-notes.md"]}
+{"id": "sem-03", "category": "semantic", "query": "the town that exists twice, once charted and once erased", "relevant": ["worldbuilding/grayhollow.md"]}
+{"id": "sem-04", "category": "semantic", "query": "why the mother faked her own disappearance", "relevant": ["worldbuilding/sela-venn.md"]}
+{"id": "sem-05", "category": "semantic", "query": "the draft note about cutting the twin brother subplot", "relevant": ["book1/revision-notes.md"]}
+{"id": "hom-01", "category": "homonym", "query": "the outline for book one", "relevant": ["book1/outline.md"]}
+{"id": "hom-02", "category": "homonym", "query": "revision notes for the third book", "relevant": ["book3/revision-notes.md"]}
+{"id": "hom-03", "category": "homonym", "query": "book two revision notes", "relevant": ["book2/revision-notes.md"]}
+{"id": "hom-04", "category": "homonym", "query": "the outline where the coast stays undrawn", "relevant": ["book3/outline.md"]}
+{"id": "rel-01", "category": "relational", "query": "which book introduces the rival mapmaker", "relevant": ["book2/outline.md", "book2/characters/corin-ashe.md"]}
+{"id": "rel-02", "category": "relational", "query": "who trained both Venn women and what post does he hold", "relevant": ["worldbuilding/ember-court.md", "book1/characters/elias-thorn.md"]}
+{"id": "rel-03", "category": "relational", "query": "which book ends with the mirror blade destroyed", "relevant": ["book2/outline.md", "worldbuilding/mirror-blade.md"]}
+{"id": "rel-04", "category": "relational", "query": "where do the moving survey markers from the first book get explained", "relevant": ["worldbuilding/sela-venn.md"]}
+{"id": "abs-01", "category": "abstention", "query": "the audiobook narrator contract", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "cover art color palette options", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "the fourth book synopsis", "relevant": []}

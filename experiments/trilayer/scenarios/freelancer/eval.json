@@ -1,0 +1,2585 @@
+{
+  "scenario": "freelancer",
+  "arms": [
+    {
+      "arm": "index-keyword",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.9706,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.9
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/brief.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "ops/pipeline.md",
+            "copper/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "ops/rates.md",
+            "copper/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/contract.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "copper/contract.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/contract.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "copper/contract.md",
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "ops/rates.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/brief.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "copper/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-vector",
+      "R@5": 0.9216,
+      "R@10": 0.9804,
+      "MRR": 0.8922,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 0.9167,
+          "MRR": 0.7917
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.8
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "bluesky/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "acme/brief.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "acme/contract.md",
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "acme/contract.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "ops/rates.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "copper/contract.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md",
+            "ops/pipeline.md",
+            "copper/contract.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "copper/meeting-notes.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "copper/contract.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "copper/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/meeting-notes.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.16666666666666666,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-hybrid",
+      "R@5": 0.9804,
+      "R@10": 0.9804,
+      "MRR": 0.9608,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 0.9167,
+          "MRR": 0.8333
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/contract.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/rates.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "ops/rates.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "copper/meeting-notes.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "graph-hybrid",
+      "R@5": 0.9804,
+      "R@10": 1.0,
+      "MRR": 0.9314,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.875
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.8667
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/brief.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "copper/contract.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/invoice-2026-06.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "acme/contract.md",
+            "copper/meeting-notes.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "acme/contract.md",
+            "ops/rates.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "copper/meeting-notes.md",
+            "acme/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "bluesky/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "copper/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "acme/meeting-notes.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/rates.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/meeting-notes.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "plan-hybrid",
+      "R@5": 0.9804,
+      "R@10": 0.9804,
+      "MRR": 0.9265,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 0.9167,
+          "MRR": 0.875
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.85
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/brief.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.25,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "copper/brief.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/invoice-2026-06.md",
+            "copper/contract.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "acme/contract.md",
+            "ops/rates.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/meeting-notes.md",
+            "ops/pipeline.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "bluesky/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "copper/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/brief.md",
+            "copper/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/meeting-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "ops/rates.md",
+            "acme/brief.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "router-hybrid",
+      "R@5": 0.9804,
+      "R@10": 0.9804,
+      "MRR": 0.9608,
+      "routes": {
+        "index": 20
+      },
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 0.9167,
+          "MRR": 0.8333
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/contract.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "copper/brief.md",
+            "ops/pipeline.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/invoice-2026-06.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/rates.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "copper/invoice-2026-06.md",
+            "copper/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "ops/rates.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "ops/rates.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "copper/meeting-notes.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "acme/contract.md",
+            "ops/pipeline.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": "index"
+        }
+      ]
+    },
+    {
+      "arm": "router-full",
+      "R@5": 0.9804,
+      "R@10": 0.9804,
+      "MRR": 0.9706,
+      "routes": {
+        "index": 14,
+        "plan": 6
+      },
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 0.9167,
+          "MRR": 0.875
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/meeting-notes.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "bluesky/invoice-2026-06.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "ops/pipeline.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "acme/contract.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/contract.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "copper/meeting-notes.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "copper/brief.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "copper/invoice-2026-06.md",
+            "copper/contract.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "copper/brief.md",
+            "copper/contract.md",
+            "bluesky/brief.md",
+            "copper/meeting-notes.md",
+            "acme/meeting-notes.md",
+            "ops/pipeline.md",
+            "copper/invoice-2026-06.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "copper/contract.md",
+            "acme/contract.md",
+            "ops/rates.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "acme/meeting-notes.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/brief.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "acme/brief.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "bluesky/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/contract.md",
+            "acme/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "ops/rates.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "acme/meeting-notes.md",
+            "copper/contract.md",
+            "bluesky/meeting-notes.md",
+            "ops/pipeline.md",
+            "bluesky/brief.md",
+            "acme/invoice-2026-06.md",
+            "acme/brief.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "bluesky/brief.md",
+            "bluesky/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md",
+            "copper/contract.md",
+            "ops/pipeline.md",
+            "acme/meeting-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-05",
+          "category": "homonym",
+          "top": [
+            "acme/brief.md",
+            "acme/contract.md",
+            "acme/meeting-notes.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "copper/invoice-2026-06.md",
+            "ops/rates.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 0.6666666666666666,
+          "r10": 0.6666666666666666,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "acme/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/rates.md",
+            "bluesky/contract.md",
+            "acme/invoice-2026-06.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "acme/brief.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/meeting-notes.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "bluesky/invoice-2026-06.md",
+            "acme/invoice-2026-06.md",
+            "copper/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "acme/contract.md",
+            "bluesky/meeting-notes.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "ops/rates.md",
+            "acme/brief.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "ops/rates.md",
+            "acme/invoice-2026-06.md",
+            "bluesky/invoice-2026-06.md",
+            "bluesky/contract.md",
+            "copper/invoice-2026-06.md",
+            "copper/brief.md",
+            "copper/meeting-notes.md",
+            "acme/contract.md",
+            "bluesky/brief.md",
+            "ops/pipeline.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "bluesky/brief.md",
+            "ops/pipeline.md",
+            "acme/contract.md",
+            "bluesky/invoice-2026-06.md",
+            "copper/contract.md",
+            "copper/brief.md",
+            "bluesky/contract.md",
+            "acme/brief.md",
+            "acme/meeting-notes.md",
+            "ops/rates.md"
+          ],
+          "route": "plan"
+        }
+      ]
+    }
+  ]
+}

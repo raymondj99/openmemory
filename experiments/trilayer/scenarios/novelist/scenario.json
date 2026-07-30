@@ -1,0 +1,38 @@
+{
+  "projects": {
+    "book1": "Book One, The Cinder Road: Mara Venn's apprenticeship and the burning of Grayhollow.",
+    "book2": "Book Two, The Salt Meridian: exile, the caravan guilds, Sela alive, the mirror blade broken.",
+    "book3": "Book Three, The Unwritten Coast: the reversion, the uncharted coast, Grayhollow resettled.",
+    "worldbuilding": "Series bible: the mirror blade, the Ember Court, recurring characters and places."
+  },
+  "project_relations": [
+    [
+      "book1",
+      "precedes",
+      "book2"
+    ],
+    [
+      "book2",
+      "precedes",
+      "book3"
+    ],
+    [
+      "worldbuilding",
+      "related_to",
+      "book1"
+    ],
+    [
+      "worldbuilding",
+      "related_to",
+      "book2"
+    ],
+    [
+      "worldbuilding",
+      "related_to",
+      "book3"
+    ]
+  ],
+  "representatives": [
+    "outline.md"
+  ]
+}

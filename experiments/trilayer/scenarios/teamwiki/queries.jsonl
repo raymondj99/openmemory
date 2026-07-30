@@ -1,0 +1,14 @@
+{"id": "cur-01", "category": "current", "query": "which datastore does the platform use now", "relevant": ["decisions/2026-06-database.md"]}
+{"id": "cur-02", "category": "current", "query": "who is in the on-call rotation currently", "relevant": ["oncall/rotation-q3.md"]}
+{"id": "cur-03", "category": "current", "query": "how do integrations pin the API version today", "relevant": ["api/versioning-v2.md"]}
+{"id": "cur-04", "category": "current", "query": "can we deploy on a Friday afternoon", "relevant": ["process/deploy-cadence.md"]}
+{"id": "cur-05", "category": "current", "query": "current policy for shipping breaking API changes", "relevant": ["api/versioning-v2.md"]}
+{"id": "his-01", "category": "history", "query": "what datastore did we originally choose and why", "relevant": ["decisions/2026-02-database.md"]}
+{"id": "his-02", "category": "history", "query": "the old deploy freeze rules before the May change", "relevant": ["process/deploy-freeze.md"]}
+{"id": "his-03", "category": "history", "query": "who was on call in the first quarter", "relevant": ["oncall/rotation-q1.md"]}
+{"id": "sem-01", "category": "semantic", "query": "how often do we prove a backup can actually be restored", "relevant": ["infra/backups.md"]}
+{"id": "sem-02", "category": "semantic", "query": "why we rejected mutual TLS for customer authentication", "relevant": ["decisions/2026-01-api-auth.md"]}
+{"id": "sem-03", "category": "semantic", "query": "what a blameless incident review requires within five days", "relevant": ["process/incident-review.md"]}
+{"id": "abs-01", "category": "abstention", "query": "the office wifi password rotation", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "hiring rubric for staff engineers", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "the kubernetes cluster upgrade runbook", "relevant": []}

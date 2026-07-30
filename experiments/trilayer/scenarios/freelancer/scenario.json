@@ -1,0 +1,29 @@
+{
+  "projects": {
+    "acme": "Client Acme Robotics: brand refresh and marketing site, fixed fee.",
+    "bluesky": "Client BlueSky Dental: patient booking app, time and materials.",
+    "copper": "Client Copper Kettle Coffee: packaging redesign, fixed fee.",
+    "ops": "Business operations: rates, subcontractors, pipeline."
+  },
+  "project_relations": [
+    [
+      "acme",
+      "related_to",
+      "ops"
+    ],
+    [
+      "bluesky",
+      "related_to",
+      "ops"
+    ],
+    [
+      "copper",
+      "related_to",
+      "ops"
+    ]
+  ],
+  "representatives": [
+    "brief.md",
+    "rates.md"
+  ]
+}

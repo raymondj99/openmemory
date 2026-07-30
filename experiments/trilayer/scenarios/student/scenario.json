@@ -1,0 +1,27 @@
+{
+  "projects": {
+    "cs229": "CS229 Machine Learning: classical ML, GLMs, SVMs, EM, intro neural networks and RL.",
+    "cs230": "CS230 Deep Learning: optimization, regularization, CNNs, sequence models, project methodology.",
+    "cs224n": "CS224N NLP with Deep Learning: word vectors, parsing, attention, transformers, pretraining."
+  },
+  "project_relations": [
+    [
+      "cs229",
+      "prerequisite_of",
+      "cs230"
+    ],
+    [
+      "cs230",
+      "related_to",
+      "cs224n"
+    ],
+    [
+      "cs229",
+      "related_to",
+      "cs224n"
+    ]
+  ],
+  "representatives": [
+    "syllabus.md"
+  ]
+}

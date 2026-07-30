@@ -1,0 +1,24 @@
+{"id": "lex-01", "category": "direct-lexical", "query": "notes08 from the NLP class", "relevant": ["cs224n/notes08-attention-transformers.md"]}
+{"id": "lex-02", "category": "direct-lexical", "query": "the Cherokee translation assignment writeup", "relevant": ["cs224n/a4-writeup.md"]}
+{"id": "lex-03", "category": "direct-lexical", "query": "pset2 writeup", "relevant": ["cs229/pset2-writeup.md"]}
+{"id": "lex-04", "category": "direct-lexical", "query": "Jensen's inequality lower bound derivation", "relevant": ["cs229/notes13-em-kmeans.md"]}
+{"id": "sem-01", "category": "semantic", "query": "why gates stop information from vanishing across long sequences", "relevant": ["cs230/notes08-rnn-lstm.md"]}
+{"id": "sem-02", "category": "semantic", "query": "the derivation where maximum margin becomes a quadratic program depending only on inner products", "relevant": ["cs229/notes07-svm-kernels.md"]}
+{"id": "sem-03", "category": "semantic", "query": "the notes explaining dropout as training an ensemble", "relevant": ["cs230/notes04-regularization.md"]}
+{"id": "sem-04", "category": "semantic", "query": "learning what words mean from the company they keep", "relevant": ["cs224n/notes01-word-vectors.md"]}
+{"id": "sem-05", "category": "semantic", "query": "the assignment where the gradient check passed at 1e-7 relative error", "relevant": ["cs230/pset1-writeup.md"]}
+{"id": "sem-06", "category": "semantic", "query": "scaled dot product attention with queries keys and values", "relevant": ["cs224n/notes08-attention-transformers.md"]}
+{"id": "hom-01", "category": "homonym", "query": "the deep learning class syllabus", "relevant": ["cs230/syllabus.md"]}
+{"id": "hom-02", "category": "homonym", "query": "syllabus for the intro machine learning course", "relevant": ["cs229/syllabus.md"]}
+{"id": "hom-03", "category": "homonym", "query": "the NLP course syllabus", "relevant": ["cs224n/syllabus.md"]}
+{"id": "hom-04", "category": "homonym", "query": "the final project about whether finetuning ruins calibration", "relevant": ["cs224n/final-project.md"]}
+{"id": "hom-05", "category": "homonym", "query": "the original bike share project proposal", "relevant": ["cs229/project-proposal.md"]}
+{"id": "rel-01", "category": "relational", "query": "which class first derived the softmax gradient that the neural network lectures reuse", "relevant": ["cs229/notes03-logistic-regression.md", "cs229/notes10-neural-networks.md"]}
+{"id": "rel-02", "category": "relational", "query": "which course goes deeper on optimization than the intro machine learning class", "relevant": ["cs230/syllabus.md", "cs230/notes02-optimization.md"]}
+{"id": "rel-03", "category": "relational", "query": "the project that continued the bike share data with a sequence model", "relevant": ["cs230/project-milestone.md"]}
+{"id": "rel-04", "category": "relational", "query": "which class covers parsing with universal dependencies", "relevant": ["cs224n/notes05-dependency-parsing.md", "cs224n/syllabus.md"]}
+{"id": "rel-05", "category": "relational", "query": "where did the attention mechanism used in the translation assignment come from", "relevant": ["cs230/notes08-rnn-lstm.md", "cs224n/a4-writeup.md"]}
+{"id": "abs-01", "category": "abstention", "query": "office hours schedule for the teaching staff", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "the CS231N convolutional networks assignment", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "tuition payment deadline", "relevant": []}
+{"id": "abs-04", "category": "abstention", "query": "linear algebra review session recording", "relevant": []}

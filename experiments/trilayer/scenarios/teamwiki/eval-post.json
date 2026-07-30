@@ -1,0 +1,1717 @@
+{
+  "scenario": "teamwiki",
+  "arms": [
+    {
+      "arm": "index-keyword",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.803,
+      "routes": null,
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.7
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 0.7778
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "process/deploy-cadence.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "api/versioning-v2.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "infra/backups.md",
+            "oncall/rotation-q1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-02-database.md",
+            "process/incident-review.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "api/versioning-v2.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-02-database.md",
+            "process/incident-review.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-vector",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8636,
+      "routes": null,
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.7
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v2.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "api/versioning-v2.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "infra/backups.md",
+            "process/incident-review.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/incident-review.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v2.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8636,
+      "routes": null,
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.7
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "process/incident-review.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "infra/backups.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "graph-hybrid",
+      "R@5": 0.9091,
+      "R@10": 1.0,
+      "MRR": 0.8312,
+      "routes": null,
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 0.381
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md",
+            "infra/backups.md",
+            "api/versioning-v2.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "api/versioning-v1.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.14285714285714285,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v2.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-02-database.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "process/incident-review.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v1.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "process/incident-review.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "plan-hybrid",
+      "R@5": 0.9091,
+      "R@10": 1.0,
+      "MRR": 0.7251,
+      "routes": null,
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.5667
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 0.7143
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md",
+            "infra/backups.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.14285714285714285,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v1.md",
+            "api/versioning-v2.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "process/incident-review.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v1.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-02-database.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q3.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "router-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8636,
+      "routes": {
+        "index": 14
+      },
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.7
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "process/deploy-freeze.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "process/incident-review.md",
+            "infra/backups.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "infra/backups.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-freeze.md",
+            "api/versioning-v1.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": "index"
+        }
+      ]
+    },
+    {
+      "arm": "router-full",
+      "R@5": 0.9091,
+      "R@10": 1.0,
+      "MRR": 0.7706,
+      "routes": {
+        "plan": 3,
+        "index": 11
+      },
+      "by_category": {
+        "current": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 0.6667
+        },
+        "history": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 0.7143
+        },
+        "semantic": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "cur-01",
+          "category": "current",
+          "top": [
+            "decisions/2026-02-database.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q1.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v2.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-02",
+          "category": "current",
+          "top": [
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-01-api-auth.md",
+            "infra/backups.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "cur-03",
+          "category": "current",
+          "top": [
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q3.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-04",
+          "category": "current",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v1.md",
+            "decisions/2026-02-database.md",
+            "process/incident-review.md",
+            "infra/backups.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "cur-05",
+          "category": "current",
+          "top": [
+            "api/versioning-v1.md",
+            "api/versioning-v2.md",
+            "process/deploy-freeze.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "oncall/rotation-q3.md",
+            "infra/backups.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.14285714285714285,
+          "id": "his-01",
+          "category": "history",
+          "top": [
+            "decisions/2026-06-database.md",
+            "infra/backups.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-01-api-auth.md",
+            "process/deploy-cadence.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v1.md",
+            "api/versioning-v2.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-02",
+          "category": "history",
+          "top": [
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md",
+            "api/versioning-v2.md",
+            "infra/backups.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "decisions/2026-01-api-auth.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "his-03",
+          "category": "history",
+          "top": [
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "process/deploy-cadence.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "infra/backups.md",
+            "api/versioning-v1.md",
+            "decisions/2026-01-api-auth.md",
+            "process/incident-review.md",
+            "decisions/2026-02-database.md",
+            "decisions/2026-06-database.md",
+            "process/deploy-cadence.md",
+            "oncall/rotation-q1.md",
+            "oncall/rotation-q3.md",
+            "api/versioning-v2.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "decisions/2026-01-api-auth.md",
+            "decisions/2026-06-database.md",
+            "decisions/2026-02-database.md",
+            "oncall/rotation-q1.md",
+            "api/versioning-v2.md",
+            "api/versioning-v1.md",
+            "process/incident-review.md",
+            "process/deploy-freeze.md",
+            "infra/backups.md",
+            "process/deploy-cadence.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "process/incident-review.md",
+            "infra/backups.md",
+            "decisions/2026-01-api-auth.md",
+            "oncall/rotation-q1.md",
+            "process/deploy-freeze.md",
+            "process/deploy-cadence.md",
+            "decisions/2026-02-database.md",
+            "api/versioning-v1.md",
+            "oncall/rotation-q3.md",
+            "decisions/2026-06-database.md"
+          ],
+          "route": "plan"
+        }
+      ]
+    }
+  ]
+}

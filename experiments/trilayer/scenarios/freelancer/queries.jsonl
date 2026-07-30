@@ -1,0 +1,20 @@
+{"id": "lex-01", "category": "direct-lexical", "query": "invoice A-114", "relevant": ["acme/invoice-2026-06.md"]}
+{"id": "lex-02", "category": "direct-lexical", "query": "PO number ACM-2231", "relevant": ["acme/invoice-2026-06.md"]}
+{"id": "lex-03", "category": "direct-lexical", "query": "the Northgate gym prospect", "relevant": ["ops/pipeline.md"]}
+{"id": "sem-01", "category": "semantic", "query": "the workaround for a booking API that cannot hold a tentative slot", "relevant": ["bluesky/meeting-notes.md"]}
+{"id": "sem-02", "category": "semantic", "query": "which deliverable had its origin story trimmed to sixty words", "relevant": ["copper/meeting-notes.md"]}
+{"id": "sem-03", "category": "semantic", "query": "the packaging constraint of two spot colors on compostable film", "relevant": ["copper/brief.md"]}
+{"id": "sem-04", "category": "semantic", "query": "what happens if a fixed fee project is cancelled after concept review", "relevant": ["copper/contract.md"]}
+{"id": "sem-05", "category": "semantic", "query": "the client whose site reads like a patent filing", "relevant": ["acme/brief.md"]}
+{"id": "hom-01", "category": "homonym", "query": "the acme contract", "relevant": ["acme/contract.md"]}
+{"id": "hom-02", "category": "homonym", "query": "the bluesky contract terms", "relevant": ["bluesky/contract.md"]}
+{"id": "hom-03", "category": "homonym", "query": "copper kettle meeting notes", "relevant": ["copper/meeting-notes.md"]}
+{"id": "hom-04", "category": "homonym", "query": "the june invoice for the dental client", "relevant": ["bluesky/invoice-2026-06.md"]}
+{"id": "hom-05", "category": "homonym", "query": "the acme project brief", "relevant": ["acme/brief.md"]}
+{"id": "rel-01", "category": "relational", "query": "which clients share the same subcontractor", "relevant": ["acme/meeting-notes.md", "copper/meeting-notes.md", "ops/rates.md"]}
+{"id": "rel-02", "category": "relational", "query": "which invoice is overdue and when did they promise payment", "relevant": ["bluesky/invoice-2026-06.md"]}
+{"id": "rel-03", "category": "relational", "query": "what margin do I add when billing the illustrator through my invoices", "relevant": ["ops/rates.md"]}
+{"id": "rel-04", "category": "relational", "query": "which prospect came from a referral by an existing client", "relevant": ["ops/pipeline.md"]}
+{"id": "abs-01", "category": "abstention", "query": "quarterly tax estimate worksheet", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "the studio lease renewal", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "health insurance enrollment forms", "relevant": []}

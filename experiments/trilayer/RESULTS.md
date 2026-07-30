@@ -199,3 +199,162 @@ concluded.
   but by one author. An adjudication pass would firm this up.
 - Access-count drift means arms within one pass share state; arm
   order is fixed in the script, so within-pass comparisons are stable.
+
+# V3 — non-code scenarios: researcher folders and student classes
+
+Two fictional but structurally grounded corpora (generator:
+`scripts/make_scenarios.py`), each in its own isolated store:
+
+- **researcher**: three related project folders modeled on the
+  Stanford NLP group's real project mix (a Stanza-like multilingual
+  pipeline, a DSPy-like LLM-programming framework, a HELM-like eval
+  harness); 18 documents, homonym filenames (proposal.md,
+  meeting-notes.md, results.md in every folder), real cross-project
+  references and `uses` edges.
+- **student**: three closely related classes modeled on CS229 / CS230
+  / CS224N with real syllabus topics; 21 documents, three
+  syllabus.md homonyms, `prerequisite_of`/`related_to` edges,
+  cross-class references (softmax derivation, attention lineage).
+
+24 authored queries each (20 answerable, 4 abstention), same
+categories, same arms, router rules deliberately unchanged from V2.
+
+## Aggregate (20 answerable queries per scenario)
+
+| arm | researcher R@10 / MRR | student R@10 / MRR |
+|---|---|---|
+| index-keyword | 1.000 / 0.879 | 1.000 / 0.885 |
+| index-hybrid | 1.000 / 0.860 | 0.975 / **0.933** |
+| graph-hybrid | 0.825 / 0.716 | 0.975 / 0.912 |
+| plan-hybrid | 0.825 / 0.665 | 0.975 / 0.912 |
+| router-hybrid | 1.000 / 0.860 | 0.975 / 0.933 |
+| router-full | 0.950 / 0.802 | 0.975 / 0.908 |
+
+## Findings
+
+**F-T15-12: At personal-corpus scale, flat search is at the ceiling
+and structure has no ranking headroom.** With ~20 distinctive
+documents, index-hybrid hits R@10 1.00 / MRR 0.86-0.93 and nothing
+beats it. The graph layers cannot add ranking value where there is no
+ambiguity left to resolve; the researcher gloss route is actively
+worse on semantic queries (0.58 R@10) because a meeting-note gloss
+compresses away the content being asked about. The tri-layer's
+ranking payoff is a function of corpus size and ambiguity: +0.065 MRR
+at 517 files of overlapping code, ~0 at 20 personal documents.
+
+**F-T15-13: "Never worse than the primary" held; the damage came
+from cue-based dispatch.** router-hybrid (shape rules + dense
+override + append-only fill) matched index-hybrid exactly on both
+scenarios: the calibration override correctly kept every query on the
+index route. router-full lost ground only where the a priori word-cue
+list forced the planner as primary: "the deep learning class
+syllabus" matched the "class " cue and the planner put the wrong
+class's syllabus at rank 1 (-0.5 MRR); a "what ..." phrasing sent a
+lookup query to traversal (-1.0 MRR on rel-05). Meanwhile the same
+planner *improved* student relational MRR to 1.00. Traversal is fine;
+keyword cues are not a query classifier. Dispatch must be calibrated
+or learned, and must default to the flat route when unsure.
+
+**F-T15-14: Graph value at this scale is navigational, not
+rank-based.** The researcher graph route posted perfect homonym MRR
+(1.00 vs 0.90 index) by resolving "the multiparse proposal" through
+title-weighted glosses, and the edges still answer provenance
+questions ranking never sees ("promptlib uses evalbench"). The
+correction/identity/assembly roles of the graph are unaffected by
+this scenario's ranking ceiling; only the retrieval-ranking role is
+scale-gated.
+
+## Scenario caveats
+
+Corpora are author-written (structure grounded in real Stanford
+examples, text synthetic), and small by construction: 20 answerable
+queries per scenario is direction-grade only. The shared-author
+caveat from V2 applies doubly: corpus, queries, and judgments have
+one author. The scale claim (F-T15-12) should be tested by growing a
+scenario corpus past a few hundred documents with genuinely
+overlapping content.
+
+# V4 — three more scenarios: novelist, freelancer, and corrections
+
+Corpora: `scripts/make_scenarios2.py`. novelist (three-book series
+sharing characters and worldbuilding, 13 docs), freelancer (three
+clients with identical doc types per folder, 14 docs), teamwiki (11
+docs, four decisions superseded by later decisions, evaluated before
+and after applying corrections through today's MCP surfaces:
+forget the stale gloss, remember an OUTDATED marker with
+source=correction, add a `supersedes` relation).
+
+## novelist / freelancer aggregates (16-17 answerable queries each)
+
+| arm | novelist R@10 / MRR | freelancer R@10 / MRR |
+|---|---|---|
+| index-hybrid | 1.000 / 0.908 | 0.980 / 0.961 |
+| graph-hybrid | 1.000 / 0.887 | 1.000 / 0.931 |
+| plan-hybrid | 1.000 / 0.846 | 0.980 / 0.926 |
+| router-hybrid | 1.000 / 0.908 | 0.980 / 0.961 |
+| router-full | 1.000 / 0.856 | 0.980 / 0.971 |
+
+F-T15-12 (flat search at ceiling at personal scale) and F-T15-13
+(router-hybrid never worse than its primary; only cue-forced planner
+dispatch loses) both replicate on both corpora. Even the
+maximal-homonym freelancer corpus resolves lexically because client
+names appear in queries and filenames. Nothing new; the scale claim
+now stands on four small corpora.
+
+## teamwiki: what correction actually does today (the V4 result)
+
+Current-truth and history MRR, before -> after corrections:
+
+| arm | current | history |
+|---|---|---|
+| index-hybrid | 0.80 -> 0.70 | 1.00 -> 1.00 |
+| graph-hybrid | 0.80 -> **1.00** | 1.00 -> **0.38** |
+| plan-hybrid | 0.80 -> 0.57 | 1.00 -> 0.71 |
+| router-full | 0.80 -> 0.67 | 1.00 -> 0.71 |
+
+**F-T15-15: Correction-as-forget trades history for truth.** The
+graph route got current-truth exactly right after correction (MRR
+1.00: the stale gloss no longer competes) and simultaneously lost
+history access (1.00 -> 0.38: "what did we originally choose and
+why" can no longer find the February decision, whose only remaining
+observation is the OUTDATED marker). Today's surfaces offer forget,
+not supersede; this is the measured cost of that gap, and the
+sharpest evidence yet for the plan/17 supersession contract
+(valid_until instead of tombstone: current queries filter the old
+fact, as-of queries still reach it).
+
+**F-T15-16: The correction boost can rank the tombstone above the
+truth.** In the planner route, post-correction current queries came
+back with the *stale* doc at rank 1 (rotation-q1 above rotation-q3,
+versioning-v1 above v2). The OUTDATED marker carries the old doc's
+title at 5x field weight plus the 1.3x source=correction boost, so
+the marker outranks the superseding document itself. A boost designed
+to surface corrections surfaces the pointer instead of the
+destination. Under the principles doc this is another post-fusion
+multiplicative prior defect; the supersession *edge* should reroute
+retrieval to the new fact, not a boosted marker observation.
+
+**F-T15-17: The layers share one physical index namespace, and
+corrections leak across it.** index-hybrid current-truth dropped
+0.80 -> 0.70 even though no omem:// content was touched: graph
+observations and indexed text live in the same FTS/vector backend
+(observations under reserved memory:// URIs), so the four new
+OUTDATED markers entered the shared top-30 candidate pool and
+displaced content chunks by rank. Layer separation in the design must
+be physical (or filtered at the backend), not a naming convention.
+
+**F-T15-18: Nothing masks the stale content layer.** The index route
+keeps serving superseded documents for current-truth queries in both
+conditions (0.70-0.80 MRR ceiling); with the graph knowing exactly
+which doc supersedes which, no retrieval path uses that edge to
+demote the stale chunk. Graph-informed masking of superseded URIs
+(or validity metadata on indexed content) is a concrete, testable
+re-architecture item.
+
+## V4 caveats
+
+Same single-author caveats as V3; teamwiki has 8 current/history
+queries, so treat the pre/post deltas as mechanism demonstrations,
+not magnitudes. Arms within a pass share access-count state (the T3
+defect), which contributes noise to between-arm comparisons on these
+small stores.

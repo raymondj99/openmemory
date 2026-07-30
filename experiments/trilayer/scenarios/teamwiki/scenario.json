@@ -1,0 +1,40 @@
+{
+  "projects": {
+    "decisions": "Architecture and technology decisions, dated.",
+    "oncall": "On-call rotations and escalation.",
+    "api": "Public API policies.",
+    "process": "Engineering process policies.",
+    "infra": "Infrastructure runbooks and policies."
+  },
+  "project_relations": [
+    [
+      "decisions",
+      "related_to",
+      "infra"
+    ],
+    [
+      "process",
+      "related_to",
+      "oncall"
+    ]
+  ],
+  "representatives": [],
+  "corrections": [
+    {
+      "old": "decisions/2026-02-database.md",
+      "new": "decisions/2026-06-database.md"
+    },
+    {
+      "old": "oncall/rotation-q1.md",
+      "new": "oncall/rotation-q3.md"
+    },
+    {
+      "old": "api/versioning-v1.md",
+      "new": "api/versioning-v2.md"
+    },
+    {
+      "old": "process/deploy-freeze.md",
+      "new": "process/deploy-cadence.md"
+    }
+  ]
+}

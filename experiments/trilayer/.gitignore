@@ -2,3 +2,5 @@ repos/
 .home/
 results/raw/
 __pycache__/
+scenarios/*/.home/
+scenarios/*/manifest.json

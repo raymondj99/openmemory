@@ -1,0 +1,2464 @@
+{
+  "scenario": "novelist",
+  "arms": [
+    {
+      "arm": "index-keyword",
+      "R@5": 0.9688,
+      "R@10": 1.0,
+      "MRR": 0.8229,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.4167
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.875
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book1/characters/elias-thorn.md",
+            "book1/characters/mara-venn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "book3/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book3/outline.md",
+            "book1/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book3/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/sela-venn.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/elias-thorn.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/elias-thorn.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/ember-court.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book3/revision-notes.md",
+            "book1/outline.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/ember-court.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book3/outline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book1/characters/mara-venn.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/sela-venn.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.5,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-vector",
+      "R@5": 0.875,
+      "R@10": 1.0,
+      "MRR": 0.8735,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.494
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/grayhollow.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/sela-venn.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/mirror-blade.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "book3/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md",
+            "book3/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book2/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.5,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book1/characters/mara-venn.md",
+            "book1/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.5,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book1/outline.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 0.0,
+          "r10": 1.0,
+          "mrr": 0.14285714285714285,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/revision-notes.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "index-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.9083,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.6333
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/ember-court.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "graph-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8875,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.55
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book2/revision-notes.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "book3/revision-notes.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book3/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md",
+            "book1/characters/mara-venn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book1/characters/mara-venn.md",
+            "book1/outline.md",
+            "worldbuilding/ember-court.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "plan-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8458,
+      "routes": null,
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.3833
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book3/outline.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "book3/revision-notes.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/characters/mara-venn.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book1/outline.md",
+            "worldbuilding/ember-court.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": null
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": null
+        }
+      ]
+    },
+    {
+      "arm": "router-hybrid",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.9083,
+      "routes": {
+        "index": 19
+      },
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.6333
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.3333333333333333,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/ember-court.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/elias-thorn.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": "index"
+        }
+      ]
+    },
+    {
+      "arm": "router-full",
+      "R@5": 1.0,
+      "R@10": 1.0,
+      "MRR": 0.8562,
+      "routes": {
+        "index": 16,
+        "plan": 3
+      },
+      "by_category": {
+        "direct-lexical": {
+          "n": 3,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "homonym": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 1.0
+        },
+        "relational": {
+          "n": 4,
+          "R@10": 1.0,
+          "MRR": 0.425
+        },
+        "semantic": {
+          "n": 5,
+          "R@10": 1.0,
+          "MRR": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-01",
+          "category": "direct-lexical",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-02",
+          "category": "direct-lexical",
+          "top": [
+            "worldbuilding/ember-court.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "lex-03",
+          "category": "direct-lexical",
+          "top": [
+            "book2/outline.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/ember-court.md",
+            "book1/characters/elias-thorn.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-01",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/mirror-blade.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book2/revision-notes.md",
+            "book3/revision-notes.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-02",
+          "category": "semantic",
+          "top": [
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "worldbuilding/ember-court.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/sela-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-03",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/grayhollow.md",
+            "book1/outline.md",
+            "book3/outline.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-04",
+          "category": "semantic",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/outline.md",
+            "book1/characters/mara-venn.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md",
+            "book1/revision-notes.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "sem-05",
+          "category": "semantic",
+          "top": [
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/revision-notes.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/characters/mara-venn.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-01",
+          "category": "homonym",
+          "top": [
+            "book1/outline.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book1/characters/mara-venn.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-02",
+          "category": "homonym",
+          "top": [
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "book2/revision-notes.md",
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book2/characters/corin-ashe.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "worldbuilding/grayhollow.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-03",
+          "category": "homonym",
+          "top": [
+            "book2/revision-notes.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book3/outline.md",
+            "book2/outline.md",
+            "book1/outline.md",
+            "worldbuilding/grayhollow.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 1.0,
+          "id": "hom-04",
+          "category": "homonym",
+          "top": [
+            "book3/outline.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/revision-notes.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md",
+            "book2/revision-notes.md"
+          ],
+          "route": "index"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-01",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book2/characters/corin-ashe.md",
+            "book2/outline.md",
+            "book2/revision-notes.md",
+            "book1/characters/mara-venn.md",
+            "book1/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "worldbuilding/sela-venn.md",
+            "worldbuilding/ember-court.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-02",
+          "category": "relational",
+          "top": [
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book1/characters/mara-venn.md",
+            "book1/outline.md",
+            "worldbuilding/ember-court.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book2/characters/corin-ashe.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.5,
+          "id": "rel-03",
+          "category": "relational",
+          "top": [
+            "book3/outline.md",
+            "worldbuilding/mirror-blade.md",
+            "book1/outline.md",
+            "book2/outline.md",
+            "book3/revision-notes.md",
+            "book1/revision-notes.md",
+            "worldbuilding/grayhollow.md",
+            "worldbuilding/sela-venn.md",
+            "book1/characters/elias-thorn.md",
+            "book2/characters/corin-ashe.md"
+          ],
+          "route": "plan"
+        },
+        {
+          "r5": 1.0,
+          "r10": 1.0,
+          "mrr": 0.2,
+          "id": "rel-04",
+          "category": "relational",
+          "top": [
+            "book1/outline.md",
+            "book1/revision-notes.md",
+            "book3/revision-notes.md",
+            "book2/outline.md",
+            "worldbuilding/sela-venn.md",
+            "book2/revision-notes.md",
+            "worldbuilding/mirror-blade.md",
+            "book3/outline.md",
+            "book1/characters/mara-venn.md",
+            "book1/characters/elias-thorn.md"
+          ],
+          "route": "index"
+        }
+      ]
+    }
+  ]
+}

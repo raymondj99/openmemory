@@ -1,0 +1,27 @@
+{
+  "projects": {
+    "multiparse": "Multilingual parsing pipeline project (Stanza-like): tokenization, tagging, dependency parsing for low-resource languages.",
+    "promptlib": "LLM pipeline programming framework project (DSPy-like): typed modules compiled against task metrics.",
+    "evalbench": "Living evaluation harness project (HELM-like): versioned tasks, frozen metrics, append-only leaderboard."
+  },
+  "project_relations": [
+    [
+      "promptlib",
+      "uses",
+      "evalbench"
+    ],
+    [
+      "evalbench",
+      "uses",
+      "multiparse"
+    ],
+    [
+      "multiparse",
+      "related_to",
+      "promptlib"
+    ]
+  ],
+  "representatives": [
+    "proposal.md"
+  ]
+}

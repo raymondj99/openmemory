@@ -1,0 +1,24 @@
+{"id": "lex-01", "category": "direct-lexical", "query": "experiment PL-17", "relevant": ["promptlib/design/optimizers.md"]}
+{"id": "lex-02", "category": "direct-lexical", "query": "Chu-Liu-Edmonds decoding", "relevant": ["multiparse/models/tagger-architecture.md"]}
+{"id": "lex-03", "category": "direct-lexical", "query": "BootstrapFewShot", "relevant": ["promptlib/design/optimizers.md"]}
+{"id": "lex-04", "category": "direct-lexical", "query": "task v3 document pool freeze", "relevant": ["evalbench/tasks/multilingual-qa.md"]}
+{"id": "sem-01", "category": "semantic", "query": "why did the Maltese parsing score get worse", "relevant": ["multiparse/results.md"]}
+{"id": "sem-02", "category": "semantic", "query": "how we stop the few-shot optimizer from overfitting when there are barely any training examples", "relevant": ["promptlib/meeting-notes.md"]}
+{"id": "sem-03", "category": "semantic", "query": "why equal mass bins instead of equal width when measuring whether model confidence is trustworthy", "relevant": ["evalbench/metrics/calibration.md"]}
+{"id": "sem-04", "category": "semantic", "query": "the licensing decision to release trained weights but not the underlying data", "relevant": ["multiparse/meeting-notes.md", "multiparse/data/treebanks.md"]}
+{"id": "sem-05", "category": "semantic", "query": "how expensive one full pipeline compilation run is", "relevant": ["promptlib/meeting-notes.md"]}
+{"id": "sem-06", "category": "semantic", "query": "what gets written into the append-only record after every benchmark submission", "relevant": ["evalbench/infra/run-harness.md", "evalbench/meeting-notes.md"]}
+{"id": "hom-01", "category": "homonym", "query": "the evalbench proposal", "relevant": ["evalbench/proposal.md"]}
+{"id": "hom-02", "category": "homonym", "query": "meeting notes for the parsing project", "relevant": ["multiparse/meeting-notes.md"]}
+{"id": "hom-03", "category": "homonym", "query": "promptlib results table", "relevant": ["promptlib/results.md"]}
+{"id": "hom-04", "category": "homonym", "query": "the multiparse proposal", "relevant": ["multiparse/proposal.md"]}
+{"id": "hom-05", "category": "homonym", "query": "latest results snapshot from the benchmark project", "relevant": ["evalbench/results.md"]}
+{"id": "rel-01", "category": "relational", "query": "which project provides the preprocessing used by the multilingual QA task", "relevant": ["multiparse/proposal.md", "evalbench/tasks/multilingual-qa.md"]}
+{"id": "rel-02", "category": "relational", "query": "which project scores every compiled pipeline so numbers stay comparable", "relevant": ["evalbench/proposal.md", "evalbench/infra/run-harness.md", "promptlib/proposal.md"]}
+{"id": "rel-03", "category": "relational", "query": "where does the code-switching failure from the parser feed into another project's experiment queue", "relevant": ["promptlib/design/optimizers.md", "multiparse/error-analysis.md"]}
+{"id": "rel-04", "category": "relational", "query": "which harness adapter imports compiled programs directly", "relevant": ["evalbench/infra/run-harness.md"]}
+{"id": "rel-05", "category": "relational", "query": "what preprocessing change was worth about two extra points on the low resource slice", "relevant": ["evalbench/results.md"]}
+{"id": "abs-01", "category": "abstention", "query": "IRB approval status for the human annotation study", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "GPU cluster maintenance window schedule", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "postdoc interview recruiting notes", "relevant": []}
+{"id": "abs-04", "category": "abstention", "query": "patent filing for the tokenizer", "relevant": []}
