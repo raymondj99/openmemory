@@ -96,10 +96,7 @@ pub use forget::{PruneReport, DEFAULT_TOMBSTONE_TTL_SECS};
 pub use normalize::NormalizeMatch;
 pub use openmemory_index::SearchMode;
 pub use pool::ReadPool;
-pub use recall::{
-    RecallFilters, RecallResult, CORRECTION_RETRIEVAL_BOOST, RECALL_MIN_SCORE,
-    SPREADING_DISTANCE_DECAY,
-};
+pub use recall::{RecallFilters, RecallResult, RECALL_MIN_SCORE, SPREADING_DISTANCE_DECAY};
 pub use remember::{ObservationInput, RelationInput, RememberOutcome};
 pub use schema::MEMORY_SCHEMA_VERSION;
 pub use store::{EntityListRow, MemoryStatus, MemoryStore, WalCheckpointReport, MEMORY_DB_FILE};

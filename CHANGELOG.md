@@ -184,6 +184,23 @@ SQLite schema, or public Rust API; patch bumps for fixes).
 
 ### Changed
 
+- **Ranking hygiene: recall scoring no longer reads access counts or
+  correction tags.** The `1 + 0.15*ln(1+access_count)` retrieval boost
+  (67% top-1 churn under measurement, irreproducible rankings, a
+  popularity feedback loop, no evidence of benefit; T3) and the 1.3x
+  `source=correction` boost (measured ranking an OUTDATED marker above
+  the fact that superseded it; T15 F-16) are removed from
+  `compute_score`. Both signals remain recorded; consolidation's
+  RETENTION scoring still uses them to decide what pruning may touch,
+  which is the other half of the decay knob split. Correction
+  rerouting is now supersession's job. `CORRECTION_RETRIEVAL_BOOST` is
+  no longer exported.
+
+- **`openmemory_search` no longer returns reserved-namespace rows.**
+  Graph observation copies indexed under `memory://` are recall's
+  domain; surfacing them leaked opaque observation ids and displaced
+  genuine URI content from the candidate pool.
+
 - **Engine crate reorganized around the bus architecture.** `lib.rs`
   is now the pipeline narrative (accept, journal, route, commit,
   publish) with re-exports; the hot path lives in `engine.rs` and the

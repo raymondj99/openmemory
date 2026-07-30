@@ -31,11 +31,6 @@ use crate::error::MemoryResult;
 use crate::store::{row_to_recall_observation, MemoryStore};
 use crate::types::{EntityType, MemoryTier, Observation};
 
-/// Multiplier applied when an observation's source matches one of the
-/// configured "correction" tags. These are high-priority "don't repeat
-/// this mistake" memories.
-pub const CORRECTION_RETRIEVAL_BOOST: f32 = 1.3;
-
 /// Maximum score multiplier contributed by an observation's optional
 /// importance prior (`importance = 1.0` -> 1.25x).
 pub const IMPORTANCE_RETRIEVAL_WEIGHT: f32 = 0.25;
@@ -49,11 +44,6 @@ pub const RECALL_MIN_SCORE: f32 = 0.05;
 pub const SPREADING_DISTANCE_DECAY: f32 = 0.5;
 const FILTER_OVERFETCH_MULTIPLIER: usize = 32;
 const MAX_FILTER_CANDIDATES: usize = 4_096;
-
-/// Source tags treated as corrections. Plural so callers using either of
-/// sift's conventions (`cortex:correction`) or the openmemory native
-/// (`correction`) get the boost.
-const CORRECTION_SOURCES: &[&str] = &["correction", "cortex:correction"];
 
 /// Filters applied to recall. Each field is optional; `None` disables that
 /// filter.
@@ -470,28 +460,30 @@ fn entity_name_matches_filter(entity_name: &str, filter: Option<&HashSet<String>
     }
 }
 
+/// Final observation score. Two multiplicative terms were deliberately
+/// REMOVED and must not return:
+///
+/// - The access-count retrieval boost (`1 + 0.15*ln(1+count)`): T3
+///   measured 67% top-1 churn with no evidence of benefit, plus
+///   irreproducible rankings and a popularity feedback loop.
+/// - The `source=correction` 1.3x boost: T15 F-16 measured it ranking
+///   an OUTDATED marker above the fact that superseded it. Correction
+///   rerouting is supersession's job (`openmemory_supersede` +
+///   retrieve's successor promotion), not a scoring prior's.
+///
+/// See `plan/17-trilayer-memory-principles.md` section 4: no
+/// post-fusion multiplicative priors. `source` remains a queryable
+/// provenance tag; `access_count` remains recorded telemetry.
 fn compute_score(observation: &Observation, raw_score: f32, valid_at: i64, lambda: f64) -> f32 {
     let days_since = ((valid_at - observation.observed_at).max(0)) as f64 / 86_400.0;
     let base_decay = (-lambda * days_since).exp() as f32;
-    let retrieval_boost =
-        (1.0_f32 + 0.15_f32 * (1.0_f32 + observation.access_count as f32).ln()).max(1.0);
-    let correction_boost = if CORRECTION_SOURCES.iter().any(|s| observation.source == *s) {
-        CORRECTION_RETRIEVAL_BOOST
-    } else {
-        1.0
-    };
     let importance = observation
         .importance
         .filter(|v| v.is_finite())
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
     let importance_boost = 1.0 + IMPORTANCE_RETRIEVAL_WEIGHT * importance;
-    raw_score
-        * base_decay
-        * retrieval_boost
-        * observation.confidence.clamp(0.0, 1.0)
-        * correction_boost
-        * importance_boost
+    raw_score * base_decay * observation.confidence.clamp(0.0, 1.0) * importance_boost
 }
 
 #[cfg(test)]
@@ -613,7 +605,11 @@ mod tests {
     }
 
     #[test]
-    fn correction_source_gets_retrieval_boost() {
+    fn correction_source_carries_no_scoring_boost() {
+        // The 1.3x correction boost was removed after T15 F-16 measured
+        // it ranking an OUTDATED marker above the fact that superseded
+        // it; supersession owns correction rerouting now. Two identical
+        // observations must score identically regardless of source tag.
         let (store, _) = open_with_clock();
         store
             .remember(
@@ -634,12 +630,44 @@ mod tests {
         let plain = r.iter().find(|x| x.observation.source == "plain");
         if let (Some(c), Some(p)) = (corr, plain) {
             assert!(
-                c.score > p.score,
-                "correction-tagged observation should score higher: corr={} plain={}",
+                (c.score - p.score).abs() < 1e-6,
+                "source tag must not change scoring: corr={} plain={}",
                 c.score,
                 p.score
             );
         }
+    }
+
+    #[test]
+    fn access_count_carries_no_scoring_boost() {
+        // T3: the retrieval-frequency boost churned 67% of top-1
+        // results with no evidence of benefit and made recall
+        // irreproducible. access_count stays recorded; scoring must
+        // ignore it.
+        let (store, _) = open_with_clock();
+        store
+            .remember(
+                "T",
+                EntityType::Fact,
+                &[ObservationInput::new("beta mention popular")],
+                &[],
+                "test",
+            )
+            .unwrap();
+        let mut filters = RecallFilters::new();
+        filters.mode = Some(SearchMode::KeywordOnly);
+        let first = store.recall("beta mention", 5, &filters).unwrap();
+        // Recall several times so access_count climbs, then compare.
+        for _ in 0..5 {
+            let _ = store.recall("beta mention", 5, &filters).unwrap();
+        }
+        let later = store.recall("beta mention", 5, &filters).unwrap();
+        assert!(
+            (first[0].score - later[0].score).abs() < 1e-6,
+            "accumulated access counts must not change scores: {} vs {}",
+            first[0].score,
+            later[0].score
+        );
     }
 
     #[test]

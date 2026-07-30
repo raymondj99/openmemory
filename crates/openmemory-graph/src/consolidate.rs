@@ -295,9 +295,15 @@ fn decay_score(
 ) -> f32 {
     let days_since = ((now - observed_at).max(0)) as f64 / 86_400.0;
     let base_decay = (-lambda * days_since).exp() as f32;
+    // RETENTION multipliers, not ranking ones. Ranking deliberately
+    // ignores access counts and correction tags (T3, T15 F-16); here
+    // they decide what consolidation may prune, which is the other
+    // half of the F9 knob split: frequently-used and correction-tagged
+    // memories are protected from deletion longer, without ever
+    // influencing recall order.
     let retrieval_boost = 1.0_f32 + 0.15_f32 * (1.0_f32 + access_count as f32).ln();
     let correction_boost = if source == "correction" || source == "cortex:correction" {
-        crate::recall::CORRECTION_RETRIEVAL_BOOST
+        1.3
     } else {
         1.0
     };

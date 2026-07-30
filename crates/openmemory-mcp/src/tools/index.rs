@@ -182,6 +182,12 @@ impl Tool for OpenMemorySearchTool {
             .index_search(&vector, &req.query, fetch, mode, 0)
             .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
 
+        // The graph indexes observation copies under the reserved
+        // memory:// namespace in the same backend. Those are
+        // openmemory_recall's domain; surfacing them here leaks opaque
+        // observation ids and displaces genuine URI content from the
+        // candidate pool (T15 F-17).
+        results.retain(|r| !r.uri.starts_with("memory://"));
         if let Some(prefix) = req.uri_prefix.as_deref().filter(|p| !p.is_empty()) {
             results.retain(|r| r.uri.starts_with(prefix));
         }
