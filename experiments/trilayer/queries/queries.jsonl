@@ -1,0 +1,55 @@
+{"id": "lex-01", "category": "direct-lexical", "query": "seek_sequence function", "relevant": ["codex/codex-rs/apply-patch/src/seek_sequence.rs"]}
+{"id": "lex-02", "category": "direct-lexical", "query": "generate_pkce", "relevant": ["codex/codex-rs/login/src/pkce.rs"]}
+{"id": "lex-03", "category": "direct-lexical", "query": "ArgMatcher struct", "relevant": ["clap/clap_builder/src/parser/arg_matcher.rs"]}
+{"id": "lex-04", "category": "direct-lexical", "query": "ValueParser implementation", "relevant": ["clap/clap_builder/src/builder/value_parser.rs"]}
+{"id": "lex-05", "category": "direct-lexical", "query": "ChatComposer", "relevant": ["codex/codex-rs/tui/src/bottom_pane/chat_composer.rs"]}
+{"id": "lex-06", "category": "direct-lexical", "query": "ThreadManager", "relevant": ["codex/codex-rs/core/src/thread_manager.rs"]}
+{"id": "lex-07", "category": "direct-lexical", "query": "StyledStr", "relevant": ["clap/clap_builder/src/builder/styled_str.rs"]}
+{"id": "lex-08", "category": "direct-lexical", "query": "TokenData", "relevant": ["codex/codex-rs/login/src/token_data.rs"]}
+{"id": "lex-09", "category": "direct-lexical", "query": "ValueHint enum", "relevant": ["clap/clap_builder/src/builder/value_hint.rs"]}
+{"id": "lex-10", "category": "direct-lexical", "query": "did_you_mean", "relevant": ["clap/clap_builder/src/parser/features/suggestions.rs"]}
+{"id": "lex-11", "category": "direct-lexical", "query": "bail! macro definition", "relevant": ["anyhow/src/macros.rs"]}
+{"id": "lex-12", "category": "direct-lexical", "query": "MKeyMap", "relevant": ["clap/clap_builder/src/mkeymap.rs"]}
+{"id": "sem-01", "category": "semantic", "query": "code that finds similar candidate names to suggest when the user types an unknown argument", "relevant": ["clap/clap_builder/src/parser/features/suggestions.rs"]}
+{"id": "sem-02", "category": "semantic", "query": "conditional stack trace capture behind an environment variable in the error handling library", "relevant": ["anyhow/src/backtrace.rs"]}
+{"id": "sem-03", "category": "semantic", "query": "wrapping long help text to fit the terminal width", "relevant": ["clap/clap_builder/src/output/textwrap/mod.rs", "clap/clap_builder/src/output/textwrap/wrap_algorithms.rs", "clap/clap_builder/src/output/textwrap/core.rs"]}
+{"id": "sem-04", "category": "semantic", "query": "parsing the patch hunks the model emits inside its special envelope format", "relevant": ["codex/codex-rs/apply-patch/src/parser.rs", "codex/codex-rs/apply-patch/src/streaming_parser.rs"]}
+{"id": "sem-05", "category": "semantic", "query": "polling loop that waits for the user to approve a sign-in on another device", "relevant": ["codex/codex-rs/login/src/device_code_auth.rs"]}
+{"id": "sem-06", "category": "semantic", "query": "a single binary dispatching to different behaviors depending on the name it was invoked as", "relevant": ["codex/codex-rs/arg0/src/lib.rs"]}
+{"id": "sem-07", "category": "semantic", "query": "processing command line arguments as a raw stream of tokens and letting the caller decide how to interpret them", "relevant": ["clap/clap_lex/src/lib.rs", "clap/clap_lex/src/ext.rs"]}
+{"id": "sem-08", "category": "semantic", "query": "rendering a code diff with per-line coloring in the terminal chat interface", "relevant": ["codex/codex-rs/tui/src/diff_render.rs"]}
+{"id": "sem-09", "category": "semantic", "query": "printing an error together with the chain of underlying causes one per line", "relevant": ["anyhow/src/fmt.rs", "anyhow/src/chain.rs"]}
+{"id": "sem-10", "category": "semantic", "query": "generating tab completion scripts for the fish shell", "relevant": ["clap/clap_complete/src/aot/shells/fish.rs"]}
+{"id": "sem-11", "category": "semantic", "query": "configurable keyboard shortcut bindings for the interactive terminal client", "relevant": ["codex/codex-rs/tui/src/keymap.rs", "codex/codex-rs/tui/src/keymap_setup.rs", "codex/codex-rs/config/src/tui_keymap.rs"]}
+{"id": "sem-12", "category": "semantic", "query": "deciding whether a shell command the agent wants to run needs explicit user approval first", "relevant": ["codex/codex-rs/core/src/exec_policy.rs", "codex/codex-rs/protocol/src/approvals.rs"]}
+{"id": "hom-01", "category": "homonym", "query": "the error type in the anyhow crate", "relevant": ["anyhow/src/error.rs"]}
+{"id": "hom-02", "category": "homonym", "query": "clap's error kinds and error formatting", "relevant": ["clap/clap_builder/src/error/kind.rs", "clap/clap_builder/src/error/format.rs", "clap/clap_builder/src/error/mod.rs"]}
+{"id": "hom-03", "category": "homonym", "query": "error definitions in the codex protocol crate", "relevant": ["codex/codex-rs/protocol/src/error.rs"]}
+{"id": "hom-04", "category": "homonym", "query": "the clap README", "relevant": ["clap/README.md"]}
+{"id": "hom-05", "category": "homonym", "query": "the codex repository README", "relevant": ["codex/README.md"]}
+{"id": "hom-06", "category": "homonym", "query": "the anyhow README", "relevant": ["anyhow/README.md"]}
+{"id": "hom-07", "category": "homonym", "query": "the derive macro entry point in clap", "relevant": ["clap/clap_derive/src/lib.rs"]}
+{"id": "hom-08", "category": "homonym", "query": "clap's top-level library root file", "relevant": ["clap/src/lib.rs"]}
+{"id": "hom-09", "category": "homonym", "query": "anyhow's top-level library root file", "relevant": ["anyhow/src/lib.rs"]}
+{"id": "hom-10", "category": "homonym", "query": "the trait anyhow provides for attaching context messages to results", "relevant": ["anyhow/src/context.rs"]}
+{"id": "hom-11", "category": "homonym", "query": "the context values carried inside a clap error", "relevant": ["clap/clap_builder/src/error/context.rs"]}
+{"id": "rel-01", "category": "relational", "query": "which file in codex defines the top-level command line interface with all its subcommands", "relevant": ["codex/codex-rs/cli/src/main.rs"]}
+{"id": "rel-02", "category": "relational", "query": "what library does codex use to parse its command line arguments", "relevant": ["clap/src/lib.rs", "codex/codex-rs/cli/src/main.rs"]}
+{"id": "rel-03", "category": "relational", "query": "what error handling library do codex binaries rely on and where is its main type defined", "relevant": ["anyhow/src/lib.rs", "anyhow/src/error.rs"]}
+{"id": "rel-04", "category": "relational", "query": "the crate clap depends on for low-level argument lexing", "relevant": ["clap/clap_lex/src/lib.rs"]}
+{"id": "rel-05", "category": "relational", "query": "where the codex exec subcommand defines its own command line flags", "relevant": ["codex/codex-rs/exec/src/cli.rs"]}
+{"id": "rel-06", "category": "relational", "query": "the codex crate implementing the patch application tool the agent invokes", "relevant": ["codex/codex-rs/apply-patch/src/lib.rs"]}
+{"id": "rel-07", "category": "relational", "query": "which crate in the clap workspace generates shell completion scripts", "relevant": ["clap/clap_complete/src/lib.rs"]}
+{"id": "rel-08", "category": "relational", "query": "where clap's derive macros extract doc comments to use as help text", "relevant": ["clap/clap_derive/src/utils/doc_comments.rs"]}
+{"id": "rel-09", "category": "relational", "query": "which codex component manages connections to MCP servers", "relevant": ["codex/codex-rs/codex-mcp/src/connection_manager.rs"]}
+{"id": "rel-10", "category": "relational", "query": "the codex crate that stores and refreshes authentication tokens", "relevant": ["codex/codex-rs/login/src/token_data.rs", "codex/codex-rs/login/src/auth/storage.rs", "codex/codex-rs/login/src/lib.rs"]}
+{"id": "abs-01", "category": "abstention", "query": "kubernetes operator reconciliation loop", "relevant": []}
+{"id": "abs-02", "category": "abstention", "query": "React component rendering the settings page", "relevant": []}
+{"id": "abs-03", "category": "abstention", "query": "Postgres database connection pooling", "relevant": []}
+{"id": "abs-04", "category": "abstention", "query": "JPEG image decoding routine", "relevant": []}
+{"id": "abs-05", "category": "abstention", "query": "mark and sweep garbage collector phases", "relevant": []}
+{"id": "abs-06", "category": "abstention", "query": "helper for sending email over SMTP", "relevant": []}
+{"id": "abs-07", "category": "abstention", "query": "loading clap command definitions from a YAML file", "relevant": []}
+{"id": "abs-08", "category": "abstention", "query": "clap automatically reading default argument values from a config file", "relevant": []}
+{"id": "abs-09", "category": "abstention", "query": "the anyhow macro that derives Error trait implementations for custom enum types", "relevant": []}
+{"id": "abs-10", "category": "abstention", "query": "codex support for parsing terraform HCL files", "relevant": []}

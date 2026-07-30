@@ -1,0 +1,29 @@
+{
+  "files": 517,
+  "chunks": 1979,
+  "wall_seconds": 949.7,
+  "files_per_sec": 0.54,
+  "remember_p50_ms": 106.7,
+  "remember_p95_ms": 308.9,
+  "index_text_p50_ms": 467.3,
+  "index_text_p95_ms": 593.1,
+  "status": {
+    "entity_type_counts": {
+      "concept": 531,
+      "project": 3
+    },
+    "newest_observation": 1785385146,
+    "oldest_observation": 1785384196,
+    "schema_version": 7,
+    "tier_counts": {
+      "episodic": 17,
+      "semantic": 517
+    },
+    "tombstoned_observations": 0,
+    "total_entities": 534,
+    "total_observations": 534,
+    "total_relations": 618,
+    "vector_count": 2513
+  },
+  "home": "/Users/rjow/open-memory/experiments/trilayer/.home"
+}
