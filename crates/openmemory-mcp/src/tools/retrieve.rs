@@ -47,6 +47,11 @@ const ENGAGE_MIN_OBSERVATIONS: u64 = 200;
 /// How many candidates each route fetches before the fill/truncate pass.
 const OVERFETCH_FACTOR: usize = 3;
 
+/// Hard cap on query length. Query embedding is O(query tokens); an
+/// unbounded query is a 3-second stall measured at 10k chars. Real
+/// retrieval queries are sentences, not documents.
+const MAX_QUERY_CHARS: usize = 2_000;
+
 /// Traversal breadth caps: seeds consulted and neighbors emitted. Small
 /// and deterministic on purpose; graph value comes from edge coverage,
 /// not walk depth (T6 round 2).
@@ -270,9 +275,17 @@ fn gloss_route_with(
         .collect())
 }
 
+/// Reserved URI prefix under which the graph indexes observation
+/// copies. The gloss route already serves that content with entity
+/// identity attached; surfacing the raw copies here would leak opaque
+/// `memory://observation/<id>` rows into results (the shared-namespace
+/// coupling, T15 F-17).
+const RESERVED_OBSERVATION_PREFIX: &str = "memory://";
+
 /// Content route: hybrid search over the free-text index. Chunks carry
 /// no validity metadata yet (plan/18 3.3), so `as_of` does not filter
-/// here.
+/// here. Reserved-namespace rows are excluded (see
+/// [`RESERVED_OBSERVATION_PREFIX`]).
 fn content_route(
     server: &OpenMemoryMcpServer,
     query: &str,
@@ -285,6 +298,7 @@ fn content_route(
         .map_err(|e| JsonRpcError::internal_error(format!("search failed: {e}")))?;
     Ok(results
         .into_iter()
+        .filter(|r| !r.uri.starts_with(RESERVED_OBSERVATION_PREFIX))
         .map(|r| Item {
             entity: None,
             entity_type: None,
@@ -495,6 +509,12 @@ impl Tool for OpenMemoryRetrieveTool {
         let req: RetrieveInput = parse_args(args)?;
         if req.query.trim().is_empty() {
             return Err(JsonRpcError::invalid_params("query must not be empty"));
+        }
+        if req.query.chars().count() > MAX_QUERY_CHARS {
+            return Err(JsonRpcError::invalid_params(format!(
+                "query exceeds {MAX_QUERY_CHARS} characters; retrieval queries are \
+                 sentences — index long text with openmemory_index_text instead"
+            )));
         }
         let limit = req.limit.unwrap_or(10).clamp(1, 50) as usize;
         let fetch = limit.saturating_mul(OVERFETCH_FACTOR);
@@ -870,5 +890,40 @@ mod tests {
         let s = server();
         let err = OpenMemoryRetrieveTool::call(&s, json!({"query": "  "})).unwrap_err();
         assert!(err.message.contains("query must not be empty"));
+    }
+
+    #[test]
+    fn oversized_query_is_rejected() {
+        let s = server();
+        let q = "long ".repeat(500);
+        let err = OpenMemoryRetrieveTool::call(&s, json!({"query": q})).unwrap_err();
+        assert!(err.message.contains("exceeds"), "{}", err.message);
+    }
+
+    #[test]
+    fn reserved_observation_uris_never_surface_from_the_content_route() {
+        let s = server();
+        // A graph write indexes an observation copy under memory://…;
+        // the content route must not leak it as an opaque URI row.
+        remember(
+            &s,
+            "leaky",
+            EntityType::Concept,
+            ObservationInput::new("zebra quagga unique phrase"),
+        );
+        let r = OpenMemoryRetrieveTool::call(
+            &s,
+            json!({"query": "zebra quagga unique phrase", "engage": true, "intent": "content"}),
+        )
+        .unwrap();
+        let v = parsed(&r);
+        for row in v["results"].as_array().unwrap() {
+            if let Some(uri) = row["uri"].as_str() {
+                assert!(!uri.starts_with("memory://"), "reserved URI leaked: {uri}");
+            }
+        }
+        // The fact still reaches the caller through the gloss fill,
+        // carrying entity identity instead of an opaque id.
+        assert!(text_of(&r).contains("leaky"));
     }
 }
