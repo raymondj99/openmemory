@@ -358,3 +358,71 @@ queries, so treat the pre/post deltas as mechanism demonstrations,
 not magnitudes. Arms within a pass share access-count state (the T3
 defect), which contributes noise to between-arm comparisons on these
 small stores.
+
+# V5 — the supersession fix, prototyped and measured
+
+Prototype of the plan/17 correction contract
+(`scripts/eval_supersession.py`) against a fresh teamwiki store.
+Store treatment: the ONLY mutation is the `supersedes` edge new->old
+through the supported add_relation surface. Nothing forgotten, no
+marker observations. Retrieval treatment: **successor promotion**,
+with the superseded map read back from the graph's edges (not from
+config): any ranked file with a successor yields its rank to the
+successor and drops to the slot directly after it. Variant B
+bypasses promotion when the query carries explicit history intent (a
+narrow a priori cue list standing in for valid_at pinning, which the
+MCP surface does not yet expose).
+
+## Current / history MRR, all three correction strategies
+
+| strategy | route | current | history |
+|---|---|---|---|
+| V4 correction-as-forget | graph | 1.00 | **0.38** |
+| V4 correction-as-forget | index | 0.70 | 1.00 |
+| V5 promotion, blind | every route | 1.00 | 0.50 |
+| V5 promotion + history bypass | every route | **1.00** | **1.00** |
+
+Raw (edges present, no promotion): current 0.80 / history 1.00 on
+every route, confirming the edge alone changes nothing (F-T15-18).
+
+## Findings
+
+**F-T15-19: Supersession dominates forgetting on every axis.** Blind
+promotion gets current-truth to 1.00 on all four routes (including
+the content index, which forgetting could never fix and whose V4
+current score actually *dropped* to 0.70 from marker pollution),
+while bounding the history cost structurally: the superseded doc
+sits exactly one rank below its successor (history 0.50 floor), vs
+forgetting's history collapse to 0.38 and its unbounded downside
+(the old fact's content is simply gone from the route). No marker
+observations exist, so the V4 tombstone-outranks-truth defect
+(F-T15-16) and cross-layer index pollution (F-T15-17) cannot occur.
+
+**F-T15-20: With history intent detected, there is no trade at all.**
+Promotion plus the history bypass scores a clean 1.00/1.00 on every
+route: the first correction strategy measured in this project where
+current-truth and history both survive. Declared honestly: the cue
+list and the queries share an author and the bypass number is
+in-sample, effectively an oracle for temporal-intent detection. The
+production mechanism this stands in for is the plan/17 valid_at
+contract (T7 measured +0.11 MRR for pinning, flat in lambda); the
+gap it exposes is that `openmemory_recall` has no valid_at parameter
+and ObservationInput cannot set validity, so the bitemporal schema
+that exists in storage is unreachable from every product surface.
+
+**Re-architecture consequence.** Correction should write a
+supersedes edge and a validity stamp, never a tombstone and never a
+boosted marker; retrieval should apply successor promotion by
+default and disable it under as-of/history intent. All of that is
+implementable today except the temporal-intent classifier and the
+valid_at surface plumbing, which are now the two highest-leverage
+gaps with numbers attached.
+
+## V5 caveats
+
+Eight current/history queries; mechanism demonstration, not
+magnitude. The history-bypass cue list is same-author and in-sample
+(the blind-promotion row is the assured floor). Successor promotion
+assumes one-hop supersession; chains (A superseded by B superseded
+by C) need transitive resolution to the newest valid fact, untested
+here.
