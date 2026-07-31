@@ -1,0 +1,57 @@
+[
+  {
+    "case": "cross-scope",
+    "verdict": "PASS",
+    "evidence": "same-name person entity fully partitioned; no cross-space linking or ambiguity"
+  },
+  {
+    "case": "fuzzy-cross-space",
+    "verdict": "PASS",
+    "evidence": "normalization stayed inside its space (normalized=None)"
+  },
+  {
+    "case": "concurrent-writes",
+    "verdict": "PASS",
+    "evidence": "4/4 committed; 4 rows -> consolidate -> 1 canonical row, no corruption"
+  },
+  {
+    "case": "contradiction-resolution",
+    "verdict": "PASS",
+    "evidence": "both contradictions surfaced pre-fix; post-supersede current truth is single; history query returns 0 rows"
+  },
+  {
+    "case": "bloat",
+    "verdict": "PASS",
+    "evidence": "needle at 0 among 401 writes in 17ms; consolidate 403->403 obs (shrunk=False)"
+  },
+  {
+    "case": "drift-retraction",
+    "verdict": "PASS",
+    "evidence": "one supersede call; stale command absent from recall and retrieve"
+  },
+  {
+    "case": "poisoning",
+    "verdict": "PASS",
+    "evidence": "payload inert (data only), source-tag auditable, eradicated from retrieve+search across a server restart"
+  },
+  {
+    "case": "dangling-refs",
+    "verdict": "PASS",
+    "evidence": "no retired content resurfaces; re-ingest under same name is clean"
+  },
+  {
+    "case": "durability-audit",
+    "verdict": "PASS",
+    "evidence": "25/25 acknowledged writes present after restart"
+  },
+  {
+    "case": "importance-ranking",
+    "verdict": "PASS",
+    "evidence": "preference at rank 0 above 100 chatter rows"
+  },
+  {
+    "case": "portability",
+    "verdict": "PASS",
+    "evidence": "sqlite3 reads 152 entities directly from memory.sqlite"
+  }
+]

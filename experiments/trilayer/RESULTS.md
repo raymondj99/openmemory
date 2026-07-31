@@ -582,3 +582,39 @@ cross-space confidence signal is future work gated on plan/18 T3
 held-out evidence. Cross-space relations are rejected rather than
 modeled; codex's dependency on clap is recorded inside the codex
 space against stub entities.
+
+## V11: 2026-07-30 field-complaint sweep, round 2 (post-spaces)
+
+A fresh online sweep of complaints about shipping persistent-memory
+systems (GitHub issues on mem0/Graphiti/openclaw, Letta user reports,
+ChatGPT memory complaints, and the 2025-26 memory-poisoning security
+literature), turned into `scripts/stress_field2.py`: one executable
+case per complaint, run against the release binary on a fresh
+profile. A case FAILs when openmemory reproduces the complained-about
+behavior. Result: **11/11 PASS.**
+
+| # | Field complaint (source) | openmemory behavior measured |
+|---|---|---|
+| 1 | Entity linking merges memories across user_id/agent_id scopes (mem0 #5439); all agents share one user_id so Agent A's memories surface for Agent B (openclaw #38417); ChatGPT project bleed | Same-name person entity in two spaces: fully partitioned, no linking, no ambiguity flag |
+| 2 | Cross-scope fuzzy merging | "Project Alpha" vs "ProjectAlpha" in sibling spaces: normalization never reaches across a space boundary |
+| 3 | Hash-dedup TOCTOU race creates silent permanent duplicates under concurrency (mem0 #6531/#6515) | 4 concurrent same-fact writers: 4/4 commit loudly (append-only contract), consolidate converges 4 rows -> 1, no corruption |
+| 4 | ADD-only stores accumulate contradictions with no resolution; retrieval serves an arbitrary winner (mem0 #4896/#5867) | Both contradictory names visible (no silent winner); one supersede -> single current truth; old value stays auditable |
+| 5 | A week of write-everything fills the store with near-duplicates and noise; ChatGPT's ~100-memory cap forces manual pruning | 401 writes, no cap; SEV1 needle at rank 0 in 17 ms; distinct-text rows correctly NOT merged by consolidation |
+| 6 | Agent "writes the wrong thing into a memory block and refuses to retract"; CLAUDE.md rot (stale commands accumulate) (Letta reports) | One supersede call retracts a stale build command from every retrieval surface |
+| 7 | Memory poisoning persists across sessions and is retrieved as trusted history; LLM detectors miss 66% of poisoned entries (Unit 42 PoC, MemoryGraft) | Payload stays inert data; `source` tag makes untrusted writes auditable/filterable; forget_entity eradicates it from retrieve AND search across a server restart |
+| 8 | delete_episode leaves dangling references; bad ingests cannot be cleanly undone and retried (graphiti #1489) | Retired entity never resurfaces; re-ingest under the same name is clean |
+| 9 | Memories silently disappear (ChatGPT user reports) | 25/25 acknowledged writes present after restart, exact-count audit |
+| 10 | High-frequency chatter buries the few facts users care about | importance=1.0 semantic preference at rank 0 above 100 episodic chatter rows |
+| 11 | Hosted memory is a roach motel: no export, no local control | Plain local SQLite; `sqlite3` reads the store directly without the server |
+
+Storage-layer honesty on #7: a store cannot classify intent (that is
+the detector literature's 66%-miss point). What a store CAN owe —
+inertness, provenance, complete eradication — is what the case
+verifies. Trust-tier quarantine for untrusted sources (write-time
+policy, not ranking) remains the plan/18 roadmap item.
+
+Caveats: same-author judgments; the concurrency case uses 4 threads
+of separate MCP processes on one profile (SQLite WAL), not sustained
+multi-process load; case #5's consolidation correctly refuses to
+merge distinct-text rows, so "shrink" applies only to true
+near-duplicates (verified separately in case #3).
